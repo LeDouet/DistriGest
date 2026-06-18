@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion — DISTRIGEST</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #0a1628 0%, #0f2347 40%, #1a3a6c 100%);
+      position: relative; overflow: hidden;
+    }
+    body::before {
+      content: '🍺🍻🥤🍾🍷🍸';
+      position: fixed; font-size: 120px; opacity: .03;
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+      white-space: nowrap; letter-spacing: 40px;
+      pointer-events: none;
+    }
+    /* Cercles décoratifs */
+    body::after {
+      content: '';
+      position: fixed; width: 600px; height: 600px;
+      border-radius: 50%; border: 1px solid rgba(37,99,235,.12);
+      top: -200px; right: -200px; pointer-events: none;
+    }
+    .login-wrap { position: relative; z-index: 1; width: 100%; max-width: 420px; padding: 16px; }
+    .login-card {
+      background: rgba(255,255,255,.07);
+      backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+      border-radius: 20px; border: 1px solid rgba(255,255,255,.13);
+      box-shadow: 0 12px 48px rgba(0,0,0,.45), 0 0 0 1px rgba(37,99,235,.2);
+      padding: 24px 30px;
+    }
+    .card-header { text-align: center; margin-bottom: 18px; }
+    .logo-wrap {
+      width: 64px; height: 64px; border-radius: 16px;
+      background: linear-gradient(135deg, #1a3a6c, #2563eb);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 12px; font-size: 28px;
+      box-shadow: 0 6px 24px rgba(37,99,235,.5);
+    }
+    .app-name { font-size: 22px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+    .app-sub  { font-size: 11px; color: rgba(255,255,255,.45); text-transform: uppercase; letter-spacing: 1.5px; }
+    .login-title { font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .login-sub   { font-size: 12px; color: rgba(255,255,255,.5); margin-bottom: 16px; }
+    .alert-error {
+      background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.3);
+      border-left: 3px solid #ef4444; color: #fca5a5; border-radius: 9px;
+      padding: 11px 14px; font-size: 13px; margin-bottom: 20px;
+    }
+    .form-group { margin-bottom: 12px; }
+    .form-group label {
+      display: block; font-size: 11px; font-weight: 700; color: rgba(255,255,255,.65);
+      text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px;
+    }
+    .input-wrap { position: relative; }
+    .input-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); font-size: 15px; pointer-events: none; }
+    .form-group input {
+      width: 100%; padding: 9px 14px 9px 42px;
+      border: 1.5px solid rgba(255,255,255,.15); border-radius: 10px;
+      font-size: 14px; font-family: inherit; color: #fff;
+      background: rgba(255,255,255,.08); outline: none;
+      transition: border-color .18s, background .18s;
+    }
+    .form-group input:focus {
+      border-color: rgba(37,99,235,.7); background: rgba(255,255,255,.13);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.2);
+    }
+    .form-group input::placeholder { color: rgba(255,255,255,.28); }
+    .toggle-pwd {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; font-size: 15px;
+      color: rgba(255,255,255,.35); padding: 2px; transition: color .15s;
+    }
+    .toggle-pwd:hover { color: rgba(255,255,255,.7); }
+    .btn-login {
+      width: 100%; padding: 11px; background: linear-gradient(135deg, #1a3a6c, #2563eb);
+      color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 700;
+      cursor: pointer; margin-top: 4px; transition: all .18s;
+      box-shadow: 0 4px 18px rgba(37,99,235,.45);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-login:hover { opacity: .92; transform: translateY(-1px); box-shadow: 0 8px 28px rgba(37,99,235,.5); }
+    .card-footer {
+      border-top: 1px solid rgba(255,255,255,.08); padding: 10px 0 0; margin-top: 10px;
+      text-align: center; font-size: 11px; color: rgba(255,255,255,.3);
+    }
+    .card-footer strong { color: rgba(255,255,255,.5); }
+    /* Badges modules */
+    .module-badges { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 10px; }
+    .mod-badge {
+      padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 600;
+      background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1);
+      color: rgba(255,255,255,.45);
+    }
+  </style>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="card-header">
+      <div class="logo-wrap">🛒</div>
+      <div class="app-name">DISTRIGEST</div>
+      <div class="app-sub">Gestion Commerciale</div>
+    </div>
+
+    <div class="login-title">Connexion</div>
+    <div class="login-sub">Accédez à votre espace de gestion</div>
+
+    {% if error %}
+    <div class="alert-error">⚠️ {{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('login') }}" autocomplete="on">
+      <div class="form-group">
+        <label>Identifiant</label>
+        <div class="input-wrap">
+          <span class="input-icon">👤</span>
+          <input type="text" name="email" placeholder="login"
+            required autocomplete="username" value="{{ request.form.get('email','') }}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Mot de passe</label>
+        <div class="input-wrap">
+          <span class="input-icon">🔒</span>
+          <input type="password" name="password" id="pwd"
+                 placeholder="mot de passe" autocomplete="current-password" required>
+          <button type="button" class="toggle-pwd" onclick="togglePwd()" id="eyeBtn">👁</button>
+        </div>
+      </div>
+      <button type="submit" class="btn-login">🔑 Se connecter</button>
+    </form>
+
+    <div class="module-badges">
+      <span class="mod-badge">📦 Stock</span>
+      <span class="mod-badge">🧾 Factures</span>
+      <span class="mod-badge">👥 Clients</span>
+      <span class="mod-badge">🏭 Dépôts</span>
+      <span class="mod-badge">📈 Rapports</span>
+    </div>
+
+    <div class="card-footer">
+      <strong>DISTRIGEST</strong> · STiNAUG TECHNOLOGIE · Abidjan, CI
+    </div>
+  </div>
+</div>
+<script>
+function togglePwd(){
+  var i = document.getElementById('pwd');
+  var btn = document.getElementById('eyeBtn');
+  i.type = i.type === 'password' ? 'text' : 'password';
+  btn.textContent = i.type === 'password' ? '👁' : '🙈';
+}
+</script>
+</body>
+</html>

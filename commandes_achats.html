@@ -1,0 +1,2007 @@
+{% extends "base.html" %}
+{% block title %}🛒 Commande Achat — DISTRIGEST{% endblock %}
+{% block topbar_title %}{% if edit_doc %}✏️ Modifier Commande Achat {{ edit_doc.reference }}{% else %}🛒 Commande Achat{% endif %}{% endblock %}
+{% block content %}
+
+<style>
+#tab-saisie    { display:{% if edit_doc %}block{% else %}none{% endif %}; }
+#tab-historique{ display:{% if edit_doc %}none{% else %}block{% endif %}; }
+
+/* ══ LAYOUT SAGE ═══════════════════════════════════════════════════════ */
+.sage-wrap {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 56px - 48px);
+  min-height: 520px;
+  background:var(--bg-page);
+  gap: 0;
+}
+
+/* ── Barre du haut ── */
+.sage-topbar {
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius: 10px 10px 0 0;
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  border-bottom:2px solid var(--border);
+}
+.sage-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sage-field label {
+  font-size: 9px;
+  font-weight: 800;
+  color:var(--gris3);
+  text-transform: uppercase;
+  letter-spacing: .6px;
+}
+.sage-input {
+  padding: 5px 9px;
+  border:1.5px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  color:var(--texte);
+  background:var(--bg-card);
+  transition: border-color .15s, box-shadow .15s;
+  height: 30px;
+}
+.sage-input:focus {
+  outline: none;
+  border-color: #d97706;
+  box-shadow: 0 0 0 3px rgba(217,119,6,.1);
+}
+.sage-select {
+  padding: 5px 8px;
+  border:1.5px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  color:var(--texte);
+  background:var(--bg-card);
+  height: 30px;
+  cursor: pointer;
+}
+.sage-select:focus { outline: none; border-color: #d97706; }
+.sage-sep { width: 1px; height: 30px; background:var(--border); flex-shrink: 0; }
+.sage-topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+/* ── Tableau des lignes ── */
+.sage-grid {
+  flex: 1; overflow: hidden;
+  background:var(--bg-card);
+  border-left:1px solid var(--border);
+  border-right:1px solid var(--border);
+  display: flex; flex-direction: column;
+}
+.sage-thead-row {
+  display: grid;
+  grid-template-columns: 100px minmax(80px,1fr) 60px 60px 100px 60px 60px 100px 100px 100px 40px;
+  background: #f8f5ff;
+  border-bottom: 2px solid #fef3c7;
+  min-width: 850px;
+  flex-shrink: 0;
+}
+.sage-th {
+  padding: 6px 8px;
+  font-size: 9px;
+  font-weight: 800;
+  color: #d97706;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.sage-th.r { text-align: right; }
+.sage-th.c { text-align: center; }
+
+.sage-tbody {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+}
+.sage-tbody::-webkit-scrollbar { width: 5px; }
+.sage-tbody::-webkit-scrollbar-thumb { background: #fcd34d; border-radius: 3px; }
+
+.sage-row {
+  display: grid;
+  grid-template-columns: 100px minmax(80px,1fr) 60px 60px 100px 60px 60px 100px 100px 100px 40px;
+  border-bottom:1px solid var(--border);
+  align-items: center; min-height: 36px;
+  transition: background .1s; cursor: pointer;
+  min-width: 850px;
+}
+.sage-row:hover { background: #fffbeb; }
+.sage-row.sel   { background: #fef3c7; }
+
+.sage-td {
+  padding: 3px 8px; font-size: 12px; color:var(--texte);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sage-td.num  { color:var(--gris3); font-size: 11px; font-weight: 600; text-align: center; }
+.sage-td.r    { text-align: right; font-variant-numeric: tabular-nums; }
+.sage-td.c    { text-align: center; }
+.sage-td.bold { font-weight: 700; }
+.sage-td.violet { color: #d97706; font-weight: 800; }
+.sage-td.grey { color:var(--gris3); }
+.sage-td.del  { text-align: center; }
+
+/* Bouton supprimer */
+.sage-del-btn {
+  background: none; border:none; cursor: pointer;
+  color:var(--gris2); font-size: 14px;
+  border-radius: 4px; transition: color .12s, background .12s;
+  width: 26px; height: 26px; margin: auto;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Inter', sans-serif; font-weight: 700;
+}
+.sage-del-btn:hover { color: #ef4444; background: #fee2e2; }
+
+/* ══ BANDEAU DE SAISIE ══════════════════════════════════════════════════ */
+.sage-saisie {
+  display: grid;
+  grid-template-columns: 100px minmax(80px,1fr) 60px 60px 100px 60px 60px 100px 100px 100px 40px;
+  min-width: 850px;
+  background: #fffbeb;
+  border-bottom: 2px solid #d97706;
+  flex-shrink: 0;
+  align-items: center;
+  min-height: 44px;
+}
+.saisie-cell {
+  padding: 3px 3px;
+  display: flex; align-items: center;
+  overflow: hidden;
+}
+.saisie-in {
+  width: 100%; height: 32px;
+  box-sizing: border-box;
+  border: 1.5px solid #fcd34d; border-radius: 5px;
+  background:var(--bg-card); padding: 0 5px;
+  font-size: 12px; font-family: 'Inter', sans-serif;
+  color:var(--texte); outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  min-width: 0;
+}
+.saisie-in::placeholder {
+  color: #fcd34d; font-style: italic; font-size: 11px;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none; margin: 0;
+}
+input[type="number"] { -moz-appearance: textfield; }
+.saisie-in:focus {
+  border-color: #d97706;
+  box-shadow: 0 0 0 3px rgba(217,119,6,.15);
+  background: #fafcff;
+}
+.saisie-in[type="number"] { text-align: right; }
+.saisie-ro {
+  background:var(--gris) !important;
+  border-color: #cbd5e1 !important;
+  border-style: dashed !important;
+  color:var(--gris3); font-weight: 700;
+  cursor: not-allowed; pointer-events: none;
+  user-select: none;
+}
+.saisie-ro.tva-c  { color: #d97706; background:#fffbeb !important; border-color:#fcd34d !important; }
+.saisie-ro.ttc-c  { color: #5b21b6; font-weight: 900; font-size: 13px; background:#fef3c7 !important; border-color:#fbbf24 !important; }
+/* Montants HT / TVA / TTC : lecture seule, calculés automatiquement via saisieCalc() */
+
+/* Ligne vide */
+.sage-row-empty {
+  grid-column: 1/-1; padding: 18px 14px;
+  color:var(--gris3); font-size: 12px; text-align: center;
+  min-width: 850px;
+}
+
+/* ── Pied : totaux ── */
+.sage-bottom {
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-top:2px solid var(--border);
+  border-radius: 0 0 10px 10px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  flex-shrink: 0;
+}
+.sage-bottom-left {
+  padding: 12px 18px;
+  border-right:1px solid var(--border);
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+}
+.sage-mini-field { display: flex; align-items: center; gap: 7px; }
+.sage-mini-field label {
+  font-size: 10px; font-weight: 700; color:var(--gris3);
+  text-transform: uppercase; letter-spacing: .5px;
+  white-space: nowrap;
+}
+.sage-mini-input {
+  width: 90px; padding: 4px 8px;
+  border:1.5px solid var(--border); border-radius: 5px;
+  font-size: 12px; font-family: 'Inter', sans-serif;
+  color:var(--texte); text-align: right;
+}
+.sage-mini-input:focus { outline: none; border-color: #d97706; }
+.sage-bottom-right {
+  display: flex; flex-direction: row;
+  min-width: 0;
+}
+
+/* Totaux */
+.sage-totaux {
+  padding: 10px 18px; min-width: 200px;
+  border-right:1px solid var(--border);
+  display: flex; flex-direction: column; gap: 5px; justify-content: center;
+}
+.sage-tot-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 24px;
+  font-size: 12px;
+}
+.sage-tot-row .lbl { color:var(--gris3); font-weight: 500; }
+.sage-tot-row .val { font-weight: 700; color:var(--texte); font-variant-numeric: tabular-nums; }
+.sage-tot-ttc {
+  display: flex; justify-content: space-between; align-items: center; gap: 24px;
+  padding-top: 8px; margin-top: 4px; border-top:2px solid var(--border);
+}
+.sage-tot-ttc .lbl { font-size: 13px; font-weight: 800; color: #92400e; }
+.sage-tot-ttc .val {
+  font-size: 22px; font-weight: 900; color: #d97706;
+  font-variant-numeric: tabular-nums; letter-spacing: -.5px;
+}
+
+/* Bouton enregistrer */
+.sage-encaisser {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 10px 20px; min-width: 140px;
+  background: linear-gradient(160deg, #92400e 0%, #d97706 100%);
+  cursor: pointer; border:none; font-family: 'Inter', sans-serif;
+  transition: all .18s; gap: 3px;
+  border-radius: 0 0 10px 0;
+}
+.sage-encaisser:hover { filter: brightness(1.08); }
+.sage-encaisser:active { filter: brightness(.96); }
+.sage-encaisser-ico  { font-size: 22px; }
+.sage-encaisser-lbl  { font-size: 13px; font-weight: 800; color: white; letter-spacing: .2px; }
+.sage-encaisser-sub  { font-size: 10px; color: rgba(255,255,255,.6); }
+
+/* ══ RESPONSIVE ══════════════════════════════════════════════════════════ */
+.sage-grid { overflow-x: hidden; }
+.sage-saisie, .sage-row, .sage-row-empty { min-width: 0; }
+
+@media (max-width: 900px) {
+  .sage-wrap { height: auto; min-height: 100dvh; }
+  .sage-topbar { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+  .sage-topbar-right { margin-left: 0; width: 100%; justify-content: flex-end; }
+  .sage-sep { display: none; }
+  .sage-field { min-width: 0 !important; flex: 1; }
+  .sage-select, .sage-input { width: 100% !important; }
+  .sage-bottom { grid-template-columns: 1fr; }
+  .sage-bottom-left { border-right: none; border-bottom:1px solid var(--border); }
+  .sage-bottom-right { flex-direction: column; min-width: 0; }
+  .sage-totaux { min-width: 0; border-right: none; border-bottom:1px solid var(--border); }
+  .sage-encaisser { border-radius: 0 0 10px 10px; min-width: 0; width: 100%; padding: 14px; }
+  .sage-tot-ttc .val { font-size: 18px; }
+  .sage-saisie {
+    grid-template-columns: 1fr 1fr;
+    min-width: 0; min-height: auto;
+    padding: 6px 8px; gap: 6px;
+  }
+  .saisie-cell { padding: 3px 4px; }
+  .saisie-in { height: 36px; font-size: 13px; }
+  .sage-thead-row { display: none; }
+}
+@media (max-width: 600px) {
+  .sage-saisie { grid-template-columns: 1fr; padding: 8px 10px; gap: 8px; }
+  .saisie-in { height: 44px; font-size: 14px; padding: 0 12px; border-radius: 8px; }
+  .saisie-in::placeholder { font-size: 13px; }
+  .sage-tot-ttc .val { font-size: 20px; }
+  .sage-encaisser-lbl { font-size: 15px; }
+  .sage-mini-input { width: 100%; }
+  .sage-bottom-left { gap: 12px; }
+}
+@media (hover: none) and (pointer: coarse) {
+  .sage-row { min-height: 44px; }
+  .sage-del-btn { width: 36px; height: 36px; font-size: 16px; }
+}
+
+/* ══ FENÊTRE FLOTTANTE F4 ══════════════════════════════════════════ */
+#f4Overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(15,23,42,.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: none; align-items: center;
+  justify-content: center; padding: 10px;
+}
+#f4Overlay.f4-open { display: flex; }
+#f4Panel {
+  background:var(--bg-card); border-radius: 14px;
+  width: 70%; height: 100%;
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 24px 64px rgba(15,23,42,.35), 0 0 0 1px rgba(217,119,6,.2);
+}
+.f4-hd {
+  padding: 14px 18px 10px; border-bottom:1px solid var(--border);
+  background: #fffbeb; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.f4-title-row { display: flex; align-items: center; gap: 8px; }
+.f4-title { font-size: 14px; font-weight: 800; color: #92400e;
+            display: flex; align-items: center; gap: 7px; }
+.f4-badge { background: #d97706; color: #fff; font-size: 9px; font-weight: 800;
+            font-family: monospace; padding: 2px 7px; border-radius: 4px; letter-spacing: 1px; }
+.f4-xbtn { margin-left: auto; background: none; border:none; cursor: pointer;
+           font-size: 16px; color:var(--gris3); width: 30px; height: 30px;
+           border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+.f4-xbtn:hover { background: #fee2e2; color: #ef4444; }
+.f4-search-wrap { position: relative; }
+.f4-search-ico { position: absolute; left: 11px; top: 50%;
+                 transform: translateY(-50%); pointer-events: none; font-size: 13px; }
+#f4SearchInput {
+  width: 100%; padding: 9px 12px 9px 34px;
+  border: 1.5px solid #fcd34d; border-radius: 8px;
+  font-size: 13px; font-family: 'Inter', sans-serif;
+  color:var(--texte); background:var(--bg-card); outline: none;
+}
+#f4SearchInput:focus { border-color: #d97706; box-shadow: 0 0 0 3px rgba(217,119,6,.15); }
+#f4SearchInput::placeholder { color:var(--gris3); }
+.f4-cats-row { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+.f4-catbtn {
+  padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+  border:1.5px solid var(--border); background:var(--bg-card); color:var(--gris3);
+  cursor: pointer; font-family: 'Inter', sans-serif;
+}
+.f4-catbtn:hover { border-color: #d97706; color: #92400e; background: #fffbeb; }
+.f4-catbtn.f4-cat-active { background: #d97706; color: #fff; border-color: #d97706; }
+.f4-cnt { margin-left: auto; font-size: 11px; color:var(--gris3); }
+.f4-tbody-wrap { flex: 1; overflow-y: auto; }
+.f4-tbody-wrap::-webkit-scrollbar { width: 5px; }
+.f4-tbody-wrap::-webkit-scrollbar-thumb { background: #fcd34d; border-radius: 3px; }
+.f4-thead {
+  display: grid; grid-template-columns: 110px 1fr 140px 90px 110px;
+  background:var(--gris); border-bottom:2px solid var(--border);
+  position: sticky; top: 0; z-index: 1;
+}
+.f4-th { padding: 8px 12px; font-size: 10px; font-weight: 800;
+         color:var(--gris3); text-transform: uppercase; letter-spacing: .5px; }
+.f4-th.r { text-align: right; }
+.f4-row {
+  display: grid; grid-template-columns: 110px 1fr 140px 90px 110px;
+  border-bottom:1px solid var(--border); align-items: center;
+  min-height: 42px; cursor: pointer;
+}
+.f4-row:hover { background: #fffbeb; }
+.f4-row.f4-sel { background: #fef3c7; }
+.f4-row.f4-rupt { opacity: .5; }
+.f4-td { padding: 6px 12px; font-size: 13px; color:var(--texte);
+         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.f4-td.ref  { font-family: monospace; font-size: 11px; color: #d97706; font-weight: 700; }
+.f4-td.bold { font-weight: 700; }
+.f4-td.r    { text-align: right; font-variant-numeric: tabular-nums; }
+.f4-td.prix { color: #92400e; font-weight: 800; font-size: 14px; }
+.f4-empty { text-align: center; padding: 36px; color:var(--gris3); font-size: 13px; }
+.f4-footer {
+  padding: 8px 16px; border-top:1px solid var(--border); background: #fffbeb;
+  display: flex; align-items: center; gap: 14px;
+  font-size: 11px; color:var(--gris3); flex-shrink: 0;
+}
+.f4-key {
+  display: inline-flex; align-items: center; background:var(--bg-card);
+  border: 1.5px solid #cbd5e1; border-radius: 4px;
+  font-size: 10px; font-weight: 700; color:var(--gris3);
+  padding: 1px 6px; font-family: monospace;
+}
+
+/* ── Boutons d'action tableau historique ── */
+.hist-action-btn {
+  display:inline-flex;align-items:center;gap:4px;
+  padding:5px 10px;border-radius:7px;
+  font-size:11px;font-weight:700;font-family:inherit;
+  border:1.5px solid transparent;cursor:pointer;
+  transition:all .15s;white-space:nowrap;line-height:1;
+  text-decoration:none;
+}
+.hist-action-btn span { font-size:11px; }
+.hist-btn-imprimer { background:#f0f7ff;color:#2563eb;border-color:#bfdbfe; }
+.hist-btn-imprimer:hover { background:#2563eb;color:white;border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.25); }
+.hist-btn-convertir { background:#fffbeb;color:#d97706;border-color:#fcd34d; }
+.hist-btn-convertir:hover { background:#d97706;color:white;border-color:#d97706;box-shadow:0 2px 8px rgba(217,119,6,.25); }
+.hist-btn-dupliquer { background:#ecfeff;color:#0891b2;border-color:#a5f3fc; }
+.hist-btn-dupliquer:hover { background:#0891b2;color:white;border-color:#0891b2;box-shadow:0 2px 8px rgba(8,145,178,.25); }
+.hist-btn-supprimer { background:#fff1f2;color:#dc2626;border-color:#fca5a5; }
+.hist-btn-supprimer:hover { background:#dc2626;color:white;border-color:#dc2626;box-shadow:0 2px 8px rgba(220,38,38,.25); }
+.hist-btn-action-green { background:#f0fdf4;color:#16a34a;border-color:#86efac; }
+.hist-btn-action-green:hover { background:#16a34a;color:white;border-color:#16a34a;box-shadow:0 2px 8px rgba(22,163,74,.25); }
+.hist-btn-modifier { background:#fefce8;color:#ca8a04;border-color:#fde047; }
+.hist-btn-modifier:hover { background:#ca8a04;color:white;border-color:#ca8a04;box-shadow:0 2px 8px rgba(202,138,4,.25); }
+.hist-btn-regler { background:#f0fdf4;color:#16a34a;border-color:#86efac; }
+.hist-btn-regler:hover { background:#16a34a;color:white;border-color:#16a34a;box-shadow:0 2px 8px rgba(22,163,74,.25); }
+.hist-btn-annuler { background:#fff7ed;color:#ea580c;border-color:#fdba74; }
+.hist-btn-annuler:hover { background:#ea580c;color:white;border-color:#ea580c;box-shadow:0 2px 8px rgba(234,88,12,.25); }
+.achat-statut-select {
+  height:28px;padding:0 6px;border:1.5px solid var(--border);border-radius:7px;
+  font-size:11px;font-weight:700;font-family:inherit;color:var(--texte);
+  background:var(--bg-card);cursor:pointer;max-width:140px;transition:border-color .15s;
+}
+.achat-statut-select:hover { border-color:var(--bleu2); }
+.achat-statut-select:focus { outline:none;border-color:var(--bleu);box-shadow:0 0 0 3px rgba(26,58,108,.10); }
+
+/* ── Effet de survol — bouton Nouvelle commande achat ── */
+#btn-nouvelle-commande {
+  transition: all .2s ease;
+  box-shadow: 0 3px 10px rgba(217,119,6,.30);
+}
+#btn-nouvelle-commande:hover {
+  background: linear-gradient(135deg,#b45309,#f59e0b) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(217,119,6,.45);
+}
+#btn-nouvelle-commande:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(217,119,6,.30);
+}
+</style>
+
+<!-- ═══ ONGLET HISTORIQUE ═══ -->
+<div id="tab-historique" style="display:{% if edit_doc %}none{% else %}block{% endif %};">
+
+<div class="page-header">
+  <div>
+    <h1>🛒 Commande Achat</h1>
+    <div class="sub">{{ docs|length }} commande enregistrée(s)</div>
+  </div>
+  <button class="btn btn-primary"
+          style="background:linear-gradient(135deg,#92400e,#d97706);"
+          onclick="switchTab('saisie')" id="btn-nouvelle-commande">
+    ➕ Nouvelle commande achat
+  </button>
+</div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid">
+    <div class="kpi-card orange" style="border-top:3px solid var(--orange);">
+      <div class="label">En attente</div>
+      <div class="value" style="color:var(--orange);">{{ nb_attente }}</div>
+      <div class="sub">En cours, non facturées</div><div class="icon-bg">⏳</div>
+    </div>
+    <div class="kpi-card vert">
+      <div class="label">Reçues</div>
+      <div class="value" style="color:var(--vert);">{{ nb_recues }}</div>
+      <div class="sub">Commandes réceptionnées</div><div class="icon-bg">📥</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Montant ce mois</div>
+      <div class="value" style="font-size:18px;">{{ ca_mois | fcfa }}</div>
+      <div class="sub">Émis ce mois</div><div class="icon-bg">📅</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Commandes total</div>
+      <div class="value">{{ nb_total }}</div>
+      <div class="sub">Toutes les commandes</div><div class="icon-bg">📋</div>
+    </div>
+  </div>
+
+  <!-- Filtres -->
+  <div class="table-card" style="margin-bottom:16px;">
+    <form method="GET" action="/achats">
+      <div style="padding:10px 16px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <div><label style="font-size:10px;font-weight:700;color:var(--gris3);text-transform:uppercase;display:block;margin-bottom:3px;">Recherche</label>
+          <input type="text" name="q" value="{{ q }}" placeholder="Réf., fournisseur…" style="height:30px;padding:0 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;width:180px;"></div>
+        <div><label style="font-size:10px;font-weight:700;color:var(--gris3);text-transform:uppercase;display:block;margin-bottom:3px;">Statut</label>
+          <select name="statut" style="height:30px;padding:0 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;">
+            <option value="">Tous</option>
+            <option value="en_attente" {% if statut_f=='en_attente' %}selected{% endif %}>⏳ En attente</option>
+            <option value="recue"      {% if statut_f=='recue'      %}selected{% endif %}>📥 Reçue</option>
+            <option value="facturee"   {% if statut_f=='facturee'   %}selected{% endif %}>🧾 Facturée</option>
+            <option value="annule"     {% if statut_f=='annule'     %}selected{% endif %}>❌ Annulée</option>
+          </select></div>
+        <button type="submit" class="btn btn-primary btn-sm">🔍 Filtrer</button>
+        <a href="/achats" class="btn btn-sec btn-sm">✕</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Tableau -->
+  <div class="table-card">
+    <div class="thead"><h3>{{ docs|length }} commande affichée(s)</h3></div>
+    <table>
+      <thead>
+        <tr>
+          <th>Référence</th><th>Date</th><th>Fournisseur</th>
+          <th>Total TTC</th><th>Reste</th><th>Livraison prévue</th>
+          <th>Statut</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for d in docs %}
+      {% set st_map = {
+        'en_attente':     ('⏳ En attente',  '#fef3c7','#92400e'),
+        'confirmee':      ('✅ Confirmée',    '#dbeafe','#1d4ed8'),
+        'recu':           ('📥 Reçue',        '#dcfce7','#15803d'),
+        'annule':         ('❌ Annulée',      '#fee2e2','#dc2626'),
+        'facturee':       ('🧾 Facturée',     '#dbeafe','#1d4ed8'),
+        'converti':       ('🔄 Convertie',    '#dbeafe','#1d4ed8')
+      } %}
+      {% set slbl,sbg,sclr = st_map.get(d.statut, ('❓','#f1f5f9','#475569')) %}
+      <tr data-id="{{ d.id }}">
+        <td><code style="font-size:10px;color:#d97706;font-weight:700;">{{ d.reference }}</code></td>
+        <td style="font-size:11px;color:var(--gris3);">{{ d.date_doc or '—' }}</td>
+        <td>
+          <div style="font-weight:600;font-size:12px;">{{ d.fourn_nom or '—' }}</div>
+        </td>
+        <td style="font-weight:700;color:#d97706;">{{ (d.total_ttc or 0) | fcfa }} {{ cfg.devise if cfg else 'FCFA' }}</td>
+        <td style="font-weight:700;color:{% if (d.reste or 0) <= 0 and (d.montant_paye or 0) > 0 %}var(--vert){% elif (d.reste or 0) > 0 %}var(--rouge){% else %}var(--gris3){% endif %};">
+          {% if (d.reste or 0) <= 0 and (d.montant_paye or 0) > 0 %}✅ Soldé{% else %}{{ (d.reste or 0) | fcfa }} {{ cfg.devise if cfg else 'FCFA' }}{% endif %}
+        </td>
+        <td style="font-size:11px;color:{% if d.date_livraison_prevue %}var(--texte){% else %}var(--gris3){% endif %};">
+          {{ d.date_livraison_prevue or '—' }}
+        </td>
+        <td>
+          <span class="badge" style="background:{{ sbg }};color:{{ sclr }};">{{ slbl }}</span>
+        </td>
+        <td style="white-space:nowrap;vertical-align:middle;padding:6px 8px;">
+          {# ── Machine à états ──
+             en_attente   = devis commande (brouillon, non payable)
+             confirmee    = devis accepté → Régler possible
+             reçue        = verrouillée : seulement Imprimer + Supprimer #}
+          {% set est_fige    = d.statut in ['recu','facturee','converti'] %}
+          {% set est_reglee  = (d.montant_paye or 0) > 0 and (d.reste or 0) <= 0 %}
+          {% set peut_regler = d.statut in ['confirmee','recu'] %}
+          {% set a_paiement  = (d.montant_paye or 0) > 0 %}
+          {% set peut_modif  = d.statut in ['en_attente','confirmee'] and not a_paiement %}
+          {% set peut_annuler= d.statut in ['en_attente','confirmee'] %}
+          <div style="display:inline-flex;gap:4px;align-items:center;flex-wrap:nowrap;">
+
+            {# ── Statut : cycle En attente → Confirmée → Reçue (figé une fois reçue) ── #}
+            <form method="POST" action="/achats/{{ d.id }}/statut" style="display:inline;margin:0;">
+              <select name="statut" class="achat-statut-select"
+                      onchange="this.form.submit()" title="Changer le statut"
+                      {{ 'disabled' if est_fige }}>
+                {# Options du cycle de vie #}
+                {% for val, lbl in [
+                  ('en_attente','⏳ En attente'),
+                  ('confirmee','✅ Confirmée'),
+                  ('recu','📥 Reçues')
+                ] %}
+                <option value="{{ val }}" {{ 'selected' if d.statut == val }}>{{ lbl }}</option>
+                {% endfor %}
+                {# Statut courant hors cycle (annulée/facturée/convertie) : affiché pour cohérence #}
+                {% set hors_cycle = {'annule':'❌ Annulée','facturee':'🧾 Facturée','converti':'🔄 Convertie'} %}
+                {% if d.statut in hors_cycle %}
+                <option value="{{ d.statut }}" selected>{{ hors_cycle[d.statut] }}</option>
+                {% endif %}
+              </select>
+            </form>
+
+            {# ── Modifier (états actifs non reçus) ── #}
+            {% if peut_modif %}
+            <a href="/achats/{{ d.id }}/edit"
+               class="hist-action-btn hist-btn-modifier">✏️ <span>Modifier</span></a>
+            {% endif %}
+
+            {# ── Régler : seulement une fois la commande confirmée (devis accepté) et non soldée ── #}
+            {% if peut_regler and not est_reglee %}
+            <button type="button"
+              onclick="openPaiementAchat({{ d.id }}, '{{ d.reference|e }}', {{ d.total_ttc or 0 }}, {{ d.montant_paye or 0 }})"
+              class="hist-action-btn hist-btn-regler">💳 <span>Régler</span></button>
+            {% endif %}
+
+            {# ── Annuler : annule la commande tant qu'elle n'est pas reçue ── #}
+            {% if peut_annuler %}
+            <form method="POST" action="/achats/{{ d.id }}/statut" style="display:inline;margin:0;"
+                  onsubmit="return confirm('Annuler la commande {{ d.reference }} ?');">
+              <input type="hidden" name="statut" value="annule">
+              <button type="submit" class="hist-action-btn hist-btn-annuler">🚫 <span>Annuler</span></button>
+            </form>
+            {% endif %}
+
+            {# ── Imprimer (toujours disponible) ── #}
+            <a href="/achats/{{ d.id }}/print" target="_blank"
+               class="hist-action-btn hist-btn-imprimer" title="Imprimer la commande">🖨️ <span>Imprimer</span></a>
+
+            {# ── Supprimer (sauf facturée, et sauf commande réglée) ── #}
+            {% if d.statut != 'facturee' and not est_reglee %}
+            <a href="/achats/delete/{{ d.id }}"
+               onclick="return confirm('Supprimer la commande {{ d.reference }} ?')"
+               class="hist-action-btn hist-btn-supprimer">🗑️ <span>Supprimer</span></a>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" style="text-align:center;color:var(--gris3);padding:40px;">
+        <div style="font-size:36px;margin-bottom:10px;">📋</div>
+        Aucun commande achat — <a href="javascript:void(0)" onclick="switchTab('saisie')"
+          style="color:#d97706;font-weight:700;">créer la première</a>
+      </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div><!-- fin tab-historique -->
+
+<!-- ═══ MODAL : Régler une commande d'achat ═══ -->
+<div id="modalPaiementAchat" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>💳 Régler la commande</h3>
+      <button class="modal-close" onclick="closeModal('modalPaiementAchat')">✕</button>
+    </div>
+    <form method="POST" id="formPaiementAchat" action="">
+      <input type="hidden" name="redirect_url" value="/achats">
+      <div class="modal-body">
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:11px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:var(--gris3);">Commande :</span><strong id="pa_ref" style="color:var(--bleu2);"></strong></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:var(--gris3);">Total TTC :</span><strong id="pa_ttc"></strong></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:var(--gris3);">Déjà payé :</span><strong id="pa_paye" style="color:var(--vert);"></strong></div>
+          <div style="display:flex;justify-content:space-between;padding-top:5px;border-top:1px dashed var(--gris2);"><span style="color:var(--rouge);font-weight:700;">Reste dû :</span><strong id="pa_reste" style="color:var(--rouge);"></strong></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group full"><label>Montant du paiement (FCFA) *</label>
+            <input type="number" name="montant" id="pa_montant" min="1" step="1" required
+                   style="font-size:16px;font-weight:700;color:var(--vert);"></div>
+          <div class="form-group full"><label>Mode de paiement</label>
+            <select name="mode_paiement" id="pa_mode" style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="virement">🏦 Virement</option>
+              <option value="especes">💵 Espèces</option>
+              <option value="wave">📱 Wave</option>
+              <option value="orange_money">🟠 Orange Money</option>
+              <option value="mtn_money">🟡 MTN Money</option>
+              <option value="cheque">📄 Chèque</option>
+            </select>
+          </div>
+          <div class="form-group full"><label>Date de paiement</label>
+            <input type="date" name="date_reglement" id="pa_date"></div>
+          <div class="form-group full"><label>Notes (optionnel)</label>
+            <textarea name="notes" rows="2" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;"
+                      placeholder="Référence virement, n° chèque…"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalPaiementAchat')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary" style="background:var(--vert);">💳 Enregistrer le paiement</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+/* ── Modal règlement direct d'une commande d'achat ── */
+function openPaiementAchat(id, ref, ttc, paye){
+  var reste = Math.max(0, ttc - paye);
+  var fmt = function(n){ return (n||0).toLocaleString('fr-FR',{maximumFractionDigits:0}); };
+  document.getElementById('pa_ref').textContent   = ref;
+  document.getElementById('pa_ttc').textContent   = fmt(ttc) + ' FCFA';
+  document.getElementById('pa_paye').textContent  = fmt(paye) + ' FCFA';
+  document.getElementById('pa_reste').textContent = fmt(reste) + ' FCFA';
+  document.getElementById('pa_montant').value     = Math.round(reste);
+  document.getElementById('pa_montant').max       = Math.round(reste);
+  document.getElementById('pa_date').value        = new Date().toISOString().split('T')[0];
+  document.getElementById('formPaiementAchat').action = '/achats/' + id + '/payer';
+  openModal('modalPaiementAchat');
+}
+</script>
+
+<!-- ═══ ONGLET SAISIE ═══ -->
+<div id="tab-saisie" style="display:{% if edit_doc %}block{% else %}none{% endif %};">
+
+<form method="POST"
+      action="{{ '/achats/' ~ edit_doc.id ~ '/edit' if edit_doc else '/achats/add' }}"
+      id="commandeForm">
+  <input type="hidden" name="lignes_json"   id="lignesJson"    value="[]">
+  <input type="hidden" name="montant_ht"    id="cmd_ht">
+  <input type="hidden" name="tva"           id="cmd_tva_h"     value="{{ cfg.tva_achat if cfg else 18 }}">
+  <input type="hidden" name="fournisseur_id" id="cmd_four_h"   value="{{ edit_doc.fournisseur_id if edit_doc else '' }}">
+  <input type="hidden" name="date_doc"      id="cmd_date"      value="{{ edit_doc.date_doc if edit_doc else today }}">
+  <input type="hidden" name="date_livraison_prevue" id="cmd_livraison"  value="{{ edit_doc.date_livraison_prevue if edit_doc else '' }}">
+  {% if not (edit_doc) %}<input type="hidden" name="statut" value="en_attente">{% endif %}
+
+<div class="sage-wrap">
+
+  <!-- ── BARRE SUPÉRIEURE ── -->
+  <div class="sage-topbar">
+
+    <!-- Fournisseur -->
+    <div class="sage-field" style="min-width:220px;">
+      <label>Fournisseur *</label>
+      <select class="sage-select" style="width:220px;" required
+        onchange="document.getElementById('cmd_four_h').value=this.value">
+        <option value="">— Choisir —</option>
+        {% for f in fournisseurs_all %}
+        <option value="{{ f.id }}" {% if edit_doc and edit_doc.fournisseur_id == f.id %}selected{% endif %}>{{ f.nom }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Date -->
+    <div class="sage-field">
+      <label>Date commande</label>
+      <input type="date" class="sage-input" style="width:130px;"
+             value="{{ edit_doc.date_doc if edit_doc else today }}"
+             onchange="document.getElementById('cmd_date').value=this.value">
+    </div>
+
+    <div class="sage-sep"></div>
+
+    <!-- Livraison prévue -->
+    <div class="sage-field">
+      <label>Valide jusqu'au</label>
+      <input type="date" class="sage-input" style="width:130px;" id="validDate"
+             value="{{ edit_doc.date_livraison_prevue if edit_doc and edit_doc.date_livraison_prevue else '' }}"
+             onchange="document.getElementById('cmd_livraison').value=this.value">
+    </div>
+
+    <div class="sage-topbar-right">
+      <button type="button" onclick="ouvrirF4()"
+        style="height:34px;padding:0 16px;
+        background:#fffbeb;border:1.5px solid #fcd34d;
+        color:#92400e;border-radius:7px;
+        font-size:13px;font-weight:800;cursor:pointer;
+        font-family:'Inter',sans-serif;
+        display:inline-flex;align-items:center;gap:6px;
+        transition:background .12s,border-color .12s;white-space:nowrap;"
+        onmouseover="this.style.background='#fef3c7';this.style.borderColor='#d97706'"
+        onmouseout="this.style.background='#fffbeb';this.style.borderColor='#fcd34d'">
+        📦 <span style="font-family:monospace;font-size:10px;background:#d97706;color:white;padding:1px 5px;border-radius:3px;">F4</span> Catalogue
+      </button>
+      <button type="button" onclick="annulerLigne()"
+        title="Vider le bandeau de saisie / annuler la modification (Échap)"
+        style="height:34px;padding:0 14px;
+        background:var(--bg-card);border:1.5px solid #cbd5e1;
+        color:var(--gris3);border-radius:7px;
+        font-size:13px;font-weight:700;cursor:pointer;
+        font-family:'Inter',sans-serif;
+        display:inline-flex;align-items:center;gap:6px;
+        transition:background .12s,border-color .12s,color .12s;white-space:nowrap;"
+        onmouseover="this.style.background='#fee2e2';this.style.borderColor='#ef4444';this.style.color='#b91c1c'"
+        onmouseout="this.style.background='#f8fafc';this.style.borderColor='#cbd5e1';this.style.color='#475569'">
+        ✖ Annuler
+      </button>
+      <button type="button" onclick="validerLigne()"
+        style="height:34px;padding:0 18px;
+        background:linear-gradient(135deg,#92400e,#d97706);
+        color:white;border:none;border-radius:7px;
+        font-size:13px;font-weight:800;cursor:pointer;
+        font-family:'Inter',sans-serif;
+        display:inline-flex;align-items:center;gap:6px;
+        transition:filter .15s,transform .12s;white-space:nowrap;
+        box-shadow:0 2px 8px rgba(217,119,6,.35);"
+        onmouseover="this.style.filter='brightness(1.12)';this.style.transform='translateY(-1px)'"
+        onmouseout="this.style.filter='';this.style.transform=''">
+        ✔ Valider ligne
+      </button>
+    </div>
+
+  </div>
+
+  <!-- ── GRILLE : bandeau + lignes ── -->
+  <div class="sage-grid">
+
+    <!-- ★ BANDEAU DE SAISIE — inputs -->
+    <div class="sage-saisie" id="sageSaisie">
+      <div class="saisie-cell">
+        <input id="s_code" class="saisie-in" placeholder="Code" autocomplete="off" onkeydown="saisieKey(event)">
+      </div>
+      <div class="saisie-cell">
+        <input id="s_design" class="saisie-in" placeholder="Désignation article" autocomplete="off" autocorrect="off"
+               onkeydown="saisieKey(event)" style="flex:1;min-width:0;">
+      </div>
+      <div class="saisie-cell" title="Quantité en unités">
+        <input id="s_qte" class="saisie-in" type="number" value="1" min="1" step="1"
+               placeholder="Qté U." style="text-align:center;"
+               onkeydown="saisieKey(event)" oninput="qteCalc()">
+      </div>
+      <div class="saisie-cell" title="Quantité en colis (× colisage)">
+        <input id="s_colis" class="saisie-in" type="number" value="" min="0" step="1"
+               placeholder="Colis" style="text-align:center;background:#fffbeb;"
+               onkeydown="saisieKey(event)" oninput="colisCalc()">
+      </div>
+      <div class="saisie-cell">
+        <input id="s_prix" class="saisie-in" type="number" value="" min="0" step="100"
+               placeholder="PU Achat HT" onkeydown="saisieKey(event)" oninput="saisieCalc()">
+      </div>
+      <div class="saisie-cell">
+        <input id="s_rem" class="saisie-in" type="number" value="" min="0" max="100" step="1"
+               placeholder="Rem%" onkeydown="saisieKey(event)" oninput="saisieCalc()">
+      </div>
+      <div class="saisie-cell">
+        <input id="s_tva" class="saisie-in" type="number" value="{{ cfg.tva_achat if cfg else 18 }}"
+               min="0" max="100" step="1" placeholder="TVA%"
+               style="text-align:center;"
+               onkeydown="saisieKey(event)" oninput="saisieCalc()">
+      </div>
+      <div class="saisie-cell">
+        <input id="s_ht" class="saisie-in saisie-ro" placeholder="Mnt HT" value="" title="Montant HT — calculé automatiquement" readonly tabindex="-1">
+      </div>
+      <div class="saisie-cell">
+        <input id="s_tva_m" class="saisie-in saisie-ro tva-c" placeholder="TVA" value="" title="Montant TVA — calculé automatiquement" readonly tabindex="-1">
+      </div>
+      <div class="saisie-cell">
+        <input id="s_ttc" class="saisie-in saisie-ro ttc-c" placeholder="TTC" value="" title="Montant TTC — calculé automatiquement" readonly tabindex="-1">
+      </div>
+      <div class="saisie-cell"></div>
+    </div>
+
+    <!-- Corps : lignes validées -->
+    <div class="sage-tbody" id="sageBody"></div>
+
+  </div>
+
+  <!-- ── PIED : TOTAUX ── -->
+  <div class="sage-bottom">
+
+    <!-- Gauche : TVA + remise globale + notes -->
+    <div class="sage-bottom-left">
+      <div class="sage-mini-field">
+        <label>TVA %</label>
+        <input type="number" class="sage-mini-input" id="tvaInput"
+               value="{{ cfg.tva_achat if cfg else 18 }}" min="0" max="30"
+               oninput="syncTva();document.getElementById('cmd_tva_h').value=this.value;recalc()">
+      </div>
+      <div class="sage-mini-field">
+        <label>Remise %</label>
+        <input type="number" class="sage-mini-input" id="remiseInput"
+               value="0" min="0" max="100" step="1"
+               oninput="recalc()">
+      </div>
+      <div class="sage-mini-field" style="margin-left:auto;">
+        <label>Notes / Conditions</label>
+        <input type="text" name="notes" class="sage-mini-input" style="width:240px;"
+               value="{{ edit_doc.notes if edit_doc and edit_doc.notes else '' }}"
+               placeholder="Délai livraison, conditions paiement…">
+      </div>
+    </div>
+
+    <!-- Droite : totaux + enregistrer -->
+    <div class="sage-bottom-right">
+
+      <!-- Totaux -->
+      <div class="sage-totaux">
+        <div class="sage-tot-row">
+          <span class="lbl">HT</span>
+          <span class="val" id="dispHT">0 {{ cfg.devise if cfg else 'FCFA' }}</span>
+        </div>
+        <div class="sage-tot-row">
+          <span class="lbl">TVA (<span id="dispTVApct">{{ cfg.tva_achat if cfg else 18 }}</span>%)</span>
+          <span class="val" id="dispTVA">0 {{ cfg.devise if cfg else 'FCFA' }}</span>
+        </div>
+        <div class="sage-tot-row" id="remiseRow" style="display:none;">
+          <span class="lbl" style="color:#d97706;">🏷 Remise</span>
+          <span class="val" style="color:#d97706;" id="dispRemise">−0</span>
+        </div>
+        <div class="sage-tot-ttc">
+          <span class="lbl">TOTAL TTC</span>
+          <span class="val" id="dispTTC">0 {{ cfg.devise if cfg else 'FCFA' }}</span>
+        </div>
+      </div>
+
+      <!-- Bouton enregistrer -->
+      <button type="submit" class="sage-encaisser" onclick="return submitCommande()">
+        <span class="sage-encaisser-ico">📋</span>
+        <span class="sage-encaisser-lbl">{% if edit_doc %}Mettre à jour{% else %}Enregistrer{% endif %}</span>
+        <span class="sage-encaisser-sub" id="encaissTotal">0 {{ cfg.devise if cfg else 'FCFA' }}</span>
+      </button>
+
+    </div>
+  </div>
+
+</div><!-- fin sage-wrap -->
+</form>
+
+<!-- ═══ MODAL IMPRESSION COMMANDE ACHAT ═══ -->
+<div id="printModalOverlay" style="
+  display:none;position:fixed;inset:0;z-index:10000;
+  background:rgba(15,23,42,.6);
+  align-items:center;justify-content:center;padding:16px;
+  overflow-y:auto;
+">
+  <div style="
+    background:var(--bg-card);border-radius:14px;
+    width:100%;max-width:860px;margin:auto;
+    box-shadow:0 24px 64px rgba(15,23,42,.35);
+    overflow:hidden;
+    font-family:'Inter',-apple-system,sans-serif;
+  ">
+
+    <!-- Barre d'actions -->
+    <div id="prToolbar" style="
+      background:var(--bg-card);border-bottom:1.5px solid var(--border);
+      padding:10px 20px;display:flex;gap:8px;align-items:center;
+    ">
+      <button onclick="doPrint()" style="
+        padding:8px 20px;background:#d97706;color:white;
+        border:none;border-radius:8px;cursor:pointer;
+        font-size:13px;font-weight:700;font-family:inherit;
+        box-shadow:0 2px 8px rgba(217,119,6,.35);
+      ">🖨️ Imprimer / PDF</button>
+      <button onclick="closePrintModal()" style="
+        padding:8px 16px;background:var(--bg-card);color:var(--gris3);
+        border:1.5px solid var(--border);border-radius:8px;
+        cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;
+      ">✕ Fermer</button>
+      <span id="prToolbarRef" style="margin-left:8px;font-size:13px;font-weight:700;color:#d97706;"></span>
+    </div>
+
+    <!-- Corps imprimable -->
+    <div id="printModalBody">
+
+      <!-- EN-TÊTE -->
+      <div style="
+        background:linear-gradient(135deg,#1a3a6c 0%,#d97706 100%);
+        padding:28px 32px 24px;
+        display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start;
+      ">
+        <div>
+          <div style="font-size:20px;font-weight:800;color:white;letter-spacing:-.3px;">
+            {{ cfg.nom_depot if cfg else 'DISTRIGEST' }}
+          </div>
+          <div style="color:rgba(255,255,255,.7);font-size:11px;margin-top:6px;line-height:1.7;">
+            {% if cfg and cfg.adresse %}{{ cfg.adresse }}<br>{% endif %}
+            {% if cfg and cfg.telephone %}📞 {{ cfg.telephone }}{% endif %}
+            {% if cfg and cfg.email %} · ✉️ {{ cfg.email }}{% endif %}
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="
+            display:inline-block;
+            background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);
+            color:white;font-size:11px;font-weight:800;
+            letter-spacing:1.5px;text-transform:uppercase;
+            padding:4px 14px;border-radius:20px;margin-bottom:8px;
+          ">🛒 Commande Achat</div>
+          <div style="font-size:22px;font-weight:800;color:white;letter-spacing:-.5px;" id="prRef">—</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:4px;" id="prDates">—</div>
+        </div>
+      </div>
+
+      <!-- BARRE STATUT -->
+      <div id="prStatutBar" style="padding:8px 32px;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;display:flex;align-items:center;gap:8px;"></div>
+
+      <!-- CORPS -->
+      <div style="padding:24px 32px;">
+
+        <!-- Tiers -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+          <div style="background:var(--bg-card);border:1.5px solid var(--border);border-radius:10px;padding:14px 16px;">
+            <div style="font-size:9px;font-weight:800;color:#d97706;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🏢 Notre société</div>
+            <div style="font-size:14px;font-weight:700;color:var(--texte);margin-bottom:4px;">{{ cfg.nom_depot if cfg else 'DISTRIGEST' }}</div>
+            <div style="font-size:11px;color:var(--gris3);line-height:1.7;">
+              {% if cfg and cfg.adresse %}{{ cfg.adresse }}<br>{% endif %}
+              {% if cfg and cfg.telephone %}Tél : {{ cfg.telephone }}<br>{% endif %}
+              {% if cfg and cfg.email %}Email : {{ cfg.email }}{% endif %}
+            </div>
+          </div>
+          <div style="background:var(--bg-card);border:1.5px solid var(--border);border-radius:10px;padding:14px 16px;">
+            <div style="font-size:9px;font-weight:800;color:#d97706;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🏭 Fournisseur</div>
+            <div style="font-size:14px;font-weight:700;color:var(--texte);margin-bottom:4px;" id="prFourn">—</div>
+            <div style="font-size:11px;color:var(--gris3);line-height:1.7;" id="prFournDetail"></div>
+          </div>
+        </div>
+
+        <!-- Meta chips -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;" id="prMetaRow"></div>
+
+        <!-- Tableau lignes -->
+        <div style="border:1.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:20px;">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr style="background:#fffbeb;border-bottom:2px solid #fef3c7;">
+                <th style="padding:9px 12px;font-size:9px;font-weight:800;color:#d97706;text-transform:uppercase;letter-spacing:.6px;">#</th>
+                <th style="padding:9px 12px;font-size:9px;font-weight:800;color:#d97706;text-transform:uppercase;letter-spacing:.6px;">Désignation</th>
+                <th style="padding:9px 12px;font-size:9px;font-weight:800;color:#d97706;text-transform:uppercase;letter-spacing:.6px;text-align:center;">Qté U.</th>
+                <th style="padding:9px 12px;font-size:9px;font-weight:800;color:#d97706;text-transform:uppercase;letter-spacing:.6px;text-align:center;">Colis</th>
+                <th style="padding:9px 12px;font-size:9px;font-weight:800;color:#d97706;text-transform:uppercase;letter-spacing:.6px;text-align:right;">PU Achat HT</th>
+                <th style="padding:9px 12px;font-size:9px;font-weight:800;color:#d97706;text-transform:uppercase;letter-spacing:.6px;text-align:right;">Rem.%</th>
+                <th style="padding:9px 12px;font-size:9px;font-weight:800;color:#d97706;text-transform:uppercase;letter-spacing:.6px;text-align:right;">Total HT</th>
+                <th style="padding:9px 12px;font-size:9px;font-weight:800;color:#d97706;text-transform:uppercase;letter-spacing:.6px;text-align:right;">TVA</th>
+                <th style="padding:9px 12px;font-size:9px;font-weight:800;color:#d97706;text-transform:uppercase;letter-spacing:.6px;text-align:right;">Total TTC</th>
+              </tr>
+            </thead>
+            <tbody id="prLignesBody">
+              <tr><td colspan="9" style="text-align:center;padding:24px;color:var(--gris3);">⏳ Chargement…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Totaux -->
+        <div style="display:flex;justify-content:flex-end;margin-bottom:20px;">
+          <div style="min-width:300px;border:1.5px solid var(--border);border-radius:10px;overflow:hidden;">
+            <div style="display:flex;justify-content:space-between;padding:8px 16px;border-bottom:1px solid #f1f5f9;font-size:12px;">
+              <span style="color:var(--gris3);font-weight:600;">Total HT</span>
+              <span style="font-weight:700;" id="prTotHT">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:8px 16px;border-bottom:1px solid #f1f5f9;font-size:12px;">
+              <span style="color:var(--gris3);font-weight:600;">TVA</span>
+              <span style="font-weight:700;" id="prTotTVA">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:10px 16px;background:linear-gradient(135deg,#fffbeb,#fef3c7);border-top:2px solid #fcd34d;">
+              <span style="color:#d97706;font-weight:800;font-size:13px;">TOTAL TTC</span>
+              <span style="color:#d97706;font-weight:900;font-size:16px;" id="prTotTTC">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div id="prNotesWrap" style="display:none;background:var(--bg-card);border:1.5px solid var(--border);border-radius:10px;padding:14px 16px;font-size:12px;color:var(--gris3);line-height:1.6;margin-bottom:8px;">
+          <div style="font-size:9px;font-weight:800;color:var(--gris3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">📝 Notes / Observations</div>
+          <div id="prNotesText"></div>
+        </div>
+
+      </div><!-- /corps -->
+
+      <!-- PIED DE PAGE -->
+      <div style="border-top:2px solid #f1f5f9;padding:14px 32px;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--gris3);">
+        <span id="prFooterRef">—</span>
+        <span style="font-weight:800;color:#d97706;">DISTRIGEST · {{ cfg.nom_depot if cfg else '' }}</span>
+      </div>
+
+    </div><!-- /printModalBody -->
+  </div>
+</div>
+
+<!-- ═══ OVERLAY F4 — Catalogue articles ═══ -->
+<div id="f4Overlay" onclick="if(event.target===this)fermerF4()">
+  <div id="f4Panel">
+    <div class="f4-hd">
+      <div class="f4-title-row">
+        <div class="f4-title"><span class="f4-badge">F4</span> 📦 Catalogue articles</div>
+        <button type="button" class="f4-xbtn" onclick="fermerF4()">✕</button>
+      </div>
+      <div class="f4-search-wrap" style="width:70%;margin:0 auto;">
+        <span class="f4-search-ico">🔍</span>
+        <input type="text" id="f4SearchInput"
+               placeholder="Rechercher par désignation, référence, catégorie…"
+               oninput="f4Filtrer()" onkeydown="f4NavClavier(event)"
+               autocomplete="off" autocorrect="off" spellcheck="false">
+      </div>
+      <div class="f4-cats-row" id="f4CatsRow">
+        <button type="button" class="f4-catbtn f4-cat-active" onclick="f4SetCat(this,'')">Tout</button>
+        <span class="f4-cnt" id="f4CntSpan"></span>
+      </div>
+    </div>
+    <div class="f4-tbody-wrap">
+      <div class="f4-thead">
+        <div class="f4-th">Référence</div>
+        <div class="f4-th">Désignation</div>
+        <div class="f4-th">Catégorie</div>
+        <div class="f4-th r">Stock</div>
+        <div class="f4-th r">P.Achat HT</div>
+      </div>
+      <div id="f4Lignes"></div>
+    </div>
+    <div class="f4-footer">
+      <span><span class="f4-key">↑↓</span> Naviguer</span>
+      <span><span class="f4-key">Entrée</span> Sélectionner</span>
+      <span><span class="f4-key">Échap</span> Fermer</span>
+      <span style="margin-left:auto;"><span class="f4-key">F4</span> Ouvrir/Fermer</span>
+    </div>
+  </div>
+</div>
+
+</div><!-- fin tab-saisie -->
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ══ IMPRESSION COMMANDE ACHAT ══════════════════════════════════════ */
+var DEVISE_PRINT = "{{ cfg.devise if cfg else 'FCFA' }}";
+
+function fmtPrint(v){
+  try{ return parseInt(parseFloat(v||0)).toLocaleString('fr-FR'); }catch(e){ return '0'; }
+}
+
+var _prStatuts = {
+  'en_attente': ['⏳','En attente',  '#fef3c7','#92400e'],
+  'recue':      ['📥','Reçue',       '#dcfce7','#15803d'],
+  'facturee':   ['🧾','Facturée',    '#dbeafe','#1d4ed8'],
+  'annule':     ['❌','Annulée',     '#fee2e2','#dc2626'],
+  'converti':   ['🔄','Convertie',   '#dbeafe','#1d4ed8']
+};
+
+function openPrintModal(id, ref, dateDoc, fourNom, dateValidite, statut){
+  var ov = document.getElementById('printModalOverlay');
+  ov.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+
+  // Référence
+  document.getElementById('prToolbarRef').textContent = ref;
+  document.getElementById('prRef').textContent = ref;
+  document.getElementById('prFooterRef').textContent = ref + ' · Généré par DISTRIGEST';
+
+  // Dates
+  var dStr = dateDoc ? 'Date : ' + dateDoc : '';
+  if(dateValidite) dStr += (dStr ? ' · ' : '') + 'Livraison prévue : ' + dateValidite;
+  document.getElementById('prDates').textContent = dStr || '—';
+
+  // Fournisseur
+  document.getElementById('prFourn').textContent = fourNom || '— Non renseigné —';
+  document.getElementById('prFournDetail').innerHTML = '';
+
+  // Statut
+  var sInfo = _prStatuts[statut] || ['❓', statut, '#f1f5f9','#475569'];
+  var sbar  = document.getElementById('prStatutBar');
+  sbar.style.cssText = 'padding:8px 32px;font-size:11px;font-weight:700;letter-spacing:.6px;'
+    +'text-transform:uppercase;display:flex;align-items:center;gap:8px;'
+    +'background:'+sInfo[2]+';color:'+sInfo[3]+';border-bottom:1px solid '+sInfo[2]+';';
+  sbar.innerHTML = '<span>'+sInfo[0]+'</span><span>'+sInfo[1]+'</span>';
+
+  // Meta chips
+  var metas = [];
+  if(dateDoc)      metas.push(['📅 Date commande',    dateDoc]);
+  if(dateValidite) metas.push(['📆 Livraison prévue',       dateValidite]);
+  document.getElementById('prMetaRow').innerHTML = metas.map(function(m){
+    return '<div style="background:#fffbeb;border:1.5px solid #fef3c7;border-radius:8px;padding:6px 12px;font-size:11px;display:flex;flex-direction:column;gap:2px;">'
+      +'<span style="font-size:9px;font-weight:800;color:#d97706;text-transform:uppercase;letter-spacing:.8px;">'+m[0]+'</span>'
+      +'<span style="font-weight:700;color:var(--texte);">'+m[1]+'</span></div>';
+  }).join('');
+
+  // Reset
+  document.getElementById('prTotHT').textContent  = '…';
+  document.getElementById('prTotTVA').textContent = '…';
+  document.getElementById('prTotTTC').textContent = '…';
+  document.getElementById('prNotesWrap').style.display = 'none';
+  document.getElementById('prLignesBody').innerHTML =
+    '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--gris3);">⏳ Chargement…</td></tr>';
+
+  // Fetch lignes
+  fetch('/api/achats/'+id+'/lignes')
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      var lignes = data.lignes || [];
+      var doc    = data.doc    || {};
+
+      // Détails fournisseur
+      var fd = [];
+      if(doc.fourn_adresse) fd.push(doc.fourn_adresse);
+      if(doc.fourn_tel)     fd.push('Tél : '+doc.fourn_tel);
+      if(doc.fourn_email)   fd.push('Email : '+doc.fourn_email);
+      document.getElementById('prFournDetail').innerHTML = fd.join('<br>');
+
+      // Notes
+      if(doc.notes){
+        document.getElementById('prNotesText').textContent = doc.notes;
+        document.getElementById('prNotesWrap').style.display = 'block';
+      }
+
+      // Totaux
+      document.getElementById('prTotHT').textContent  = fmtPrint(doc.total_ht)  + ' ' + DEVISE_PRINT;
+      document.getElementById('prTotTVA').textContent = fmtPrint(doc.total_tva) + ' ' + DEVISE_PRINT;
+      document.getElementById('prTotTTC').textContent = fmtPrint(doc.total_ttc) + ' ' + DEVISE_PRINT;
+
+      // Lignes
+      if(!lignes.length){
+        document.getElementById('prLignesBody').innerHTML =
+          '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--gris3);">Aucune ligne.</td></tr>';
+        return;
+      }
+      document.getElementById('prLignesBody').innerHTML = lignes.map(function(l, i){
+        var ht     = parseFloat(l.total_ht||0);
+        var ttc    = parseFloat(l.total_ttc||0);
+        var tvaPct = parseFloat(l.tva||0);
+        var tvaMnt = tvaPct ? Math.round(ht*tvaPct/100) : Math.round(ttc-ht);
+        var qteU   = parseInt(l.quantite_unite||0);
+        var qteC   = parseInt(l.quantite_colis||0);
+        var prix   = parseFloat(l.prix_achat_ht||l.prix_ht||0);
+        var rem    = parseFloat(l.remise_pct||0);
+        var refC   = l.reference
+          ? '<div style="font-size:10px;color:#d97706;font-weight:700;font-family:monospace;">'+l.reference+'</div>' : '';
+        var bg = i%2===0 ? 'white' : '#fafbfc';
+        return '<tr style="border-bottom:1px solid #f1f5f9;background:'+bg+';">'
+          +'<td style="padding:9px 12px;font-size:12px;color:var(--gris3);">'+(i+1)+'</td>'
+          +'<td style="padding:9px 12px;font-size:12px;">'+refC+'<div style="font-weight:700;">'+(l.designation||'—')+'</div></td>'
+          +'<td style="padding:9px 12px;font-size:12px;text-align:center;">'+qteU+'</td>'
+          +'<td style="padding:9px 12px;font-size:12px;text-align:center;color:var(--gris3);">'+(qteC||'—')+'</td>'
+          +'<td style="padding:9px 12px;font-size:12px;text-align:right;">'+fmtPrint(prix)+' '+DEVISE_PRINT+'</td>'
+          +'<td style="padding:9px 12px;font-size:12px;text-align:right;color:var(--gris3);">'+Math.round(rem)+'%</td>'
+          +'<td style="padding:9px 12px;font-size:12px;text-align:right;font-weight:700;">'+fmtPrint(ht)+' '+DEVISE_PRINT+'</td>'
+          +'<td style="padding:9px 12px;font-size:12px;text-align:right;color:var(--gris3);">'+Math.round(tvaPct)+'%</td>'
+          +'<td style="padding:9px 12px;font-size:13px;text-align:right;font-weight:800;color:#d97706;">'+fmtPrint(ttc)+' '+DEVISE_PRINT+'</td>'
+          +'</tr>';
+      }).join('');
+    })
+    .catch(function(){
+      document.getElementById('prLignesBody').innerHTML =
+        '<tr><td colspan="9" style="text-align:center;padding:24px;color:#dc2626;">⚠️ Erreur de chargement</td></tr>';
+    });
+}
+
+function closePrintModal(){
+  document.getElementById('printModalOverlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function doPrint(){
+  var body    = document.getElementById('printModalBody');
+  var toolbar = document.getElementById('prToolbar');
+  toolbar.style.display = 'none';
+  var w = window.open('','_blank','width=920,height=720');
+  w.document.write('<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">'
+    +'<title>Impression</title>'
+    +'<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:Inter,sans-serif;background:var(--bg-card);}'
+    +'@page{margin:10mm 12mm;size:A4;}@media print{body{padding:0;}}</style>'
+    +'</head><body>'+body.innerHTML+'</body></html>');
+  w.document.close();
+  w.focus();
+  setTimeout(function(){ w.print(); }, 600);
+  toolbar.style.display = 'flex';
+}
+
+// Fermer avec Échap ou clic fond
+document.addEventListener('keydown', function(e){
+  if(e.key==='Escape'){
+    var ov=document.getElementById('printModalOverlay');
+    if(ov && ov.style.display==='flex') closePrintModal();
+  }
+});
+document.getElementById('printModalOverlay').addEventListener('click', function(e){
+  if(e.target===this) closePrintModal();
+});
+
+/* ── Navigation saisie / historique ── */
+function switchTab(tab){
+  document.getElementById('tab-saisie').style.display     = tab==='saisie'     ? 'block':'none';
+  document.getElementById('tab-historique').style.display = tab==='historique' ? 'block':'none';
+  if(tab==='saisie') setTimeout(function(){
+    var sd=document.getElementById('s_design'); if(sd) sd.focus();
+  },50);
+}
+
+var DEVISE = "{{ cfg.devise if cfg else 'FCFA' }}";
+{% if edit_doc %}
+/* Pré-chargement des lignes du devis en édition */
+var lines = [
+  {% for l in edit_lignes %}
+  {
+    code: {{ (l.designation or '') | tojson }},
+    article_id: {{ (l.article_id or 0) | tojson }},
+    designation: {{ (l.designation or '') | tojson }},
+    qte_unite: {{ l.quantite_unite | float }},
+    qte_colis: {{ l.quantite_colis | float }},
+    colisage: 1,
+    mode_saisie: "{{ 'colis' if l.quantite_colis and l.quantite_colis > 0 else 'unite' }}",
+    prix_achat_ht: {{ l.prix_achat_ht | float }},
+    prix_ht: {{ l.prix_achat_ht | float }},
+    prix_colis: 0,
+    quantite: {{ l.quantite_unite | float }},
+    remise_pct: 0,
+    tva_ligne: {{ l.tva | float }},
+    ht_ligne: {{ l.total_ht | float }},
+    tva_mnt: {{ (l.total_ttc - l.total_ht) | float }},
+    ttc_ligne: {{ l.total_ttc | float }},
+    total: {{ l.total_ht | float }},
+    _sel: false
+  }{% if not loop.last %},{% endif %}
+  {% endfor %}
+];
+{% else %}
+var lines  = [];
+{% endif %}
+var _saisieMode = 'unite';
+
+function fmt(n)  { return (n||0).toLocaleString('fr-FR',{maximumFractionDigits:0})+' '+DEVISE; }
+function fmtN(n) { return (n||0).toLocaleString('fr-FR',{maximumFractionDigits:0}); }
+function esc(s)  { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ── Calcul d'une ligne ── */
+function calcLine(l) {
+  var rem  = Math.min(100, Math.max(0, parseFloat(l.remise_pct)||0));
+  var useColis = (l.mode_saisie === 'colis' && l.qte_colis > 0);
+  var base = useColis ? l.qte_colis : l.quantite;
+  var prix = useColis ? (l.prix_colis || l.prix_ht) : (l.prix_achat_ht || l.prix_ht);
+  var puN  = prix * (1 - rem/100);
+  l.ht_ligne  = Math.round(base * puN);
+  l.tva_mnt   = Math.round(l.ht_ligne * (parseFloat(l.tva_ligne)||0) / 100);
+  l.ttc_ligne = l.ht_ligne + l.tva_mnt;
+  l.total     = l.ht_ligne;
+}
+
+/* ── Recalcul totaux pied ── */
+function recalc() {
+  var ht    = lines.reduce(function(s,l){ return s+(l.ht_ligne||0); }, 0);
+  var tvaTot= lines.reduce(function(s,l){ return s+(l.tva_mnt||0); }, 0);
+  var ttcTot= lines.reduce(function(s,l){ return s+(l.ttc_ligne||0); }, 0);
+  var remPct= Math.min(100, Math.max(0, parseFloat((document.getElementById('remiseInput')||{}).value)||0));
+  var remMnt= Math.round(ttcTot * remPct / 100);
+  var ttcNet= Math.max(0, ttcTot - remMnt);
+  var tva   = parseFloat((document.getElementById('tvaInput')||{}).value)||0;
+
+  document.getElementById('dispHT').textContent    = fmt(ht);
+  document.getElementById('dispTVA').textContent   = fmt(tvaTot);
+  document.getElementById('dispTVApct').textContent= tva;
+  document.getElementById('dispTTC').textContent   = fmt(ttcNet);
+  document.getElementById('encaissTotal').textContent = fmt(ttcNet);
+  document.getElementById('cmd_ht').value          = ht;
+  document.getElementById('cmd_tva_h').value       = tva;
+
+  var rRow = document.getElementById('remiseRow');
+  if(remPct>0){ rRow.style.display='flex'; document.getElementById('dispRemise').textContent='−'+fmt(remMnt)+' ('+remPct+'%)'; }
+  else { rRow.style.display='none'; }
+}
+
+/* ── Rendu lignes ── */
+function renderLines() {
+  var tbody = document.getElementById('sageBody');
+  if(lines.length === 0){
+    tbody.innerHTML = '<div class="sage-row-empty">Saisissez une ligne ci-dessus pour commencer</div>';
+    recalc(); return;
+  }
+  tbody.innerHTML = lines.map(function(l, i){
+    return '<div class="sage-row'+(l._sel?' sel':'')+'" onclick="selectLine('+i+')" id="srow'+i+'">'
+      +'<div class="sage-td" style="font-size:11px;color:var(--gris3);font-family:monospace;">'+esc(l.code||'')+'</div>'
+      +'<div class="sage-td bold">'+esc(l.designation)+'</div>'
+      +'<div class="sage-td c">'+l.qte_unite+'</div>'
+      +'<div class="sage-td c" style="background:#fffbeb;font-size:11px;">'+(l.qte_colis>0?l.qte_colis+' c':'—')+'</div>'
+      +'<div class="sage-td r">'+fmtN(l.prix_ht)+'</div>'
+      +'<div class="sage-td r grey">'+l.remise_pct+'%</div>'
+      +'<div class="sage-td c" style="color:var(--gris3);">'+l.tva_ligne+'%</div>'
+      +'<div class="sage-td r bold">'+fmtN(l.ht_ligne)+'</div>'
+      +'<div class="sage-td r grey">'+fmtN(l.tva_mnt)+'</div>'
+      +'<div class="sage-td r violet">'+fmtN(l.ttc_ligne)+'</div>'
+      +'<div class="sage-td del"><button class="sage-del-btn" onclick="event.stopPropagation();delLine('+i+')" title="Supprimer">✕</button></div>'
+      +'</div>';
+  }).join('');
+  recalc();
+}
+
+function delLine(i){ lines.splice(i,1); renderLines(); }
+
+/* ── Sélectionner une ligne → la charger dans le bandeau ── */
+function selectLine(i){
+  lines.forEach(function(l){ l._sel=false; });
+  lines[i]._sel = true;
+  var l = lines[i];
+  document.getElementById('s_code').value   = l.code||'';
+  document.getElementById('s_design').value = l.designation;
+  document.getElementById('s_colis').value  = l.qte_colis||'';
+  document.getElementById('s_colis').dataset.colisage = l.colisage||1;
+  document.getElementById('s_qte').value    = l.qte_unite||l.quantite||1;
+  document.getElementById('s_prix').value   = l.prix_achat_ht||l.prix_ht||0;
+  document.getElementById('s_rem').value    = l.remise_pct;
+  _saisieMode = l.mode_saisie || 'unite';
+  document.getElementById('s_design').dataset.editIdx = i;
+  saisieCalc();
+  renderLines();
+  document.getElementById('s_design').focus();
+}
+
+/* ── Synchronise la TVA bandeau avec la TVA globale du pied ── */
+function syncTva(){
+  var tvaGlobal = (document.getElementById('tvaInput')||{value:'0'}).value;
+  var sTva = document.getElementById('s_tva');
+  if(sTva) sTva.value = tvaGlobal;
+  saisieCalc();
+}
+
+/* ── Calcul temps réel bandeau ── */
+function colisCalc(){
+  _saisieMode = 'colis';
+  var colis    = parseFloat(document.getElementById('s_colis').value)||0;
+  var colisage = parseFloat(document.getElementById('s_colis').dataset.colisage)||1;
+  if(colis > 0) document.getElementById('s_qte').value = (colis * colisage).toFixed(0);
+  if(typeof checkPrix==='function') checkPrix(); else saisieCalc();
+}
+
+function qteCalc(){
+  _saisieMode = 'unite';
+  var qte      = parseFloat(document.getElementById('s_qte').value)||0;
+  var colisage = parseFloat(document.getElementById('s_colis').dataset.colisage)||1;
+  if(qte > 0 && colisage > 1){
+    document.getElementById('s_colis').value = Math.floor(qte / colisage) || '';
+  } else {
+    document.getElementById('s_colis').value = '';
+  }
+  if(typeof checkPrix==='function') checkPrix(); else saisieCalc();
+}
+
+/* -- Parse un montant formate (espaces fr-FR) -> entier -- */
+function parseN(v){
+  if(v==null) return 0;
+  return parseFloat(String(v).replace(/[^0-9,.\-]/g,'').replace(/\s/g,'').replace(',','.'))||0;
+}
+function fmtMontant(el){ var n = parseN(el.value); el.value = n ? fmtN(n) : ''; }
+
+/* -- Coherence HT / TVA / TTC -- */
+function montantCalc(src){
+  var tva  = parseFloat(document.getElementById('s_tva').value)||0;
+  var elHT = document.getElementById('s_ht');
+  var elTV = document.getElementById('s_tva_m');
+  var elTT = document.getElementById('s_ttc');
+  var ht, tvam, ttc;
+  if(src === 'ttc'){
+    ttc  = parseN(elTT.value);
+    ht   = Math.round(ttc / (1 + tva/100));
+    tvam = ttc - ht;
+  } else if(src === 'tva'){
+    tvam = parseN(elTV.value);
+    ht   = tva > 0 ? Math.round(tvam * 100 / tva) : parseN(elHT.value);
+    ttc  = ht + tvam;
+  } else {
+    ht   = parseN(elHT.value);
+    tvam = Math.round(ht * tva/100);
+    ttc  = ht + tvam;
+  }
+  if(src !== 'ht')  elHT.value = ht   ? fmtN(ht)   : '';
+  if(src !== 'tva') elTV.value = tvam ? fmtN(tvam) : '';
+  if(src !== 'ttc') elTT.value = ttc  ? fmtN(ttc)  : '';
+  var colis = parseFloat(document.getElementById('s_colis').value)||0;
+  var qte   = parseFloat(document.getElementById('s_qte').value)||0;
+  var rem   = parseFloat(document.getElementById('s_rem').value)||0;
+  var useColis = (typeof _saisieMode !== 'undefined' && _saisieMode === 'colis' && colis > 0);
+  var base  = useColis ? colis : qte;
+  var fr    = 1 - rem/100;
+  if(base > 0 && fr > 0){
+    var pu = Math.round(ht / (base * fr));
+    var elPrix = document.getElementById('s_prix');
+    if(elPrix){
+      elPrix.value = pu;
+      if(useColis) elPrix.dataset.prixColis = pu;
+      else         elPrix.dataset.prixUnitaire = pu;
+    }
+  }
+}
+
+function saisieCalc(){
+  var colis = parseFloat(document.getElementById('s_colis').value)||0;
+  var colisage = parseFloat(document.getElementById('s_colis').dataset.colisage)||1;
+  var qte   = parseFloat(document.getElementById('s_qte').value)||0;
+  var rem   = parseFloat(document.getElementById('s_rem').value)||0;
+  var tva   = parseFloat(document.getElementById('s_tva').value)||0;
+  var prix  = parseFloat(document.getElementById('s_prix').value)||0;
+  var useColis = (_saisieMode === 'colis' && colis > 0);
+  var base = useColis ? colis : qte;
+  var ht   = Math.round(base * prix * (1 - rem/100));
+  var tvam = Math.round(ht * tva / 100);
+  var ttc  = ht + tvam;
+  document.getElementById('s_ht').value    = ht   ? fmtN(ht)   : '';
+  document.getElementById('s_tva_m').value = tvam ? fmtN(tvam) : '';
+  document.getElementById('s_ttc').value   = ttc  ? fmtN(ttc)  : '';
+}
+
+/* ── Valider la ligne ── */
+function validerLigne(){
+  var design = document.getElementById('s_design').value.trim();
+  if(!design){ document.getElementById('s_design').focus(); return; }
+  var colis    = parseFloat(document.getElementById('s_colis').value)||0;
+  var colisage = parseFloat(document.getElementById('s_colis').dataset.colisage)||1;
+  var qte_u   = parseFloat(document.getElementById('s_qte').value)||0;
+  var qte     = colis > 0 ? (colis * colisage) : (qte_u || 1);
+  if(qte <= 0) qte = 1;
+  var prix = parseFloat(document.getElementById('s_prix').value)||0;
+  var rem  = parseFloat(document.getElementById('s_rem').value)||0;
+  var tva  = parseFloat((document.getElementById('tvaInput')||{value:'0'}).value)||0;
+  var code = document.getElementById('s_code').value.trim();
+  var editIdx = document.getElementById('s_design').dataset.editIdx;
+
+  var l = {
+    code: code,
+    article_id: (document.getElementById('s_prix').dataset.articleId||null),
+    designation: design,
+    qte_colis: colis, qte_unite: qte, colisage: colisage,
+    mode_saisie: _saisieMode,
+    prix_achat_ht: prix, prix_ht: prix,
+    prix_colis: parseFloat(document.getElementById('s_prix').dataset.prixColis||0)||0,
+    quantite: qte, remise_pct: rem, tva_ligne: tva,
+    ht_ligne: 0, tva_mnt: 0, ttc_ligne: 0, total: 0, _sel: false
+  };
+  calcLine(l);
+
+  if(editIdx !== undefined && editIdx !== '' && lines[parseInt(editIdx)]){
+    lines[parseInt(editIdx)] = l;
+  } else {
+    /* ── Fusion : si l'article existe déjà, cumuler les quantités ── */
+    var existIdx = -1;
+    var matchKey = code || design;
+    for(var xi=0; xi<lines.length; xi++){
+      var xl = lines[xi];
+      var xlKey = (xl.code||'') || xl.designation;
+      if(xlKey && matchKey && xlKey.toLowerCase() === matchKey.toLowerCase()){
+        existIdx = xi; break;
+      }
+    }
+    if(existIdx >= 0){
+      var ex = lines[existIdx];
+      ex.qte_colis  = (ex.qte_colis||0)  + (l.qte_colis||0);
+      ex.qte_unite  = (ex.qte_unite||0)  + (l.qte_unite||0);
+      ex.quantite   = ex.qte_unite;
+      calcLine(ex);
+      setTimeout(function(){
+        var r = document.getElementById('srow'+existIdx);
+        if(r){ r.style.transition='background .1s'; r.style.background='#bbf7d0';
+          setTimeout(function(){ if(r) r.style.background=''; },700); }
+      }, 50);
+    } else {
+      lines.push(l);
+    }
+  }
+
+  /* Réinitialiser bandeau */
+  ['s_code','s_design'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('s_colis').value  = '';
+  document.getElementById('s_colis').dataset.colisage = '1';
+  document.getElementById('s_qte').value   = '1';
+  document.getElementById('s_prix').value  = '';
+  delete document.getElementById('s_prix').dataset.articleId;
+  delete document.getElementById('s_prix').dataset.prixColis;
+  document.getElementById('s_rem').value   = '';
+  document.getElementById('s_ht').value    = '';
+  document.getElementById('s_tva_m').value = '';
+  document.getElementById('s_ttc').value   = '';
+  var tvaGlobal = (document.getElementById('tvaInput')||{value:'0'}).value;
+  document.getElementById('s_tva').value = tvaGlobal;
+  delete document.getElementById('s_design').dataset.editIdx;
+  _saisieMode = 'unite';
+  lines.forEach(function(l){ l._sel=false; });
+  renderLines();
+  document.getElementById('s_design').focus();
+}
+
+/* ── Annuler la saisie en cours (vider le bandeau, désélectionner) ── */
+function annulerLigne(){
+  ['s_code','s_design'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('s_colis').value  = '';
+  document.getElementById('s_colis').dataset.colisage = '1';
+  document.getElementById('s_qte').value    = '1';
+  var prixEl = document.getElementById('s_prix');
+  prixEl.value = '';
+  delete prixEl.dataset.articleId;
+  delete prixEl.dataset.prixColis;
+  document.getElementById('s_rem').value    = '';
+  document.getElementById('s_ht').value     = '';
+  document.getElementById('s_tva_m').value  = '';
+  document.getElementById('s_ttc').value    = '';
+  /* Restaurer TVA globale */
+  var tvaGlobal = (document.getElementById('tvaInput')||{value:'0'}).value;
+  document.getElementById('s_tva').value = tvaGlobal;
+  delete document.getElementById('s_design').dataset.editIdx;
+  _saisieMode = 'unite';
+  /* Désélectionner toute ligne en cours d'édition */
+  lines.forEach(function(l){ l._sel=false; });
+  renderLines();
+  document.getElementById('s_design').focus();
+}
+
+function saisieKey(e){
+  if(e.key==='Enter'){ e.preventDefault(); validerLigne(); }
+  if(e.key==='F4')   { e.preventDefault(); ouvrirF4(); }
+  if(e.key==='Escape'){ e.preventDefault(); annulerLigne(); }
+}
+
+/* ── Soumission ── */
+function submitCommande(){
+  if(!lines.length){ alert('Ajoutez au moins une ligne.'); return false; }
+  document.getElementById('lignesJson').value = JSON.stringify(lines);
+  return true;
+}
+
+/* ══ F4 — Catalogue articles live depuis /api/articles ════════════ */
+var f4Cat = '', f4Fil = [], f4Idx = -1, f4Timer = null;
+
+function f4InitCats(cats){
+  var row=document.getElementById('f4CatsRow');
+  var cnt=document.getElementById('f4CntSpan');
+  if(!row||!cnt) return;
+  row.querySelectorAll('.f4-catbtn:not([data-all])').forEach(function(b){ b.remove(); });
+  cats.forEach(function(c){
+    var b=document.createElement('button');
+    b.type='button'; b.className='f4-catbtn'; b.textContent=c;
+    b.onclick=function(){ f4SetCat(b,c); };
+    row.insertBefore(b,cnt);
+  });
+}
+
+function ouvrirF4(){
+  var ov=document.getElementById('f4Overlay'); if(!ov) return;
+  ov.classList.add('f4-open');
+  var inp=document.getElementById('f4SearchInput');
+  if(inp) inp.value=(document.getElementById('s_design')||{value:''}).value||'';
+  f4Fetch();
+  setTimeout(function(){ var i=document.getElementById('f4SearchInput'); if(i) i.focus(); },60);
+}
+
+function fermerF4(){
+  var ov=document.getElementById('f4Overlay'); if(ov) ov.classList.remove('f4-open');
+  var sd=document.getElementById('s_design'); if(sd) sd.focus();
+}
+
+function f4Filtrer(){
+  clearTimeout(f4Timer);
+  f4Timer=setTimeout(f4Fetch,250);
+}
+
+function f4Fetch(){
+  var q=(document.getElementById('f4SearchInput')||{value:''}).value.trim();
+  var url='/api/articles?q='+encodeURIComponent(q);
+  if(f4Cat) url+='&cat='+encodeURIComponent(f4Cat);
+  var body=document.getElementById('f4Lignes');
+  var cnt=document.getElementById('f4CntSpan');
+  if(body) body.innerHTML='<div class="f4-empty" style="color:#d97706;">⏳ Chargement…</div>';
+  if(cnt) cnt.textContent='…';
+  fetch(url)
+    .then(function(r){
+      if(r.status===401){ window.location.href='/login'; return null; }
+      return r.json();
+    })
+    .then(function(data){
+      if(!data) return;
+      f4Fil=data.articles||[];
+      f4Idx=f4Fil.length>0?0:-1;
+      if(data.cats&&data.cats.length) f4InitCats(data.cats);
+      if(cnt) cnt.textContent=f4Fil.length+' article'+(f4Fil.length>1?'s':'');
+      f4Rendu();
+    })
+    .catch(function(){
+      if(body) body.innerHTML='<div class="f4-empty">⚠️ Impossible de charger le catalogue — vérifiez que le serveur est actif</div>';
+    });
+}
+
+function f4SetCat(btn,cat){
+  document.querySelectorAll('.f4-catbtn').forEach(function(b){ b.classList.remove('f4-cat-active'); });
+  btn.classList.add('f4-cat-active');
+  f4Cat=cat; f4Fetch();
+}
+
+function f4Rendu(){
+  var body=document.getElementById('f4Lignes');
+  var cnt=document.getElementById('f4CntSpan');
+  if(!body) return;
+  if(!f4Fil.length){ body.innerHTML='<div class="f4-empty">Aucun article dans le stock</div>'; return; }
+  body.innerHTML=f4Fil.map(function(a,i){
+    var stockBg   = a.quantite<=0 ? '#fee2e2' : (a.quantite<=5 ? '#fef9c3' : '#dcfce7');
+    var stockClr  = a.quantite<=0 ? '#dc2626' : (a.quantite<=5 ? '#a16207' : '#15803d');
+    var stockIcon = a.quantite<=0 ? '🚫' : (a.quantite<=5 ? '⚠️' : '📦');
+    var stockLbl  = a.quantite<=0 ? 'Rupture' : (a.quantite|0)+' u';
+    var prixAchat = a.prix_achat_ht || a.prix_achat || 0;
+    return '<div class="f4-row'+(i===f4Idx?' f4-sel':'')+(a.quantite<=0?' f4-rupt':'')+'"'
+      +' id="f4r'+i+'" onclick="f4Pick('+i+',false)" ondblclick="f4Pick('+i+',true)">'
+      +'<div class="f4-td ref">'+esc(a.reference||'')+'</div>'
+      +'<div class="f4-td bold">'+esc(a.designation||'')+'</div>'
+      +'<div class="f4-td"><span style="background:#fffbeb;color:#d97706;padding:1px 7px;border-radius:12px;font-size:10px;font-weight:700;">'+esc(a.categorie||'—')+'</span></div>'
+      +'<div class="f4-td r"><span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:800;background:'+stockBg+';color:'+stockClr+';">'+stockIcon+' '+stockLbl+'</span></div>'
+      +'<div class="f4-td r prix">'+fmtN(prixAchat)+' '+DEVISE+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function f4Pick(i,fermer){
+  var a=f4Fil[i]; if(!a) return;
+  f4Idx=i;
+  document.querySelectorAll('.f4-row').forEach(function(r){ r.classList.remove('f4-sel'); });
+  var row=document.getElementById('f4r'+i); if(row) row.classList.add('f4-sel');
+  var elCode=document.getElementById('s_code');
+  var elDes =document.getElementById('s_design');
+  var elPrix=document.getElementById('s_prix');
+  if(elCode) elCode.value=a.reference||'';
+  if(elDes){ elDes.value=a.designation; delete elDes.dataset.editIdx; }
+  if(elPrix){
+    var pa = a.prix_achat_ht||a.prix_achat||0;
+    elPrix.value             = pa;
+    elPrix.dataset.prixColis = a.prix_achat_ht||0;
+    elPrix.dataset.articleId = a.id;
+  }
+  var scolis=document.getElementById('s_colis');
+  if(scolis) scolis.dataset.colisage=a.colisage||1;
+  saisieCalc();
+  if(fermer!==false){
+    fermerF4();
+    var sq=document.getElementById('s_qte'); if(sq){ sq.focus(); sq.select(); }
+  }
+}
+
+function f4NavClavier(e){
+  if(e.key==='Escape')        { e.preventDefault(); fermerF4(); }
+  else if(e.key==='Enter')    { e.preventDefault(); if(f4Idx>=0) f4Pick(f4Idx,true); }
+  else if(e.key==='ArrowDown'){ e.preventDefault(); f4Move(1); }
+  else if(e.key==='ArrowUp')  { e.preventDefault(); f4Move(-1); }
+}
+
+function f4Move(d){
+  if(!f4Fil.length) return;
+  f4Idx=Math.max(0,Math.min(f4Fil.length-1,f4Idx+d));
+  f4Rendu();
+  var r=document.getElementById('f4r'+f4Idx); if(r) r.scrollIntoView({block:'nearest'});
+}
+
+window.addEventListener('keydown',function(e){
+  var ov=document.getElementById('f4Overlay');
+  if(e.key==='F4'){
+    e.preventDefault();
+    if(!ov) return;
+    if(ov.classList.contains('f4-open')) fermerF4(); else ouvrirF4();
+  } else if(e.key==='Escape'){
+    if(ov && ov.classList.contains('f4-open')) return;
+    var saisie=document.getElementById('tab-saisie');
+    if(saisie && saisie.style.display==='block') switchTab('historique');
+  }
+},true);
+
+/* Init */
+{% if edit_doc %}lines.forEach(function(l){ calcLine(l); });{% endif %}
+renderLines();
+{% if edit_doc %}
+/* Mode édition : basculer sur l'onglet saisie et afficher le titre */
+switchTab('saisie');
+{% endif %}
+document.getElementById('s_design') && document.getElementById('s_design').focus();
+
+/* ── BroadcastChannel : notifier Stock après réception / création facture fournisseur ──
+   Les bons de commande achat convertis en facture fournisseur génèrent une
+   entrée stock → le module Stock doit se rafraîchir immédiatement. */
+(function(){
+  if(!window.BroadcastChannel) return;
+  function emitStock(){ try{ new BroadcastChannel('distrigest_stock').postMessage({type:'achat'}); }catch(e){} }
+  document.querySelectorAll('form[method="POST"]').forEach(function(f){
+    f.addEventListener('submit', function(){ setTimeout(emitStock, 400); });
+  });
+})();
+</script>
+
+{# ── Patch thème sombre : éléments inline de cette page ── #}
+<style>
+/* ════════ DARK MODE — patch page ════════ */
+/* ════════ DARK — éléments SAGE (saisie type ERP) ════════ */
+[data-theme="dark"] .sage-wrap        { background:var(--bg-page) !important; }
+[data-theme="dark"] .sage-topbar      { background:var(--bg-card) !important; border-color:var(--border) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .sage-input,
+[data-theme="dark"] .sage-select      { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .sage-sep         { background:var(--border) !important; }
+[data-theme="dark"] .sage-grid        { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .sage-row         { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .sage-row:hover   { background:var(--row-hover) !important; }
+[data-theme="dark"] .sage-row.sel     { background:#1d3461 !important; }
+[data-theme="dark"] .sage-td          { color:var(--texte) !important; }
+[data-theme="dark"] .sage-td.num,
+[data-theme="dark"] .sage-td.grey     { color:var(--gris3) !important; }
+[data-theme="dark"] .sage-saisie      { background:#0d1d38 !important; }
+[data-theme="dark"] .saisie-in        { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .saisie-in:focus  { background:#0a1628 !important; border-color:var(--bleu2) !important; }
+[data-theme="dark"] .saisie-ro        { background:#1c2128 !important; border-color:var(--border) !important; color:var(--gris3) !important; }
+[data-theme="dark"] .saisie-ro.tva-c  { background:#0d1d38 !important; color:#93c5fd !important; border-color:#1d3461 !important; }
+[data-theme="dark"] .saisie-ro.ttc-c  { background:#1d3461 !important; color:#60a5fa !important; border-color:#2563eb !important; }
+[data-theme="dark"] .saisie-mt        { background:#1c2128 !important; color:var(--texte) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .saisie-mt.tva-c  { background:#0d1d38 !important; color:#93c5fd !important; }
+[data-theme="dark"] .saisie-mt.ttc-c  { background:#1d3461 !important; color:#60a5fa !important; }
+[data-theme="dark"] .sage-bottom      { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .sage-bottom-left { border-color:var(--border) !important; }
+[data-theme="dark"] .sage-totaux      { border-color:var(--border) !important; }
+[data-theme="dark"] .sage-tot-row .lbl { color:var(--gris3) !important; }
+[data-theme="dark"] .sage-tot-row .val { color:var(--texte) !important; }
+[data-theme="dark"] .sage-tot-ttc     { border-top-color:var(--border) !important; }
+[data-theme="dark"] .sage-tot-ttc .lbl { color:var(--texte) !important; }
+[data-theme="dark"] .sage-paiement    { border-color:var(--border) !important; }
+[data-theme="dark"] .sage-mode-btn    { background:var(--bg-input) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .sage-mode-btn:hover,
+[data-theme="dark"] .sage-mode-btn.active { background:#1d3461 !important; border-color:var(--bleu2) !important; }
+[data-theme="dark"] .sage-mode-lbl    { color:var(--gris3) !important; }
+[data-theme="dark"] .sage-mini-input  { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+
+/* ── F4 (catalogue) ── */
+[data-theme="dark"] #f4Overlay        { background:rgba(0,0,0,.7) !important; }
+[data-theme="dark"] #f4Panel          { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] #f4Header         { background:var(--bg-thead) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] #f4Search         { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .f4-catbtn        { background:var(--bg-input) !important; border-color:var(--border) !important; color:var(--gris3) !important; }
+[data-theme="dark"] .f4-catbtn:hover  { background:#0d1d38 !important; color:#93c5fd !important; }
+[data-theme="dark"] .f4-catbtn.f4-cat-active { background:var(--bleu) !important; color:#fff !important; border-color:var(--bleu) !important; }
+[data-theme="dark"] .f4-thead         { background:var(--bg-thead) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .f4-th            { color:var(--gris3) !important; }
+[data-theme="dark"] .f4-row           { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .f4-row:hover     { background:var(--row-hover) !important; }
+[data-theme="dark"] .f4-row.f4-sel    { background:#1d3461 !important; }
+[data-theme="dark"] .f4-td            { color:var(--texte) !important; }
+[data-theme="dark"] .f4-footer        { background:var(--bg-thead) !important; border-top-color:var(--border) !important; color:var(--gris3) !important; }
+[data-theme="dark"] .f4-key           { background:var(--bg-input) !important; border-color:var(--border) !important; color:var(--gris3) !important; }
+[data-theme="dark"] .f4-open-btn      { background:#0d1d38 !important; border-color:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] .f4-cnt           { color:var(--gris3) !important; }
+
+/* ── system auto ── */
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] .sage-wrap        { background:var(--bg-page) !important; }
+  [data-theme="system"] .sage-topbar      { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .sage-input,
+  [data-theme="system"] .sage-select      { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .sage-grid        { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .sage-row         { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] .sage-row:hover   { background:var(--row-hover) !important; }
+  [data-theme="system"] .sage-row.sel     { background:#1d3461 !important; }
+  [data-theme="system"] .sage-td          { color:var(--texte) !important; }
+  [data-theme="system"] .sage-saisie      { background:#0d1d38 !important; }
+  [data-theme="system"] .saisie-in        { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .saisie-ro        { background:#1c2128 !important; color:var(--gris3) !important; }
+  [data-theme="system"] .saisie-mt        { background:#1c2128 !important; color:var(--texte) !important; }
+  [data-theme="system"] .sage-bottom      { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .sage-totaux      { border-color:var(--border) !important; }
+  [data-theme="system"] .sage-tot-row .lbl { color:var(--gris3) !important; }
+  [data-theme="system"] .sage-tot-row .val { color:var(--texte) !important; }
+  [data-theme="system"] .sage-tot-ttc     { border-top-color:var(--border) !important; }
+  [data-theme="system"] .sage-mode-btn    { background:var(--bg-input) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .sage-mini-input  { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .f4-thead         { background:var(--bg-thead) !important; border-bottom-color:var(--border) !important; }
+  [data-theme="system"] .f4-th            { color:var(--gris3) !important; }
+  [data-theme="system"] .f4-row           { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] .f4-row:hover     { background:var(--row-hover) !important; }
+  [data-theme="system"] .f4-td            { color:var(--texte) !important; }
+  [data-theme="system"] .f4-footer        { background:var(--bg-thead) !important; border-top-color:var(--border) !important; }
+  [data-theme="system"] .f4-key           { background:var(--bg-input) !important; border-color:var(--border) !important; }
+  [data-theme="system"] #f4Panel          { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] #f4Header         { background:var(--bg-thead) !important; }
+  [data-theme="system"] #f4Search         { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .f4-catbtn        { background:var(--bg-input) !important; border-color:var(--border) !important; color:var(--gris3) !important; }
+}
+
+
+/* ── Inputs / selects / textareas ── */
+[data-theme="dark"] input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=hidden]):not([type=range]),
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: var(--bg-input) !important;
+  color: var(--texte) !important;
+  border-color: var(--border) !important;
+}
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder { color: var(--gris3) !important; opacity:1; }
+
+/* ── Fonds colorés sémantiques (info, success, warning, danger) ── */
+/* On assombrit les backgrounds pastel pour lisibilité sur fond sombre */
+[data-theme="dark"] [style*="background:#f0f7ff"],
+[data-theme="dark"] [style*="background: #f0f7ff"] { background:#0d1d38 !important; color:#93c5fd !important; }
+[data-theme="dark"] [style*="background:#eff6ff"],
+[data-theme="dark"] [style*="background: #eff6ff"] { background:#0d1d38 !important; }
+[data-theme="dark"] [style*="background:#dbeafe"],
+[data-theme="dark"] [style*="background: #dbeafe"] { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] [style*="background:#bfdbfe"]  { background:#1d3461 !important; }
+
+[data-theme="dark"] [style*="background:#f0fdf4"],
+[data-theme="dark"] [style*="background: #f0fdf4"] { background:#052e16 !important; color:#4ade80 !important; }
+[data-theme="dark"] [style*="background:#dcfce7"],
+[data-theme="dark"] [style*="background: #dcfce7"] { background:#052e16 !important; color:#4ade80 !important; }
+[data-theme="dark"] [style*="background:#bbf7d0"]  { background:#052e16 !important; }
+
+[data-theme="dark"] [style*="background:#fef9c3"],
+[data-theme="dark"] [style*="background: #fef9c3"] { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] [style*="background:#fefce8"],
+[data-theme="dark"] [style*="background: #fefce8"] { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] [style*="background:#fffbeb"],
+[data-theme="dark"] [style*="background: #fffbeb"] { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] [style*="background:#fef3c7"],
+[data-theme="dark"] [style*="background: #fef3c7"] { background:#3d2e00 !important; }
+[data-theme="dark"] [style*="background:#fde68a"]  { background:#3d2e00 !important; }
+
+[data-theme="dark"] [style*="background:#fee2e2"],
+[data-theme="dark"] [style*="background: #fee2e2"] { background:#3d0f0f !important; color:#fca5a5 !important; }
+[data-theme="dark"] [style*="background:#fff1f2"],
+[data-theme="dark"] [style*="background: #fff1f2"] { background:#3d0f0f !important; }
+[data-theme="dark"] [style*="background:#fff5f5"],
+[data-theme="dark"] [style*="background: #fff5f5"] { background:#3d0f0f !important; }
+[data-theme="dark"] [style*="background:#fecaca"]  { background:#3d0f0f !important; }
+[data-theme="dark"] [style*="background:#fecdd3"]  { background:#3d0f0f !important; }
+
+[data-theme="dark"] [style*="background:#f5f3ff"],
+[data-theme="dark"] [style*="background: #f5f3ff"] { background:#1e1040 !important; }
+[data-theme="dark"] [style*="background:#ede9fe"]  { background:#1e1040 !important; }
+
+[data-theme="dark"] [style*="background:#fff7ed"],
+[data-theme="dark"] [style*="background: #fff7ed"] { background:#3d1500 !important; color:#fb923c !important; }
+[data-theme="dark"] [style*="background:#ffedd5"]  { background:#3d1500 !important; }
+
+[data-theme="dark"] [style*="background:#f0f9ff"],
+[data-theme="dark"] [style*="background: #f0f9ff"] { background:#0a1e33 !important; }
+
+/* ── Badges ── */
+[data-theme="dark"] .badge-sec     { background:#1c2128 !important; color:#8b949e !important; }
+[data-theme="dark"] .badge-info    { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] .badge-success { background:#052e16 !important; color:#4ade80 !important; }
+[data-theme="dark"] .badge-warning { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] .badge-danger  { background:#3d0f0f !important; color:#fca5a5 !important; }
+
+/* ── Cards & tableaux ── */
+[data-theme="dark"] .kpi-card      { background:var(--bg-card) !important; }
+[data-theme="dark"] .kpi-card .label,
+[data-theme="dark"] .kpi-card .sub { color:var(--gris3) !important; }
+[data-theme="dark"] .table-card    { background:var(--bg-card) !important; }
+[data-theme="dark"] .table-card .thead { background:var(--bg-card) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] thead th       { background:var(--bg-thead) !important; color:var(--gris3) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody td       { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody tr:last-child td { border-bottom:none !important; }
+[data-theme="dark"] tbody tr:hover td { background:var(--row-hover) !important; }
+
+/* ── Boutons secondaires / actions ── */
+[data-theme="dark"] .btn-sec       { background:#1c2128 !important; color:#8b949e !important; border-color:var(--border) !important; }
+[data-theme="dark"] .btn-sec:hover { background:#30363d !important; color:var(--texte) !important; }
+[data-theme="dark"] .hist-action-btn { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+
+/* ── Modales ── */
+[data-theme="dark"] .modal         { background:var(--modal-bg) !important; }
+[data-theme="dark"] .modal-header  { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .modal-footer  { border-top-color:var(--border) !important; }
+[data-theme="dark"] .modal-body    { background:var(--modal-body-bg) !important; }
+
+/* ── Éléments spécifiques ── */
+[data-theme="dark"] .pcart         { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .pcart-head    { background:var(--bg-thead) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .pcart-body    { background:var(--bg-card) !important; }
+[data-theme="dark"] .result-section { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .result-section-header { background:var(--bg-thead) !important; }
+[data-theme="dark"] .result-table td { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .result-table tr:hover td { background:var(--row-hover) !important; }
+[data-theme="dark"] .sage-mode-btn { background:var(--bg-input) !important; border-color:var(--border) !important; color:var(--texte) !important; }
+[data-theme="dark"] .sage-mode-btn.active { background:var(--bleu2) !important; color:#fff !important; }
+[data-theme="dark"] .liv-select    { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+
+/* inv rows */
+[data-theme="dark"] .inv-row-ok  td { background:#052e16 !important; }
+[data-theme="dark"] .inv-row-pos td { background:#3d2e00 !important; }
+[data-theme="dark"] .inv-row-neg td { background:#3d0f0f !important; }
+
+/* ════════ SYSTEM AUTO ════════ */
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=hidden]):not([type=range]),
+  [data-theme="system"] select,
+  [data-theme="system"] textarea {
+    background:var(--bg-input) !important;
+    color:var(--texte) !important;
+    border-color:var(--border) !important;
+  }
+  [data-theme="system"] input::placeholder,
+  [data-theme="system"] textarea::placeholder { color:var(--gris3) !important; opacity:1; }
+
+  [data-theme="system"] [style*="background:#f0f7ff"],
+  [data-theme="system"] [style*="background: #f0f7ff"]  { background:#0d1d38 !important; color:#93c5fd !important; }
+  [data-theme="system"] [style*="background:#eff6ff"],
+  [data-theme="system"] [style*="background: #eff6ff"]  { background:#0d1d38 !important; }
+  [data-theme="system"] [style*="background:#dbeafe"],
+  [data-theme="system"] [style*="background: #dbeafe"]  { background:#1d3461 !important; color:#93c5fd !important; }
+  [data-theme="system"] [style*="background:#f0fdf4"],
+  [data-theme="system"] [style*="background: #f0fdf4"]  { background:#052e16 !important; color:#4ade80 !important; }
+  [data-theme="system"] [style*="background:#dcfce7"],
+  [data-theme="system"] [style*="background: #dcfce7"]  { background:#052e16 !important; color:#4ade80 !important; }
+  [data-theme="system"] [style*="background:#fef9c3"],
+  [data-theme="system"] [style*="background: #fef9c3"]  { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] [style*="background:#fefce8"],
+  [data-theme="system"] [style*="background: #fefce8"]  { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] [style*="background:#fffbeb"],
+  [data-theme="system"] [style*="background: #fffbeb"]  { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] [style*="background:#fee2e2"],
+  [data-theme="system"] [style*="background: #fee2e2"]  { background:#3d0f0f !important; color:#fca5a5 !important; }
+  [data-theme="system"] [style*="background:#fff1f2"],
+  [data-theme="system"] [style*="background: #fff1f2"]  { background:#3d0f0f !important; }
+  [data-theme="system"] [style*="background:#fff5f5"],
+  [data-theme="system"] [style*="background: #fff5f5"]  { background:#3d0f0f !important; }
+  [data-theme="system"] [style*="background:#fff7ed"],
+  [data-theme="system"] [style*="background: #fff7ed"]  { background:#3d1500 !important; color:#fb923c !important; }
+  [data-theme="system"] [style*="background:#f5f3ff"],
+  [data-theme="system"] [style*="background: #f5f3ff"]  { background:#1e1040 !important; }
+
+  [data-theme="system"] .badge-sec     { background:#1c2128 !important; color:#8b949e !important; }
+  [data-theme="system"] .badge-info    { background:#1d3461 !important; color:#93c5fd !important; }
+  [data-theme="system"] .badge-success { background:#052e16 !important; color:#4ade80 !important; }
+  [data-theme="system"] .badge-warning { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] .badge-danger  { background:#3d0f0f !important; color:#fca5a5 !important; }
+  [data-theme="system"] .kpi-card      { background:var(--bg-card) !important; }
+  [data-theme="system"] .table-card    { background:var(--bg-card) !important; }
+  [data-theme="system"] .table-card .thead { background:var(--bg-card) !important; border-bottom-color:var(--border) !important; }
+  [data-theme="system"] thead th       { background:var(--bg-thead) !important; color:var(--gris3) !important; border-bottom-color:var(--border) !important; }
+  [data-theme="system"] tbody td       { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] tbody tr:hover td { background:var(--row-hover) !important; }
+  [data-theme="system"] .btn-sec       { background:#1c2128 !important; color:#8b949e !important; border-color:var(--border) !important; }
+  [data-theme="system"] .hist-action-btn { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .modal         { background:var(--modal-bg) !important; }
+  [data-theme="system"] .modal-header  { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] .modal-footer  { border-top-color:var(--border) !important; }
+  [data-theme="system"] .pcart         { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .sage-mode-btn { background:var(--bg-input) !important; border-color:var(--border) !important; color:var(--texte) !important; }
+  [data-theme="system"] .inv-row-ok  td { background:#052e16 !important; }
+  [data-theme="system"] .inv-row-pos td { background:#3d2e00 !important; }
+  [data-theme="system"] .inv-row-neg td { background:#3d0f0f !important; }
+  [data-theme="system"] .result-section { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .result-section-header { background:var(--bg-thead) !important; }
+}
+</style>
+
+{% endblock %}

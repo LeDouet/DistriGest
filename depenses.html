@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Dépenses — DISTRIGEST{% endblock %}
+{% block topbar_title %}💸 Dépenses d'exploitation{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>💸 Dépenses</h1>
+    <div class="sub" style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap;">
+      <span style="display:flex;align-items:center;gap:7px;padding:6px 14px;border-radius:20px;background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--ombre);font-size:12px;font-weight:600;color:var(--texte);">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--rouge);flex-shrink:0;"></span>
+        Total ce mois&nbsp;:&nbsp;<strong style="color:var(--rouge);">{{ total_mois | fcfa }} FCFA</strong>
+      </span>
+    </div>
+  </div>
+  <button onclick="openModal('modalAddDepense')" class="btn btn-primary">➕ Nouvelle dépense</button>
+</div>
+
+<!-- Répartition par catégorie -->
+{% if par_cat %}
+<div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;">
+  {% for pc in par_cat[:6] %}
+  <div style="display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--ombre);font-size:12px;font-weight:600;">
+    <span style="font-size:10px;color:var(--gris3);">{{ pc.categorie }}</span>
+    <strong style="color:var(--rouge);margin-left:4px;">{{ pc.total | fcfa }}</strong>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="table-card">
+  <div class="thead"><h3>{{ depenses|length }} dépense(s)</h3></div>
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Catégorie</th>
+        <th>Description</th>
+        <th>Responsable</th>
+        <th>Montant (FCFA)</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in depenses %}
+      <tr>
+        <td style="font-size:11px;color:var(--gris3);">{{ d.date_depense or '—' }}</td>
+        <td>
+          {% set cat_icons = {'Carburant':'⛽','Transport':'🚛','Loyer':'🏢','Électricité':'⚡','Internet':'🌐','Personnel':'👤','Marketing':'📣','Fournitures':'📦','Maintenance':'🔧','Logiciels':'💿','Taxes':'🏛️','Assurance':'🛡️','Autre':'📌'} %}
+          <span class="badge badge-info">{{ cat_icons.get(d.categorie,'📌') }} {{ d.categorie }}</span>
+        </td>
+        <td style="font-size:12px;">{{ d.description or '—' }}</td>
+        <td style="color:var(--gris3);font-size:11px;">{{ d.responsable or '—' }}</td>
+        <td style="font-weight:700;color:var(--rouge);">
+          {{ d.montant | fcfa }}
+        </td>
+        <td>
+          <button onclick="if(confirm('Supprimer la dépense : {{ d.description[:40] if d.description else "cette dépense" }} ? Cette action est irréversible.')) window.location='/depenses/delete/{{ d.id }}'"
+            class="hist-action-btn hist-btn-supprimer">🗑️ <span>Supprimer</span></button>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" style="text-align:center;color:var(--gris3);padding:36px;">
+          <div style="font-size:28px;margin-bottom:8px;">💸</div>
+          Aucune dépense enregistrée
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══ MODAL : Nouvelle dépense ═══ -->
+<div id="modalAddDepense" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>💸 Nouvelle dépense</h3>
+      <button class="modal-close" onclick="closeModal('modalAddDepense')">✕</button>
+    </div>
+    <form method="POST" action="/depenses/add">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Catégorie *</label>
+            <select name="categorie" required>
+              {% for cat in ['Carburant','Transport','Loyer','Électricité','Internet','Personnel','Marketing','Fournitures','Maintenance','Logiciels','Taxes','Assurance','Autre'] %}
+              <option>{{ cat }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Date *</label>
+            <input name="date_depense" id="depenseDate" type="date" required>
+          </div>
+          <div class="form-group full">
+            <label>Description *</label>
+            <input name="description" required placeholder="Détail de la dépense…">
+          </div>
+          <div class="form-group">
+            <label>Montant (FCFA) *</label>
+            <input name="montant" type="number" step="1" required min="0" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label>Responsable</label>
+            <input name="responsable" placeholder="Nom du responsable">
+          </div>
+          <div class="form-group full">
+            <label>Notes</label>
+            <textarea name="notes" rows="2" placeholder="Informations complémentaires…"
+              style="width:100%;padding:8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalAddDepense')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+.hist-action-btn {
+  display:inline-flex;align-items:center;gap:4px;
+  padding:5px 10px;border-radius:7px;
+  font-size:11px;font-weight:700;font-family:inherit;
+  border:1.5px solid transparent;cursor:pointer;
+  transition:all .15s;white-space:nowrap;line-height:1;
+  text-decoration:none;background:none;
+}
+.hist-action-btn span { font-size:11px; }
+.hist-btn-supprimer { background:var(--bg-input);color:#dc2626;border-color:#fca5a5; }
+.hist-btn-supprimer:hover { background:#dc2626;color:white;border-color:#dc2626;box-shadow:0 2px 8px rgba(220,38,38,.25); }
+</style>
+<script>
+document.getElementById('depenseDate').value = new Date().toISOString().split('T')[0];
+</script>
+
+{# ── Patch thème sombre — depenses ── #}
+<style>
+[data-theme="dark"] .kpi-card        { background:var(--bg-card) !important; }
+[data-theme="dark"] .kpi-card .label,
+[data-theme="dark"] .kpi-card .sub   { color:var(--gris3) !important; }
+[data-theme="dark"] .table-card      { background:var(--bg-card) !important; }
+[data-theme="dark"] .table-card .thead { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] thead th         { background:var(--bg-thead) !important; color:var(--gris3) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody td         { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody tr:hover td { background:var(--row-hover) !important; }
+[data-theme="dark"] .hist-btn-supprimer { background:#3d0f0f !important; color:#fca5a5 !important; border-color:#7f1d1d !important; }
+[data-theme="dark"] .badge-info      { background:#1d3461 !important; color:#93c5fd !important; }
+/* Pills page-header et catégories */
+[data-theme="dark"] [style*="background:var(--bg-card)"][style*="border-radius:20px"] {
+  background:var(--bg-card) !important; border-color:var(--border) !important;
+}
+[data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
+  background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+}
+[data-theme="dark"] .modal           { background:var(--modal-bg) !important; }
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer    { border-color:var(--border) !important; }
+[data-theme="dark"] .btn-sec         { background:#1c2128 !important; color:#8b949e !important; border-color:var(--border) !important; }
+@media (prefers-color-scheme:dark) {
+  [data-theme="system"] .kpi-card    { background:var(--bg-card) !important; }
+  [data-theme="system"] .table-card  { background:var(--bg-card) !important; }
+  [data-theme="system"] thead th     { background:var(--bg-thead) !important; color:var(--gris3) !important; }
+  [data-theme="system"] tbody td     { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] .hist-btn-supprimer { background:#3d0f0f !important; color:#fca5a5 !important; border-color:#7f1d1d !important; }
+  [data-theme="system"] .badge-info  { background:#1d3461 !important; color:#93c5fd !important; }
+  [data-theme="system"] input, [data-theme="system"] select, [data-theme="system"] textarea {
+    background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+  }
+  [data-theme="system"] .modal       { background:var(--modal-bg) !important; }
+  [data-theme="system"] .btn-sec     { background:#1c2128 !important; color:#8b949e !important; }
+}
+</style>
+{% endblock %}

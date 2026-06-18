@@ -1,0 +1,2178 @@
+{% extends "base.html" %}
+{% block title %}🗂️ Commandes — DISTRIGEST{% endblock %}
+{% block topbar_title %}🗂️ Commandes{% endblock %}
+{% block content %}
+
+<style>
+#tab-saisie    { display:{% if edit_doc %}block{% else %}none{% endif %}; }
+#tab-historique{ display:{% if edit_doc %}none{% else %}block{% endif %}; }
+
+/* ══ LAYOUT SAGE ═══════════════════════════════════════════════════════ */
+.sage-wrap {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 56px - 48px);
+  min-height: 520px;
+  background:var(--bg-page);
+  gap: 0;
+}
+
+/* ── Barre du haut : client / date / ticket / réf ── */
+.sage-topbar {
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius: 10px 10px 0 0;
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  border-bottom:2px solid var(--border);
+}
+.sage-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sage-field label {
+  font-size: 9px;
+  font-weight: 800;
+  color:var(--gris3);
+  text-transform: uppercase;
+  letter-spacing: .6px;
+}
+.sage-input {
+  padding: 5px 9px;
+  border:1.5px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  color:var(--texte);
+  background:var(--bg-card);
+  transition: border-color .15s, box-shadow .15s;
+  height: 30px;
+}
+.sage-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+}
+.sage-select {
+  padding: 5px 8px;
+  border:1.5px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  color:var(--texte);
+  background:var(--bg-card);
+  height: 30px;
+  cursor: pointer;
+}
+.sage-select:focus { outline: none; border-color: #2563eb; }
+.sage-sep { width: 1px; height: 30px; background:var(--border); flex-shrink: 0; }
+.sage-topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+/* ── Tableau des lignes ── */
+.sage-grid {
+  flex: 1; overflow: hidden;
+  background:var(--bg-card);
+  border-left:1px solid var(--border);
+  border-right:1px solid var(--border);
+  display: flex; flex-direction: column;
+}
+
+.sage-tbody {
+  flex: 1; overflow-y: auto; overflow-x: auto;
+}
+.sage-tbody::-webkit-scrollbar { width: 5px; }
+.sage-tbody::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+.sage-row {
+  display: grid;
+  grid-template-columns: 100px minmax(80px,1fr) 60px 60px 100px 60px 60px 100px 100px 100px 40px;
+  border-bottom:1px solid var(--border);
+  align-items: center; min-height: 36px;
+  transition: background .1s; cursor: pointer;
+  min-width: 850px;
+}
+.sage-row:hover { background:var(--row-hover); }
+.sage-row.sel { background: #dbeafe; }
+
+.sage-td {
+  padding: 3px 8px; font-size: 12px; color:var(--texte);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sage-td.num { color:var(--gris3); font-size: 11px; font-weight: 600; text-align: center; }
+.sage-td.r   { text-align: right; font-variant-numeric: tabular-nums; }
+.sage-td.bold { font-weight: 700; }
+.sage-td.blue { color: #1d4ed8; font-weight: 800; }
+.sage-td.grey { color:var(--gris3); }
+.sage-td.del  { text-align: center; }
+
+/* Bouton supprimer */
+.sage-del-btn {
+  background: none; border:none; cursor: pointer;
+  color:var(--gris2); font-size: 14px;
+  border-radius: 4px; transition: color .12s, background .12s;
+  width: 26px; height: 26px; margin: auto;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Inter', sans-serif; font-weight: 700;
+}
+.sage-del-btn:hover { color: #ef4444; background: #fee2e2; }
+
+/* ══ BANDEAU DE SAISIE ══════════════════════════════════════════════════ */
+.sage-saisie {
+  display: grid;
+  grid-template-columns: 100px minmax(80px,1fr) 60px 60px 100px 60px 60px 100px 100px 100px 40px;
+  min-width: 850px;
+  background: #f0f7ff;
+  border-bottom: 2px solid #3b82f6;
+  flex-shrink: 0;
+  align-items: center;
+  min-height: 44px;
+}
+
+/* Cellule du bandeau */
+.saisie-cell {
+  padding: 3px 3px;
+  display: flex; align-items: center;
+  overflow: hidden;
+}
+/* Input de saisie */
+.saisie-in {
+  width: 100%; height: 32px;
+  box-sizing: border-box;
+  border: 1.5px solid #bfdbfe; border-radius: 5px;
+  background:var(--bg-card); padding: 0 5px;
+  font-size: 12px; font-family: 'Inter', sans-serif;
+  color:var(--texte); outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  min-width: 0;
+}
+.saisie-in::placeholder {
+  color: #c7d9f5; font-style: italic; font-size: 11px;
+}
+/* Supprimer les spinners sur tous les champs numériques */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none; margin: 0;
+}
+input[type="number"] { -moz-appearance: textfield; }
+.saisie-in:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+  background: #fafcff;
+}
+.saisie-in[type="number"] { text-align: right; }
+/* Champs calculés (readonly) */
+.saisie-ro {
+  background:var(--gris) !important;
+  border-color: #cbd5e1 !important;
+  border-style: dashed !important;
+  color:var(--gris3); font-weight: 700;
+  cursor: not-allowed; pointer-events: none;
+  user-select: none;
+}
+.saisie-ro.tva-c { color: #2563eb; background:#eff6ff !important; border-color:#bfdbfe !important; }
+.saisie-ro.ttc-c { color: #1d4ed8; font-weight: 900; font-size: 13px; background:#dbeafe !important; border-color:#93c5fd !important; }
+/* Montants editables et synchronises : HT - TVA - TTC */
+.saisie-mt { background:var(--bg-card) !important; border:1.5px solid #bfdbfe; border-radius:5px; color:var(--texte); font-weight:700; text-align:right; cursor:text; }
+.saisie-mt.tva-c { color:#2563eb; background:#eff6ff !important; border-color:#bfdbfe !important; }
+.saisie-mt.ttc-c { color:#1d4ed8; font-weight:900; font-size:13px; background:#dbeafe !important; border-color:#93c5fd !important; }
+.saisie-mt:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.18); background:var(--bg-card) !important; }
+/* Bouton valider ligne */
+
+
+/* Ligne vide */
+.sage-row-empty {
+  grid-column: 1/-1; padding: 18px 14px;
+  color:var(--gris3); font-size: 12px; text-align: center;
+  min-width: 850px;
+}
+
+/* ── Pied : totaux + paiement ── */
+.sage-bottom {
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-top:2px solid var(--border);
+  border-radius: 0 0 10px 10px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  flex-shrink: 0;
+}
+
+/* Colonne gauche pied : remise + TVA + notes optionnelles */
+.sage-bottom-left {
+  padding: 12px 18px;
+  border-right:1px solid var(--border);
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+}
+.sage-mini-field { display: flex; align-items: center; gap: 7px; }
+.sage-mini-field label {
+  font-size: 10px; font-weight: 700; color:var(--gris3);
+  text-transform: uppercase; letter-spacing: .5px;
+  white-space: nowrap;
+}
+.sage-mini-input {
+  width: 90px; padding: 4px 8px;
+  border:1.5px solid var(--border); border-radius: 5px;
+  font-size: 12px; font-family: 'Inter', sans-serif;
+  color:var(--texte); text-align: right;
+}
+.sage-mini-input:focus { outline: none; border-color: #2563eb; }
+
+/* Colonne droite pied : totaux + encaissement */
+.sage-bottom-right {
+  display: flex; flex-direction: row;
+  min-width: 0;
+}
+
+/* Totaux */
+.sage-totaux {
+  padding: 10px 18px; min-width: 200px;
+  border-right:1px solid var(--border);
+  display: flex; flex-direction: column; gap: 5px; justify-content: center;
+}
+.sage-tot-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 24px;
+  font-size: 12px;
+}
+.sage-tot-row .lbl { color:var(--gris3); font-weight: 500; }
+.sage-tot-row .val { font-weight: 700; color:var(--texte); font-variant-numeric: tabular-nums; }
+.sage-tot-ttc {
+  display: flex; justify-content: space-between; align-items: center; gap: 24px;
+  padding-top: 8px; margin-top: 4px; border-top:2px solid var(--border);
+}
+.sage-tot-ttc .lbl { font-size: 13px; font-weight: 800; color: #1a3a6c; }
+.sage-tot-ttc .val {
+  font-size: 22px; font-weight: 900; color: #2563eb;
+  font-variant-numeric: tabular-nums; letter-spacing: -.5px;
+}
+
+/* Paiement */
+.sage-paiement {
+  padding: 10px 14px; min-width: 200px;
+  border-right:1px solid var(--border);
+  display: flex; flex-direction: column; gap: 6px; justify-content: center;
+}
+.sage-paiement-lbl {
+  font-size: 9px; font-weight: 800; color:var(--gris3);
+  text-transform: uppercase; letter-spacing: .6px; margin-bottom: 2px;
+}
+.sage-modes {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 5px;
+}
+.sage-mode-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 6px 2px; border-radius: 7px;
+  border:1.5px solid var(--border); background:var(--bg-card);
+  cursor: pointer; transition: all .12s; font-family: 'Inter', sans-serif;
+}
+.sage-mode-btn:hover { border-color: #2563eb; background: #dbeafe; }
+.sage-mode-btn.active {
+  border-color: #2563eb; background: #dbeafe;
+  box-shadow: 0 0 0 2px rgba(37,99,235,.2);
+}
+.sage-mode-ico { font-size: 16px; line-height: 1; }
+.sage-mode-lbl { font-size: 8px; font-weight: 700; color:var(--gris3); }
+.sage-mode-btn.active .sage-mode-lbl { color: #1d4ed8; }
+
+/* Bouton encaisser */
+.sage-encaisser {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 10px 20px; min-width: 140px;
+  background: linear-gradient(160deg, #1a3a6c 0%, #2563eb 100%);
+  cursor: pointer; border:none; font-family: 'Inter', sans-serif;
+  transition: all .18s; gap: 3px;
+  border-radius: 0 0 10px 0;
+}
+.sage-encaisser:hover { filter: brightness(1.08); }
+.sage-encaisser:active { filter: brightness(.96); }
+.sage-encaisser-ico  { font-size: 22px; }
+.sage-encaisser-lbl  { font-size: 13px; font-weight: 800; color: white; letter-spacing: .2px; }
+.sage-encaisser-sub  { font-size: 10px; color: rgba(255,255,255,.6); }
+
+
+/* ══ RESPONSIVE — TOUS ÉCRANS ══════════════════════════════════════════ */
+
+/* ── Base : scroll horizontal sur tableau + bandeau ── */
+.sage-grid { overflow-x: auto; }
+.sage-saisie, .sage-row, .sage-row-empty { min-width: 0; }
+
+/* ── Tablette (≤ 900px) ── */
+@media (max-width: 900px) {
+  .sage-wrap { height: auto; min-height: 100dvh; }
+
+  /* Topbar : wrap sur 2 lignes */
+  .sage-topbar { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+  .sage-topbar-right { margin-left: 0; width: 100%; justify-content: flex-end; }
+  .sage-sep { display: none; }
+  .sage-field { min-width: 0 !important; flex: 1; }
+  .sage-select, .sage-input { width: 100% !important; }
+
+  /* Pied : empilement vertical */
+  .sage-bottom { grid-template-columns: 1fr; }
+  .sage-bottom-left { border-right: none; border-bottom:1px solid var(--border); }
+  .sage-bottom-right { flex-direction: column; min-width: 0; }
+  .sage-totaux { min-width: 0; border-right: none; border-bottom:1px solid var(--border); }
+  .sage-paiement { min-width: 0; border-right: none; border-bottom:1px solid var(--border); }
+  .sage-encaisser { border-radius: 0 0 10px 10px; min-width: 0; width: 100%; padding: 14px; }
+  .sage-tot-ttc .val { font-size: 18px; }
+
+  /* Bandeau saisie : 2 lignes */
+  .sage-saisie {
+    grid-template-columns: 1fr 1fr;
+    min-width: 0; min-height: auto;
+    padding: 6px 8px; gap: 6px;
+  }
+  .saisie-cell { padding: 3px 4px; }
+  .saisie-in { height: 36px; font-size: 13px; }
+}
+
+/* ── Mobile (≤ 600px) ── */
+@media (max-width: 600px) {
+  .sage-topbar { padding: 8px 10px; gap: 6px; }
+  .sage-field label { font-size: 8px; }
+  .sage-select, .sage-input { font-size: 13px; height: 36px; }
+
+  /* Bandeau : 1 colonne par ligne, plus grand pour touch */
+  .sage-saisie {
+    grid-template-columns: 1fr;
+    padding: 8px 10px; gap: 8px;
+  }
+  .saisie-in {
+    height: 44px; font-size: 14px; padding: 0 12px;
+    border-radius: 8px;
+  }
+  .saisie-in::placeholder { font-size: 13px; }
+
+  /* Lignes tableau : défilement horizontal */
+  .sage-row {
+    grid-template-columns: 100px minmax(80px,1fr) 60px 60px 100px 60px 60px 100px 100px 100px 40px;
+    font-size: 11px;
+  }
+  .sage-td { padding: 6px 6px; font-size: 11px; }
+
+  /* Pied */
+  .sage-modes { grid-template-columns: repeat(4, 1fr); }
+  .sage-mode-ico { font-size: 18px; }
+  .sage-mode-lbl { font-size: 9px; }
+  .sage-tot-ttc .val { font-size: 20px; }
+  .sage-encaisser-lbl { font-size: 15px; }
+  .sage-mini-input { width: 100%; }
+  .sage-bottom-left { gap: 12px; }
+
+}
+
+/* ── Très petit (≤ 400px — petits Android) ── */
+@media (max-width: 400px) {
+  .sage-topbar { padding: 6px 8px; }
+  .sage-select, .sage-input { font-size: 12px; }
+  .saisie-in { height: 42px; font-size: 13px; }
+  .sage-modes { grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .sage-mode-btn { padding: 5px 2px; }
+  .sage-mode-ico { font-size: 16px; }
+  .sage-encaisser { padding: 12px; }
+  .sage-encaisser-lbl { font-size: 14px; }
+  .sage-tot-ttc .val { font-size: 18px; }
+}
+
+/* ── Touch : agrandir les zones cliquables ── */
+@media (hover: none) and (pointer: coarse) {
+  .sage-row { min-height: 44px; }
+  .sage-del-btn { width: 36px; height: 36px; font-size: 16px; }
+  .sage-mode-btn { padding: 10px 4px; }
+
+}
+
+/* ══ FENÊTRE FLOTTANTE F4 ══════════════════════════════════════════ */
+#f4Overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(15,23,42,.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: none; align-items: center;
+  justify-content: center; padding: 10px;
+}
+#f4Overlay.f4-open { display: flex; }
+#f4Panel {
+  background:var(--bg-card); border-radius: 14px;
+  width: 70%; height: 100%;
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 24px 64px rgba(15,23,42,.35), 0 0 0 1px rgba(37,99,235,.18);
+}
+.f4-hd {
+  padding: 14px 18px 10px; border-bottom:1px solid var(--border);
+  background:var(--bg-card); flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.f4-title-row { display: flex; align-items: center; gap: 8px; }
+.f4-title { font-size: 14px; font-weight: 800; color: #1a3a6c;
+            display: flex; align-items: center; gap: 7px; }
+.f4-badge { background: #1a3a6c; color: #fff; font-size: 9px; font-weight: 800;
+            font-family: monospace; padding: 2px 7px; border-radius: 4px; letter-spacing: 1px; }
+.f4-xbtn { margin-left: auto; background: none; border:none; cursor: pointer;
+           font-size: 16px; color:var(--gris3); width: 30px; height: 30px;
+           border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+.f4-xbtn:hover { background: #fee2e2; color: #ef4444; }
+.f4-search-wrap { position: relative; }
+.f4-search-ico { position: absolute; left: 11px; top: 50%;
+                 transform: translateY(-50%); pointer-events: none; font-size: 13px; }
+#f4SearchInput {
+  width: 100%; padding: 9px 12px 9px 34px;
+  border: 1.5px solid #bfdbfe; border-radius: 8px;
+  font-size: 13px; font-family: 'Inter', sans-serif;
+  color:var(--texte); background:var(--bg-card); outline: none;
+}
+#f4SearchInput:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+#f4SearchInput::placeholder { color:var(--gris3); }
+.f4-cats-row { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+.f4-catbtn {
+  padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+  border:1.5px solid var(--border); background:var(--bg-card); color:var(--gris3);
+  cursor: pointer; font-family: 'Inter', sans-serif;
+}
+.f4-catbtn:hover { border-color: #2563eb; color: #1d4ed8; background: #eff6ff; }
+.f4-catbtn.f4-cat-active { background: #1a3a6c; color: #fff; border-color: #1a3a6c; }
+.f4-cnt { margin-left: auto; font-size: 11px; color:var(--gris3); }
+.f4-tbody-wrap { flex: 1; overflow-y: auto; }
+.f4-tbody-wrap::-webkit-scrollbar { width: 5px; }
+.f4-tbody-wrap::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+.f4-thead {
+  display: grid; grid-template-columns: 110px 1fr 140px 90px 110px;
+  background:var(--gris); border-bottom:2px solid var(--border);
+  position: sticky; top: 0; z-index: 1;
+}
+.f4-th { padding: 8px 12px; font-size: 10px; font-weight: 800;
+         color:var(--gris3); text-transform: uppercase; letter-spacing: .5px; }
+.f4-th.r { text-align: right; }
+.f4-row {
+  display: grid; grid-template-columns: 110px 1fr 140px 90px 110px;
+  border-bottom:1px solid var(--border); align-items: center;
+  min-height: 42px; cursor: pointer;
+}
+.f4-row:hover { background: #eff6ff; }
+.f4-row.f4-sel { background: #dbeafe; }
+.f4-row.f4-rupt { opacity: .5; }
+.f4-td { padding: 6px 12px; font-size: 13px; color:var(--texte);
+         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.f4-td.ref  { font-family: monospace; font-size: 11px; color: #2563eb; font-weight: 700; }
+.f4-td.bold { font-weight: 700; }
+.f4-td.r    { text-align: right; font-variant-numeric: tabular-nums; }
+.f4-td.prix { color: #1d4ed8; font-weight: 800; font-size: 14px; }
+.f4-sok  { color: #15803d; font-weight: 700; }
+.f4-slow { color: #d97706; font-weight: 700; }
+.f4-sout { color: #dc2626; font-weight: 700; }
+.f4-empty { text-align: center; padding: 36px; color:var(--gris3); font-size: 13px; }
+.f4-footer {
+  padding: 8px 16px; border-top:1px solid var(--border); background:var(--bg-card);
+  display: flex; align-items: center; gap: 14px;
+  font-size: 11px; color:var(--gris3); flex-shrink: 0;
+}
+.f4-key {
+  display: inline-flex; align-items: center; background:var(--bg-card);
+  border: 1.5px solid #cbd5e1; border-radius: 4px;
+  font-size: 10px; font-weight: 700; color:var(--gris3);
+  padding: 1px 6px; font-family: monospace;
+}
+.f4-open-btn {
+  height: 32px; padding: 0 10px; flex-shrink: 0;
+  background: #eff6ff; border: 1.5px solid #bfdbfe;
+  border-radius: 5px; color: #1d4ed8; font-size: 11px; font-weight: 800;
+  font-family: 'Inter', sans-serif; cursor: pointer; white-space: nowrap;
+}
+.f4-open-btn:hover { background: #dbeafe; border-color: #2563eb; }
+
+/* ── Boutons d'action tableau historique ── */
+.hist-action-btn {
+  display:inline-flex;align-items:center;gap:4px;
+  padding:5px 10px;border-radius:7px;
+  font-size:11px;font-weight:700;font-family:inherit;
+  border:1.5px solid transparent;cursor:pointer;
+  transition:all .15s;white-space:nowrap;line-height:1;
+  text-decoration:none;
+}
+.hist-action-btn span { font-size:11px; }
+.hist-btn-imprimer { background:#f0f7ff;color:#2563eb;border-color:#bfdbfe; }
+.hist-btn-imprimer:hover { background:#2563eb;color:white;border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.25); }
+.hist-btn-modifier { background:#fefce8;color:#ca8a04;border-color:#fde047; }
+.hist-btn-modifier:hover { background:#ca8a04;color:white;border-color:#ca8a04;box-shadow:0 2px 8px rgba(202,138,4,.25); }
+.hist-btn-regler { background:#f0fdf4;color:#16a34a;border-color:#86efac; }
+.hist-btn-regler:hover { background:#16a34a;color:white;border-color:#16a34a;box-shadow:0 2px 8px rgba(22,163,74,.25); }
+.hist-btn-regler-off { background:var(--bg-card);color:#cbd5e1;border-color:var(--border);cursor:not-allowed;opacity:.6; }
+.hist-btn-supprimer { background:#fff1f2;color:#dc2626;border-color:#fca5a5; }
+.hist-btn-supprimer:hover { background:#dc2626;color:white;border-color:#dc2626;box-shadow:0 2px 8px rgba(220,38,38,.25); }
+.hist-btn-action { background:#f5f3ff;color:#7c3aed;border-color:#ddd6fe; }
+.hist-btn-action:hover { background:#7c3aed;color:white;border-color:#7c3aed;box-shadow:0 2px 8px rgba(124,58,237,.25); }
+.hist-btn-action-cyan { background:#ecfeff;color:#0891b2;border-color:#a5f3fc; }
+.hist-btn-action-cyan:hover { background:#0891b2;color:white;border-color:#0891b2;box-shadow:0 2px 8px rgba(8,145,178,.25); }
+.hist-btn-action-green { background:#f0fdf4;color:#059669;border-color:#6ee7b7; }
+.hist-btn-action-green:hover { background:#059669;color:white;border-color:#059669;box-shadow:0 2px 8px rgba(5,150,105,.25); }
+</style>
+
+<!-- ═══ EN-TÊTE + HISTORIQUE ═══ -->
+<div id="tab-historique">
+
+<div class="page-header">
+  <div>
+    <h1>🗂️ Commandes</h1>
+    <div class="sub">{{ docs|length }} facture(s) enregistrée(s)</div>
+  </div>
+  <button class="btn btn-primary" onclick="switchTab('saisie')" id="btn-nouvelle-facture">
+    ➕ Nouveau commandes
+  </button>
+</div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid">
+    <div class="kpi-card vert">
+      <div class="label">Montant total commandes</div>
+      <div class="value" style="color:var(--vert);font-size:18px;">{{ ca_total | fcfa }} {{ cfg.devise if cfg else 'FCFA' }}</div>
+      <div class="sub">Valeur de toutes les commandes</div><div class="icon-bg">💰</div>
+    </div>
+    <div class="kpi-card or">
+      <div class="label">Commandes ce mois</div>
+      <div class="value" style="color:var(--or);font-size:18px;">{{ ca_mois | fcfa }}</div>
+      <div class="sub">Valeur émise ce mois</div><div class="icon-bg">📅</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Total commandes</div>
+      <div class="value">{{ nb_total }}</div>
+      <div class="sub">Toutes les commandes</div><div class="icon-bg">🧾</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="label">À facturer</div>
+      <div class="value" style="color:var(--orange);">{{ nb_attente }}</div>
+      <div class="sub">Commandes en cours</div><div class="icon-bg">⏳</div>
+    </div>
+  </div>
+
+  <!-- Filtres -->
+  <div class="table-card" style="margin-bottom:16px;">
+    <form method="GET" action="{{ url_for('commandes_vente_list') }}">
+      <div style="padding:10px 16px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <div><label style="font-size:10px;font-weight:700;color:var(--gris3);text-transform:uppercase;display:block;margin-bottom:3px;">Recherche</label>
+          <input type="text" name="q" value="{{ q }}" placeholder="Réf., client…" style="height:30px;padding:0 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;width:170px;"></div>
+        <div><label style="font-size:10px;font-weight:700;color:var(--gris3);text-transform:uppercase;display:block;margin-bottom:3px;">Statut</label>
+          <select name="statut" style="height:30px;padding:0 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;">
+            <option value="">Tous</option>
+            <option value="payee"      {% if statut_filtre=='reglee'      %}selected{% endif %}>✅ Payée</option>
+            <option value="partielle"  {% if statut_filtre=='partielle'  %}selected{% endif %}>◑ Partielle</option>
+            <option value="en_attente" {% if statut_filtre=='en_attente' %}selected{% endif %}>⏳ En attente</option>
+          </select></div>
+        <div><label style="font-size:10px;font-weight:700;color:var(--gris3);text-transform:uppercase;display:block;margin-bottom:3px;">Du</label>
+          <input type="date" name="date_du" value="{{ date_du }}" style="height:30px;padding:0 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;"></div>
+        <div><label style="font-size:10px;font-weight:700;color:var(--gris3);text-transform:uppercase;display:block;margin-bottom:3px;">Au</label>
+          <input type="date" name="date_au" value="{{ date_au }}" style="height:30px;padding:0 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;"></div>
+        <button type="submit" class="btn btn-primary btn-sm">🔍 Filtrer</button>
+        <a href="{{ url_for('commandes_vente_list') }}" class="btn btn-sec btn-sm">✕</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Tableau -->
+  <div class="table-card">
+    <div class="thead"><h3>{{ ventes|length }} vente(s) affichée(s)</h3></div>
+    <table>
+      <thead>
+        <tr><th>Référence</th><th>Date</th><th>Client</th><th>Total TTC</th><th>Payé</th><th>Reste</th><th>Mode</th><th>Statut</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+      {% for v in docs %}
+      {% set reste = (v.total_ttc or 0) - ((v.montant_paye or 0) or 0) %}
+      <tr data-id="{{ v.id }}">
+        <td><code style="font-size:10px;color:var(--bleu2);font-weight:700;">{{ v.reference }}</code></td>
+        <td style="font-size:11px;color:var(--gris3);">{{ v.date_doc }}</td>
+        <td>
+          <div style="font-weight:600;font-size:12px;">{{ v.client_nom or 'CLIENT PASSAGER' }}</div>
+          {% if v.client_tel %}<div style="font-size:10px;color:var(--gris3);">{{ v.client_tel }}</div>{% endif %}
+        </td>
+        <td style="font-weight:700;color:var(--bleu);">{{ (v.total_ttc or 0) | fcfa }}</td>
+        <td style="font-weight:700;color:var(--vert);">
+          {% if (v.montant_paye or 0) > 0 %}{{ v.montant_paye | fcfa }}{% else %}—{% endif %}
+        </td>
+        <td style="font-weight:700;color:{{ 'var(--rouge)' if reste > 0 else 'var(--vert)' }};">
+          {{ reste | fcfa }}
+        </td>
+        <td style="font-size:13px;">
+          {% set modes = {'especes':'💵','wave':'📱','orange_money':'🟠','mtn_money':'🟡','moov_money':'🔵','carte_bancaire':'💳','virement':'🏦','cheque':'📄'} %}
+          <span title="{{ (v.mode_paiement or 'especes')|replace('_',' ')|capitalize }}">{{ modes.get(v.mode_paiement,'💵') }}</span>
+        </td>
+        <td>
+          {% if v.statut == 'facturee' %}
+            <span class="badge badge-success">🧾 Facturée</span>
+          {% elif v.statut == 'bl_cree' %}
+            <span class="badge" style="background:#dbeafe;color:#1d4ed8;">🚚 BL créé</span>
+          {% elif v.statut == 'annulee' %}
+            <span class="badge" style="background:#fee2e2;color:#dc2626;">❌ Annulée</span>
+          {% else %}
+            <span class="badge" style="background:#f0fdf4;color:#15803d;">🗂️ En cours</span>
+          {% endif %}
+        </td>
+        <td style="white-space:nowrap;vertical-align:middle;padding:6px 8px;">
+          <div style="display:inline-flex;gap:4px;align-items:center;flex-wrap:nowrap;">
+          {% if v.statut not in ['facturee','annulee'] %}
+          <form method="POST" action="{{ url_for('commande_convertir_facture', id=v.id) }}" style="display:inline;" onsubmit="return confirm('Convertir la commande {{ v.reference }} en facture ?')">
+            <button type="submit" class="hist-action-btn hist-btn-action-cyan">🧾 <span>→ Facture</span></button>
+          </form>
+          <form method="POST" action="{{ url_for('commande_creer_bl', id=v.id) }}" style="display:inline;" onsubmit="return confirm('Créer un bon de livraison pour la commande {{ v.reference }} ?')">
+            <button type="submit" class="hist-action-btn hist-btn-action-green">🚚 <span>→ BL</span></button>
+          </form>
+          {# ── Lier un règlement (avance) ── #}
+          {% set rgl_cmd = reglements_libres | selectattr('commande_id','equalto', v.id) | list %}
+          {% if rgl_cmd %}
+            <span style="display:inline-flex;align-items:center;gap:3px;padding:4px 8px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:7px;font-size:10px;font-weight:700;color:#15803d;"
+                  title="Règlement {{ rgl_cmd[0].reference }} lié">🔗 <span>{{ rgl_cmd[0].reference }}</span></span>
+          {% else %}
+            <button type="button" onclick="openLierRglModal({{ v.id }},'{{ v.reference }}','{{ v.client_id }}')"              class="hist-action-btn" style="background:#f5f3ff;color:#7c3aed;border-color:#ddd6fe;">🔗 <span>Lier rgl.</span></button>
+          {% endif %}
+          {% endif %}
+          {% if v.statut not in ['facturee','annulee'] %}
+          <a href="{{ url_for('commande_vente_edit', id=v.id) }}"
+             class="hist-action-btn hist-btn-modifier">✏️ <span>Modifier</span></a>
+          {% endif %}
+          <a href="{{ url_for('commande_vente_print', id=v.id) }}" target="_blank"
+             class="hist-action-btn hist-btn-imprimer" title="Imprimer">🖨️ <span>Imprimer</span></a>
+          {% if v.statut in ['facturee','bl_cree'] %}
+          <button type="button" class="hist-action-btn hist-btn-supprimer" disabled
+            style="opacity:.4;cursor:not-allowed;"
+            title="{{ 'Commande facturée' if v.statut == 'facturee' else 'Bon de livraison créé' }} — suppression impossible">🔒 <span>Verrouillé</span></button>
+          {% else %}
+          <a href="{{ url_for('document_vente_delete', id=v.id) }}"
+             onclick="return confirm('Supprimer la commande {{ v.reference }} ?')"
+             class="hist-action-btn hist-btn-supprimer">🗑️ <span>Supprimer</span></a>
+          {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="9" style="text-align:center;color:var(--gris3);padding:40px;">
+        <div style="font-size:36px;margin-bottom:10px;">🛒</div>
+        Aucun(e) commandes — <a href="javascript:void(0)" onclick="switchTab('saisie')" style="color:var(--bleu2);">créer la première</a>
+      </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div><!-- fin tab-historique -->
+
+<!-- ═══ ONGLET SAISIE ═══ -->
+<div id="tab-saisie">
+
+<form method="POST"
+      action="{{ '/commandes/' ~ edit_doc.id ~ '/edit' if edit_doc else url_for('document_vente_add') }}"
+      id="venteForm">
+  <input type="hidden" name="lignes_json"  id="lignesJson" value="[]">
+  <input type="hidden" name="montant_ht"   id="vte_ht">
+  <input type="hidden" name="tva"          id="vte_tva_h" value="{{ edit_doc.tva|default(tva_collectee) if edit_doc else tva_collectee }}">
+  <input type="hidden" name="remise_globale" id="vte_remise_h" value="0">
+  <input type="hidden" name="remise_pct"   id="vte_remise_pct_h" value="0">
+  <input type="hidden" name="statut"       id="vte_statut" value="en_attente">
+  <input type="hidden" name="mode_paiement" id="vte_mode" value="{{ edit_doc.mode_paiement if edit_doc else 'especes' }}">
+  <input type="hidden" name="date_doc"     id="vte_date" value="{{ edit_doc.date_doc if edit_doc else today }}">
+  <input type="hidden" name="client_id"    id="vte_client_h" value="{{ (edit_doc.client_id or '') if edit_doc else passager_id }}">
+  <input type="hidden" name="depot_id"     id="vte_depot_h" value="{{ (edit_doc.depot_id or '') if edit_doc else '' }}">
+  <input type="hidden" name="montant_paye" id="vte_montant_paye" value="0">
+  <input type="hidden" name="type_doc"     value="commande">
+
+<div class="sage-wrap">
+
+  <!-- ── BARRE SUPÉRIEURE ── -->
+  <div class="sage-topbar">
+    <!-- Client -->
+    <div class="sage-field" style="min-width:220px;">
+      <label>Client</label>
+      <select class="sage-select" style="width:220px;" onchange="document.getElementById('vte_client_h').value=this.value">
+        {% for c in clients_all %}
+        <option value="{{ c.id }}"
+          {% if edit_doc and edit_doc.client_id == c.id %}selected
+          {% elif not edit_doc and c.id == passager_id %}selected
+          {% endif %}>{% if c.id == passager_id %}⚡ {{ c.label }}{% else %}{{ c.label }}{% endif %}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="sage-sep"></div>
+
+    <!-- Date -->
+    <div class="sage-field">
+      <label>Date</label>
+      <input type="date" class="sage-input" style="width:130px;"
+             value="{{ edit_doc.date_doc if edit_doc else today }}" onchange="document.getElementById('vte_date').value=this.value">
+    </div>
+
+    <div class="sage-sep"></div>
+
+    <!-- Dépôt -->
+    <div class="sage-field" style="min-width:150px;">
+      <label>Dépôt</label>
+      <select class="sage-select" style="width:150px;" id="depotSelect"
+        onchange="document.getElementById('vte_depot_h').value=this.value">
+        {% for d in depots_all %}
+        <option value="{{ d.id }}" {% if edit_doc and edit_doc.depot_id == d.id %}selected{% endif %}>{{ d.nom }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="sage-topbar-right">
+      <button type="button" onclick="ouvrirF4()"
+        style="height:34px;padding:0 16px;
+        background:#eff6ff;border:1.5px solid #bfdbfe;
+        color:#1d4ed8;border-radius:7px;
+        font-size:13px;font-weight:800;cursor:pointer;
+        font-family:'Inter',sans-serif;
+        display:inline-flex;align-items:center;gap:6px;
+        transition:background .12s,border-color .12s;white-space:nowrap;"
+        onmouseover="this.style.background='#dbeafe';this.style.borderColor='#2563eb'"
+        onmouseout="this.style.background='#eff6ff';this.style.borderColor='#bfdbfe'">
+        📦 <span style="font-family:monospace;font-size:10px;background:#1d4ed8;color:white;padding:1px 5px;border-radius:3px;">F4</span> Catalogue
+      </button>
+      <button type="button" onclick="annulerSaisie()"
+        title="Vider le bandeau de saisie / annuler la modification (Échap)"
+        style="height:34px;padding:0 14px;
+        background:var(--bg-card);border:1.5px solid #cbd5e1;
+        color:var(--gris3);border-radius:7px;
+        font-size:13px;font-weight:700;cursor:pointer;
+        font-family:'Inter',sans-serif;
+        display:inline-flex;align-items:center;gap:6px;
+        transition:background .12s,border-color .12s,color .12s;white-space:nowrap;"
+        onmouseover="this.style.background='#fee2e2';this.style.borderColor='#ef4444';this.style.color='#b91c1c'"
+        onmouseout="this.style.background='#f8fafc';this.style.borderColor='#cbd5e1';this.style.color='#475569'">
+        ✖ Annuler
+      </button>
+      <button type="button" onclick="validerSaisie()"
+        style="height:34px;padding:0 18px;
+        background:linear-gradient(135deg,#1a3a6c,#2563eb);
+        color:white;border:none;border-radius:7px;
+        font-size:13px;font-weight:800;cursor:pointer;
+        font-family:'Inter',sans-serif;
+        display:inline-flex;align-items:center;gap:6px;
+        transition:filter .15s,transform .12s;white-space:nowrap;
+        box-shadow:0 2px 8px rgba(37,99,235,.35);"
+        onmouseover="this.style.filter='brightness(1.12)';this.style.transform='translateY(-1px)'"
+        onmouseout="this.style.filter='';this.style.transform=''">
+        ✔ Valider ligne
+      </button>
+    </div>
+
+  </div>
+
+  <!-- ── GRILLE : bandeau + lignes ── -->
+  <div class="sage-grid">
+
+
+    <!-- ★ BANDEAU DE SAISIE — inputs -->
+
+    <div class="sage-saisie" id="sageSaisie">
+      <div class="saisie-cell">
+        <input id="s_code" class="saisie-in" placeholder="Code" autocomplete="off" onkeydown="saisieKey(event)">
+      </div>
+      <div class="saisie-cell">
+        <input id="s_design" class="saisie-in" placeholder="Désignation" autocomplete="off" autocorrect="off"
+               onkeydown="saisieKey(event)" style="flex:1;min-width:0;">
+      </div>
+      <div class="saisie-cell" title="Quantité en unités">
+        <input id="s_qte" class="saisie-in" type="number" value="1" min="1" step="1"
+               placeholder="Qté U." style="text-align:center;"
+               onkeydown="saisieKey(event)" oninput="qteCalc()">
+      </div>
+      <div class="saisie-cell" title="Quantité en colis (× colisage)">
+        <input id="s_colis" class="saisie-in" type="number" value="" min="0" step="1"
+               placeholder="Colis" style="text-align:center;background:#fefce8;"
+               onkeydown="saisieKey(event)" oninput="colisCalc()">
+      </div>
+      <div class="saisie-cell">
+        <input id="s_prix" class="saisie-in" type="number" value="" min="0" step="100"
+               placeholder="PU HT" onkeydown="saisieKey(event)" oninput="checkPrix()">
+      </div>
+      <div class="saisie-cell">
+        <input id="s_rem" class="saisie-in" type="number" value="" min="0" max="100" step="1"
+               placeholder="Rem%" onkeydown="saisieKey(event)" oninput="saisieCalc()">
+      </div>
+      <div class="saisie-cell">
+        <input id="s_tva" class="saisie-in" type="number" value="{{ tva_collectee }}"
+               min="0" max="100" step="1" placeholder="TVA%"
+               style="text-align:center;"
+               onkeydown="saisieKey(event)" oninput="saisieCalc()">
+      </div>
+      <div class="saisie-cell">
+        <input id="s_ht" class="saisie-in saisie-ro" placeholder="Mnt HT" value="" readonly tabindex="-1">
+      </div>
+      <div class="saisie-cell">
+        <input id="s_tva_m" class="saisie-in saisie-ro tva-c" placeholder="TVA" value="" readonly tabindex="-1">
+      </div>
+      <div class="saisie-cell">
+        <input id="s_ttc" class="saisie-in saisie-ro ttc-c" placeholder="TTC" value="" readonly tabindex="-1">
+      </div>
+    </div>
+
+    <!-- Corps : lignes validées -->
+    <div class="sage-tbody" id="sageBody"></div>
+
+  </div>
+
+  <!-- ── PIED : TOTAUX + PAIEMENT ── -->
+  <div class="sage-bottom">
+
+    <!-- Gauche : TVA + remise globale -->
+    <div class="sage-bottom-left">
+      <div class="sage-mini-field">
+        <label>TVA %</label>
+        <input type="number" class="sage-mini-input" id="tvaInput"
+               value="{{ tva_collectee }}" min="0" max="30"
+               oninput="syncTva();document.getElementById('vte_tva_h').value=this.value;recalc()">
+      </div>
+      <div class="sage-mini-field">
+        <label>Remise %</label>
+        <input type="number" class="sage-mini-input" id="remiseInput"
+               value="0" min="0" max="100" step="1"
+               oninput="recalc()">
+      </div>
+    </div>
+
+    <!-- Droite : totaux + paiement + encaisser -->
+    <div class="sage-bottom-right">
+
+      <!-- Totaux -->
+      <div class="sage-totaux">
+        <div class="sage-tot-row">
+          <span class="lbl">HT</span>
+          <span class="val" id="dispHT">0 {{ cfg.devise if cfg else 'FCFA' }}</span>
+        </div>
+        <div class="sage-tot-row">
+          <span class="lbl">TVA (<span id="dispTVApct">{{ tva_collectee }}</span>%)</span>
+          <span class="val" id="dispTVA">0 {{ cfg.devise if cfg else 'FCFA' }}</span>
+        </div>
+        <div class="sage-tot-row" id="remiseRow" style="display:none;">
+          <span class="lbl" style="color:#16a34a;">🏷 Remise</span>
+          <span class="val" style="color:#16a34a;" id="dispRemise">−0</span>
+        </div>
+        <div class="sage-tot-ttc">
+          <span class="lbl">TOTAL TTC</span>
+          <span class="val" id="dispTTC">0 {{ cfg.devise if cfg else 'FCFA' }}</span>
+        </div>
+      </div>
+
+
+      <!-- Bouton encaisser -->
+      <button type="submit" class="sage-encaisser" onclick="return submitVente()">
+        <span class="sage-encaisser-ico">💾</span>
+        <span class="sage-encaisser-lbl">Enregistrer</span>
+        <span class="sage-encaisser-sub" id="encaissTotal">0 {{ cfg.devise if cfg else 'FCFA' }}</span>
+      </button>
+
+    </div>
+  </div>
+
+</div><!-- fin sage-wrap -->
+</form>
+
+<!-- ═══ OVERLAY F4 — Catalogue articles ═══ -->
+<div id="f4Overlay" onclick="if(event.target===this)fermerF4()">
+  <div id="f4Panel">
+    <div class="f4-hd">
+      <div class="f4-title-row">
+        <div class="f4-title"><span class="f4-badge">F4</span> 📦 Catalogue articles</div>
+        <button type="button" class="f4-xbtn" onclick="fermerF4()">✕</button>
+      </div>
+      <div class="f4-search-wrap" style="width:70%;margin:0 auto;">
+        <span class="f4-search-ico">🔍</span>
+        <input type="text" id="f4SearchInput"
+               placeholder="Rechercher par désignation, référence, catégorie…"
+               oninput="f4Filtrer()" onkeydown="f4NavClavier(event)"
+               autocomplete="off" autocorrect="off" spellcheck="false">
+      </div>
+      <div class="f4-cats-row" id="f4CatsRow">
+        <button type="button" class="f4-catbtn f4-cat-active" onclick="f4SetCat(this,'')">Tout</button>
+        <span class="f4-cnt" id="f4CntSpan"></span>
+      </div>
+    </div>
+    <div class="f4-tbody-wrap">
+      <div class="f4-thead">
+        <div class="f4-th">Référence</div>
+        <div class="f4-th">Désignation</div>
+        <div class="f4-th">Catégorie</div>
+        <div class="f4-th r">Stock</div>
+        <div class="f4-th r">P.Vente</div>
+      </div>
+      <div id="f4Lignes"></div>
+    </div>
+    <div class="f4-footer">
+      <span><span class="f4-key">↑↓</span> Naviguer</span>
+      <span><span class="f4-key">Entrée</span> Sélectionner</span>
+      <span><span class="f4-key">Échap</span> Fermer</span>
+      <span style="margin-left:auto;"><span class="f4-key">F4</span> Ouvrir/Fermer</span>
+    </div>
+  </div>
+</div>
+
+</div><!-- fin tab-saisie -->
+
+<!-- ═══ MODAL : Règlement vente ═══ -->
+<div id="modalReglementVente" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>💳 Règlement vente</h3>
+      <button class="modal-close" onclick="closeModal('modalReglementVente')">✕</button>
+    </div>
+    <form method="POST" id="formReglementVente" action="">
+      <div class="modal-body">
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:9px;padding:12px 16px;margin-bottom:14px;">
+          <div style="font-size:13px;font-weight:700;color:var(--bleu);" id="rvte_ref">—</div>
+          <div style="font-size:12px;color:var(--gris3);" id="rvte_client">—</div>
+          <div style="display:flex;gap:16px;margin-top:8px;">
+            <div><div style="font-size:9px;color:var(--gris3);text-transform:uppercase;font-weight:700;">Total TTC</div>
+              <div style="font-size:16px;font-weight:800;color:var(--bleu);" id="rvte_ttc">—</div></div>
+            <div><div style="font-size:9px;color:var(--gris3);text-transform:uppercase;font-weight:700;">Déjà réglé</div>
+              <div style="font-size:16px;font-weight:800;color:var(--vert);" id="rvte_deja">—</div></div>
+            <div><div style="font-size:9px;color:var(--gris3);text-transform:uppercase;font-weight:700;">Reste</div>
+              <div style="font-size:16px;font-weight:800;color:var(--rouge);" id="rvte_reste">—</div></div>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Montant à régler *</label>
+            <input type="number" name="montant_regle" id="rvte_montant" step="1" min="0" required>
+          </div>
+          <div class="form-group full">
+            <label>Mode de paiement *</label>
+            <select name="mode_paiement" id="rvte_mode" required>
+              <option value="especes">💵 Espèces</option>
+              <option value="wave">📱 Wave</option>
+              <option value="orange_money">🟠 Orange Money</option>
+              <option value="mtn_money">🟡 MTN Money</option>
+              <option value="moov_money">🔵 Moov Money</option>
+              <option value="carte_bancaire">💳 Carte bancaire</option>
+              <option value="virement">🏦 Virement</option>
+              <option value="cheque">📄 Chèque</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalReglementVente')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💳 Confirmer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── Navigation saisie / historique ── */
+function switchTab(tab){
+  document.getElementById('tab-saisie').style.display     = tab==='saisie'     ? 'block':'none';
+  document.getElementById('tab-historique').style.display = tab==='historique' ? 'block':'none';
+  if(tab==='saisie') setTimeout(function(){
+    var sd=document.getElementById('s_design'); if(sd) sd.focus();
+  },50);
+}
+var DEVISE = "{{ cfg.devise if cfg else 'FCFA' }}";
+var lines  = {{ edit_lignes | tojson if edit_lignes else '[]' }};
+{% if edit_lignes %}
+lines.forEach(function(l){
+  l.code          = l.art_ref || l.reference || l.code || '';
+  l.designation   = l.designation || '';
+  l.qte_unite     = parseFloat(l.quantite_unite || l.quantite || 0);
+  l.quantite      = l.qte_unite;
+  l.qte_colis     = parseFloat(l.quantite_colis || l.qte_colis || 0);
+  l.prix_ht       = parseFloat(l.prix_ht || l.prix_unitaire || 0);
+  l.prix_unitaire = l.prix_ht;
+  l.prix_colis    = parseFloat(l.prix_colis || 0);
+  l.remise_pct    = parseFloat(l.remise_pct || 0);
+  l.tva_ligne     = parseFloat(l.tva || l.tva_ligne || 0);
+  l.colisage      = parseInt(l.colisage || 1);
+  l.stock_id      = l.stock_id || l.article_id || '';
+
+  /* ── Restaurer les montants DEPUIS LA BASE (total_ht / total_ttc) ──
+     PRIORITÉ ABSOLUE : on ne recalcule JAMAIS depuis prix_ht × quantite
+     car prix_ht peut être un prix COLIS alors que quantite est en unités.
+     Les montants en DB sont toujours corrects (calculés à la création). */
+  var th  = parseFloat(l.total_ht  || l.ht_ligne  || 0);
+  var ttc = parseFloat(l.total_ttc || l.ttc_ligne || 0);
+  l.ht_ligne  = th;
+  l.ttc_ligne = ttc;
+  l.tva_mnt   = Math.round(ttc - th);
+  l.total     = th;
+
+  /* Mode saisie : colis uniquement si qte_colis > 0 ET prix_colis connu.
+     Sinon 'unite' pour éviter tout recalcul incorrect. */
+  l.mode_saisie = (l.qte_colis > 0 && l.prix_colis > 0) ? 'colis' : 'unite';
+
+  l._sel = false;
+});
+{% endif %}
+var PRIX_ACHAT = {
+  {% for a in articles %}"{{ a.id }}": {{ a.prix_achat or 0 }}{% if not loop.last %},{% endif %}
+  {% endfor %}
+};
+
+function fmt(n)  { return (n||0).toLocaleString('fr-FR',{maximumFractionDigits:0})+' '+DEVISE; }
+function fmtN(n) { return (n||0).toLocaleString('fr-FR',{maximumFractionDigits:0}); }
+function esc(s)  { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ── Calcul d'une ligne ── */
+function calcLine(l) {
+  var rem  = Math.min(100, Math.max(0, parseFloat(l.remise_pct)||0));
+  // Priorité 1 : si unité saisie → qté_unitaire × prix_unitaire
+  // Priorité 2 : si colis saisi  → qté_colis    × prix_colis
+  var useColis = (l.mode_saisie === 'colis' && l.qte_colis > 0);
+  var base = useColis ? l.qte_colis : l.quantite;
+  var prix = useColis ? (l.prix_colis || l.prix_ht) : (l.prix_unitaire || l.prix_ht);
+  var puN  = prix * (1 - rem/100);
+  l.ht_ligne  = Math.round(base * puN);
+  l.tva_mnt   = Math.round(l.ht_ligne * (parseFloat(l.tva_ligne)||0) / 100);
+  l.ttc_ligne = l.ht_ligne + l.tva_mnt;
+  l.total     = l.ht_ligne;
+}
+
+/* ── Recalcul totaux pied ── */
+function recalc() {
+  var ht    = lines.reduce(function(s,l){ return s+(l.ht_ligne||0); }, 0);
+  var tvaTot= lines.reduce(function(s,l){ return s+(l.tva_mnt||0); }, 0);
+  var ttcTot= lines.reduce(function(s,l){ return s+(l.ttc_ligne||0); }, 0);
+  var remPct= Math.min(100, Math.max(0, parseFloat((document.getElementById('remiseInput')||{}).value)||0));
+  var remMnt= Math.round(ttcTot * remPct / 100);
+  var ttcNet= Math.max(0, ttcTot - remMnt);
+  var tva   = parseFloat((document.getElementById('tvaInput')||{}).value)||0;
+
+  document.getElementById('dispHT').textContent    = fmt(ht);
+  document.getElementById('dispTVA').textContent   = fmt(tvaTot);
+  document.getElementById('dispTVApct').textContent= tva;
+  document.getElementById('dispTTC').textContent   = fmt(ttcNet);
+  document.getElementById('encaissTotal').textContent = fmt(ttcNet);
+  document.getElementById('vte_ht').value          = ht;
+  document.getElementById('vte_tva_h').value       = tva;
+  document.getElementById('vte_remise_h').value    = remMnt;
+  document.getElementById('vte_remise_pct_h').value= remPct;
+
+  var rRow = document.getElementById('remiseRow');
+  if(remPct>0){ rRow.style.display='flex'; document.getElementById('dispRemise').textContent='−'+fmt(remMnt)+' ('+remPct+'%)'; }
+  else { rRow.style.display='none'; }
+}
+
+/* ── Rendu lignes ── */
+function renderLines() {
+  var tbody = document.getElementById('sageBody');
+  /* Numéro de la prochaine ligne dans le bandeau */
+
+  if(lines.length === 0){
+    tbody.innerHTML = '<div class="sage-row-empty">Saisissez une ligne ci-dessus pour commencer</div>';
+    recalc(); return;
+  }
+  tbody.innerHTML = lines.map(function(l, i){
+    return '<div class="sage-row'+(l._sel?' sel':'')+'" onclick="selectLine('+i+')" id="srow'+i+'">'
+      +'<div class="sage-td" style="font-size:11px;color:var(--gris3);font-family:monospace;">'+esc(l.code||'')+'</div>'
+      +'<div class="sage-td bold">'+esc(l.designation)+'</div>'
+      +'<div class="sage-td" style="text-align:center;">'+l.qte_unite+'</div>'
+      +'<div class="sage-td" style="text-align:center;background:#fefce8;font-size:11px;">'+(l.qte_colis>0?l.qte_colis+' c':'+')+'</div>'
+      +'<div class="sage-td r">'+fmtN(l.prix_ht)+'</div>'
+      +'<div class="sage-td r grey">'+l.remise_pct+'%</div>'
+      +'<div class="sage-td" style="text-align:center;color:var(--gris3);">'+l.tva_ligne+'%</div>'
+      +'<div class="sage-td r bold">'+fmtN(l.ht_ligne)+'</div>'
+      +'<div class="sage-td r grey">'+fmtN(l.tva_mnt)+'</div>'
+      +'<div class="sage-td r blue">'+fmtN(l.ttc_ligne)+'</div>'
+      +'<div class="sage-td del"><button class="sage-del-btn" onclick="event.stopPropagation();delLine('+i+')" title="Supprimer">✕</button></div>'
+      +'</div>';
+  }).join('');
+  recalc();
+}
+
+function delLine(i){ lines.splice(i,1); renderLines(); if(f4Fil.length) f4Rendu(); }
+
+/* ── Sélectionner une ligne → la charger dans le bandeau ── */
+function selectLine(i){
+  lines.forEach(function(l){ l._sel=false; });
+  lines[i]._sel = true;
+  var l = lines[i];
+  document.getElementById('s_code').value   = l.code||'';
+  document.getElementById('s_design').value = l.designation;
+  document.getElementById('s_colis').value  = l.qte_colis||'';
+  document.getElementById('s_colis').dataset.colisage = l.colisage||1;
+  document.getElementById('s_qte').value    = l.qte_unite||l.quantite||1;
+  var _elP = document.getElementById('s_prix');
+  _elP.dataset.prixUnitaire = l.prix_unitaire || l.prix_ht || 0;
+  _elP.dataset.prixColis    = l.prix_colis    || 0;
+  _elP.dataset.prixAchat    = l.prix_achat    || 0;
+  _elP.dataset.stockId      = l.stock_id      || '';
+  _elP.dataset.stockDispo   = (l.stock_dispo !== undefined) ? l.stock_dispo : 9999;
+  _elP.value = (l.mode_saisie === 'colis' && l.prix_colis > 0) ? l.prix_colis : (l.prix_unitaire || l.prix_ht);
+  _saisieMode = l.mode_saisie || 'unite';
+  document.getElementById('s_rem').value    = l.remise_pct;
+  /* Restaurer la TVA propre à la ligne dans le bandeau */
+  var _sTva = document.getElementById('s_tva');
+  if(_sTva && l.tva_ligne) _sTva.value = l.tva_ligne;
+  document.getElementById('s_design').dataset.editIdx = i;
+  saisieCalc();
+  renderLines();
+  document.getElementById('s_design').focus();
+}
+
+/* ── Synchronise le TVA bandeau avec le TVA global du pied ── */
+function syncTva(){
+  var tvaGlobal = (document.getElementById('tvaInput')||{value:'0'}).value;
+  var sTva = document.getElementById('s_tva');
+  if(sTva) sTva.value = tvaGlobal;
+  saisieCalc();
+}
+
+/* ── Calcul temps réel bandeau ── */
+function colisCalc(){
+  _saisieMode = 'colis';
+  var colis    = parseFloat(document.getElementById('s_colis').value)||0;
+  var colisage_c = parseFloat(document.getElementById('s_colis').dataset.colisage)||1;
+  if(colis > 0){
+    document.getElementById('s_qte').value = (colis * colisage_c).toFixed(0);
+    // Priorité 2 : afficher prix de vente colis HT
+    var elPrix = document.getElementById('s_prix');
+    var pColis = parseFloat(elPrix.dataset.prixColis||0);
+    if(pColis > 0) elPrix.value = pColis;
+  }
+  if(typeof checkPrix==='function') checkPrix(); else saisieCalc();
+}
+
+function qteCalc(){
+  _saisieMode = 'unite';
+  var qte      = parseFloat(document.getElementById('s_qte').value)||0;
+  var colisage = parseFloat(document.getElementById('s_colis').dataset.colisage)||1;
+  if(qte > 0 && colisage > 1){
+    document.getElementById('s_colis').value = Math.floor(qte / colisage) || '';
+  } else {
+    document.getElementById('s_colis').value = '';
+  }
+  // Priorité 1 : afficher prix de vente unitaire
+  var elPrix     = document.getElementById('s_prix');
+  var pUnit      = parseFloat(elPrix.dataset.prixUnitaire||0);
+  var pColis     = parseFloat(elPrix.dataset.prixColis||0);
+  var colisage_u = parseFloat(document.getElementById('s_colis').dataset.colisage)||1;
+  if(pUnit > 0){
+    elPrix.value = pUnit;
+  } else if(pColis > 0 && colisage_u > 1){
+    var pDerived = Math.round(pColis / colisage_u);
+    elPrix.value = pDerived;
+    elPrix.dataset.prixUnitaire = pDerived;
+  } else {
+    elPrix.value = pUnit;
+  }
+  if(typeof checkPrix==='function') checkPrix(); else saisieCalc();
+}
+
+var _saisieMode = 'unite'; // 'unite' | 'colis'
+
+/* -- Parse un montant formate (espaces fr-FR, etc.) -> entier -- */
+function parseN(v){
+  if(v==null) return 0;
+  return parseFloat(String(v).replace(/[^0-9,.\-]/g,'').replace(/\s/g,'').replace(',','.'))||0;
+}
+/* -- Reformate un champ montant a la sortie (blur) -- */
+function fmtMontant(el){ var n = parseN(el.value); el.value = n ? fmtN(n) : ''; }
+
+/* -- Coherence HT / TVA / TTC --
+   L'utilisateur edite un des trois montants ; les deux autres se recalculent
+   avec la TVA du bandeau, et le PU HT est resynchronise pour la validation. */
+function montantCalc(src){
+  var tva  = parseFloat(document.getElementById('s_tva').value)||0;
+  var elHT = document.getElementById('s_ht');
+  var elTV = document.getElementById('s_tva_m');
+  var elTT = document.getElementById('s_ttc');
+  var ht, tvam, ttc;
+
+  if(src === 'ttc'){
+    ttc  = parseN(elTT.value);
+    ht   = Math.round(ttc / (1 + tva/100));
+    tvam = ttc - ht;
+  } else if(src === 'tva'){
+    tvam = parseN(elTV.value);
+    ht   = tva > 0 ? Math.round(tvam * 100 / tva) : parseN(elHT.value);
+    ttc  = ht + tvam;
+  } else { /* 'ht' */
+    ht   = parseN(elHT.value);
+    tvam = Math.round(ht * tva/100);
+    ttc  = ht + tvam;
+  }
+
+  /* Reecrire UNIQUEMENT les deux autres champs (preserve le curseur) */
+  if(src !== 'ht')  elHT.value = ht   ? fmtN(ht)   : '';
+  if(src !== 'tva') elTV.value = tvam ? fmtN(tvam) : '';
+  if(src !== 'ttc') elTT.value = ttc  ? fmtN(ttc)  : '';
+
+  /* Resynchroniser le PU HT : PU = HT / (base x (1 - remise)) */
+  var colis = parseFloat(document.getElementById('s_colis').value)||0;
+  var qte   = parseFloat(document.getElementById('s_qte').value)||0;
+  var rem   = parseFloat(document.getElementById('s_rem').value)||0;
+  var useColis = (typeof _saisieMode !== 'undefined' && _saisieMode === 'colis' && colis > 0);
+  var base  = useColis ? colis : qte;
+  var fr    = 1 - rem/100;
+  if(base > 0 && fr > 0){
+    var pu = Math.round(ht / (base * fr));
+    var elPrix = document.getElementById('s_prix');
+    if(elPrix){
+      elPrix.value = pu;
+      if(useColis) elPrix.dataset.prixColis = pu;
+      else         elPrix.dataset.prixUnitaire = pu;
+    }
+  }
+}
+
+function saisieCalc(){
+  var colis = parseFloat(document.getElementById('s_colis').value)||0;
+  var qte   = parseFloat(document.getElementById('s_qte').value)||0;
+  var rem   = parseFloat(document.getElementById('s_rem').value)||0;
+  var tva   = parseFloat(document.getElementById('s_tva').value)||0;
+  var elPrix = document.getElementById('s_prix');
+  var useColis = (_saisieMode === 'colis' && colis > 0);
+  var prix = parseFloat(elPrix.value) || 0;
+  if(!prix){
+    prix = useColis
+      ? (parseFloat(elPrix.dataset.prixColis)  || 0)
+      : (parseFloat(elPrix.dataset.prixUnitaire) || 0);
+  }
+  var base = useColis ? colis : qte;
+  var ht   = Math.round(base * prix * (1-rem/100));
+  var tvam = Math.round(ht * tva/100);
+  var ttc  = ht + tvam;
+  document.getElementById('s_ht').value    = ht   ? fmtN(ht)   : '';
+  document.getElementById('s_tva_m').value = tvam ? fmtN(tvam) : '';
+  document.getElementById('s_ttc').value   = ttc  ? fmtN(ttc)  : '';
+}
+
+
+/* ── Valider la ligne ── */
+function validerSaisie(){
+  var design = document.getElementById('s_design').value.trim();
+  if(!design){ document.getElementById('s_design').focus(); return; }
+  var colis   = parseFloat(document.getElementById('s_colis').value)||0;
+  var colisage_f = parseFloat(document.getElementById('s_colis').dataset.colisage)||1;
+  var qte_u  = parseFloat(document.getElementById('s_qte').value)||0;
+  // Qté totale unités = colis × colisage + unités directes
+  var qte = colis > 0 ? (colis * colisage_f) : (qte_u || 1);
+  if(qte <= 0) qte = 1;
+  var prix = parseFloat(document.getElementById('s_prix').value)||0;
+
+  var rem  = parseFloat(document.getElementById('s_rem').value)||0;
+  var tva  = parseFloat((document.getElementById('tvaInput')||{value:'0'}).value)||0;
+  var code = document.getElementById('s_code').value.trim();
+
+  /* ══ R1 / R2 : prix saisi >= prix enregistré ══ */
+  var prixInput  = document.getElementById('s_prix');
+  var prixMinU   = parseFloat(prixInput.dataset.prixMinUnite||0);
+  var prixMinC   = parseFloat(prixInput.dataset.prixMinColis||0);
+  var prixAchat  = parseFloat(prixInput.dataset.prixAchat)||0;
+  var sid        = prixInput.dataset.stockId;
+  if(!prixAchat && sid) prixAchat = PRIX_ACHAT[sid] || 0;
+  var useColis   = (_saisieMode === 'colis');
+  var prixMin    = useColis ? (prixMinC||prixMinU) : prixMinU;
+  var regleLabel = useColis ? 'R2 — Prix colis min' : 'R1 — Prix unité min';
+
+  function _showPrixErr(msgTxt){
+    prixInput.style.borderColor = '#ef4444';
+    prixInput.style.boxShadow   = '0 0 0 3px rgba(239,68,68,.2)';
+    var msg = document.getElementById('prix-err');
+    if(!msg){
+      msg = document.createElement('div');
+      msg.id = 'prix-err';
+      msg.style.cssText = 'position:absolute;bottom:calc(100%+6px);left:0;right:0;'
+        + 'background:#ef4444;color:white;font-size:11px;font-weight:700;'
+        + 'padding:6px 12px;border-radius:7px;z-index:99;white-space:nowrap;'
+        + 'box-shadow:0 4px 14px rgba(239,68,68,.35);';
+      document.getElementById('sageSaisie').style.position = 'relative';
+      document.getElementById('sageSaisie').appendChild(msg);
+    }
+    msg.textContent = msgTxt;
+    prixInput.focus(); prixInput.select();
+    setTimeout(function(){
+      prixInput.style.borderColor = '';
+      prixInput.style.boxShadow   = '';
+      var m = document.getElementById('prix-err');
+      if(m) m.remove();
+    }, 4000);
+  }
+
+  if(prixMin > 0 && prix < prixMin){
+    _showPrixErr('⛔ ' + regleLabel + ' : ' + fmtN(prixMin) + ' ' + DEVISE
+      + ' — saisi : ' + fmtN(prix) + ' ' + DEVISE + ' (non autorisé)');
+    return;
+  }
+  if(prixAchat > 0 && prix < prixAchat){
+    _showPrixErr('⛔ Prix de vente (' + fmtN(prix) + ') < Prix achat ('
+      + fmtN(prixAchat) + ' ' + DEVISE + ') — non autorisé');
+    return;
+  }
+
+  var editIdx = document.getElementById('s_design').dataset.editIdx;
+  var prixInputEl = document.getElementById('s_prix');
+  if(_saisieMode === 'colis'){
+    prixInputEl.dataset.prixColis = prix;
+  } else {
+    prixInputEl.dataset.prixUnitaire = prix;
+  }
+  var l = {
+    code:code, stock_id:(prixInputEl ? prixInputEl.dataset.stockId : null), designation:design,
+    qte_colis:colis, qte_unite:qte, colisage:colisage_f,
+    mode_saisie:_saisieMode,
+    prix_unitaire: (_saisieMode !== 'colis') ? prix : (parseFloat(prixInputEl.dataset.prixUnitaire)||prix),
+    prix_colis:    (_saisieMode === 'colis')  ? prix : (parseFloat(prixInputEl.dataset.prixColis||0)||0),
+    quantite:qte, prix_ht:prix, remise_pct:rem, tva_ligne:tva,
+    ht_ligne:0, tva_mnt:0, ttc_ligne:0, total:0, _sel:false
+  };
+  calcLine(l);
+
+  /* ── Vérification stock disponible (cumul lignes inclus) ── */
+  var prixEl    = document.getElementById('s_prix');
+  var stockDispo = parseFloat((prixEl && prixEl.dataset.stockDispo) || 9999);
+  if(stockDispo < 9999){
+    var sid = prixEl.dataset.stockId;
+    var dejaDansLignes = 0;
+    var editIdx2 = document.getElementById('s_design').dataset.editIdx;
+    lines.forEach(function(l, li){
+      if(editIdx2 !== undefined && editIdx2 !== '' && parseInt(editIdx2) === li) return;
+      if(l.stock_id && String(l.stock_id) === String(sid)){
+        dejaDansLignes += (l.qte_unite || l.quantite || 0);
+      }
+    });
+    var stockRestant = stockDispo - dejaDansLignes;
+    if(qte > stockRestant){
+      showStockAlert(design, stockDispo, qte + dejaDansLignes, dejaDansLignes);
+      return;
+    }
+  }
+  if(editIdx !== undefined && editIdx !== '' && lines[parseInt(editIdx)]){
+    lines[parseInt(editIdx)] = l;
+  } else {
+    /* ── Fusion : si l'article existe déjà, cumuler les quantités ── */
+    var existIdx = -1;
+    var matchKey = code || design;
+    for(var xi=0; xi<lines.length; xi++){
+      var xl = lines[xi];
+      var xlKey = (xl.code||'') || xl.designation;
+      if(xlKey && matchKey && xlKey.toLowerCase() === matchKey.toLowerCase()){
+        existIdx = xi; break;
+      }
+    }
+    if(existIdx >= 0){
+      var ex = lines[existIdx];
+      ex.qte_colis  = (ex.qte_colis||0)  + (l.qte_colis||0);
+      ex.qte_unite  = (ex.qte_unite||0)  + (l.qte_unite||0);
+      ex.quantite   = ex.qte_unite;
+      calcLine(ex);
+      setTimeout(function(){
+        var r = document.getElementById('srow'+existIdx);
+        if(r){ r.style.transition='background .1s'; r.style.background='#bbf7d0';
+          setTimeout(function(){ if(r) r.style.background=''; },700); }
+      }, 50);
+    } else {
+      lines.push(l);
+    }
+  }
+
+  /* Réinitialiser bandeau */
+  ['s_code','s_design'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('s_colis').value  = '';
+  document.getElementById('s_colis').dataset.colisage = '1';
+  document.getElementById('s_qte').value   = '1';
+  _saisieMode = 'unite';
+  _saisieMode = 'unite'; // reset mode pour la prochaine ligne
+  var prixEl = document.getElementById('s_prix');
+  prixEl.value = '';
+  delete prixEl.dataset.prixAchat;
+  delete prixEl.dataset.stockId;
+  delete prixEl.dataset.stockDispo;
+  document.getElementById('s_rem').value   = '';
+  document.getElementById('s_ht').value    = '';
+  document.getElementById('s_tva_m').value = '';
+  document.getElementById('s_ttc').value   = '';
+  /* Remettre s_tva au TVA global configuré */
+  var tvaGlobal = (document.getElementById('tvaInput')||{value:'0'}).value;
+  document.getElementById('s_tva').value = tvaGlobal;
+  delete document.getElementById('s_design').dataset.editIdx;
+  delete document.getElementById('s_prix').dataset.prixAchat;
+  lines.forEach(function(l){ l._sel=false; });
+  renderLines();
+  if(f4Fil.length) f4Rendu();
+  document.getElementById('s_design').focus();
+}
+
+/* ── Annuler la saisie en cours (vider le bandeau, désélectionner) ── */
+function annulerSaisie(){
+  ['s_code','s_design'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('s_colis').value  = '';
+  document.getElementById('s_colis').dataset.colisage = '1';
+  document.getElementById('s_qte').value    = '1';
+  var prixEl = document.getElementById('s_prix');
+  prixEl.value = '';
+  delete prixEl.dataset.prixAchat;
+  delete prixEl.dataset.prixUnitaire;
+  delete prixEl.dataset.prixColis;
+  delete prixEl.dataset.stockId;
+  delete prixEl.dataset.stockDispo;
+  document.getElementById('s_rem').value    = '';
+  document.getElementById('s_ht').value     = '';
+  document.getElementById('s_tva_m').value  = '';
+  document.getElementById('s_ttc').value    = '';
+  /* Restaurer TVA globale */
+  var tvaGlobal = (document.getElementById('tvaInput')||{value:'0'}).value;
+  document.getElementById('s_tva').value = tvaGlobal;
+  delete document.getElementById('s_design').dataset.editIdx;
+  _saisieMode = 'unite';
+  /* Désélectionner toute ligne en cours d'édition */
+  lines.forEach(function(l){ l._sel=false; });
+  /* Nettoyer un éventuel message d'erreur prix */
+  var errMsg = document.getElementById('prix-err');
+  if(errMsg) errMsg.remove();
+  renderLines();
+  document.getElementById('s_design').focus();
+}
+
+function saisieKey(e){
+  if(e.key==='Enter'){ e.preventDefault(); validerSaisie(); }
+  if(e.key==='F4')   { e.preventDefault(); ouvrirF4(); }
+  if(e.key==='Escape'){ e.preventDefault(); annulerSaisie(); }
+}
+
+/* ── Alerte prix inférieur au prix d'achat ── */
+function showPrixAlert(pa){
+  var old = document.getElementById('_prixAlert');
+  if(old) old.remove();
+  var d = document.createElement('div');
+  d.id = '_prixAlert';
+  d.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;'
+    + 'background:white;border:2px solid #ef4444;border-radius:12px;'
+    + 'padding:20px 28px;text-align:center;'
+    + 'box-shadow:0 8px 32px rgba(239,68,68,.25);'
+    + 'font-family:Inter,sans-serif;max-width:320px;width:90vw;';
+  d.innerHTML = '<div style="font-size:32px;margin-bottom:10px;">⛔</div>'
+    + '<div style="font-size:15px;font-weight:800;color:#b91c1c;margin-bottom:8px;">Prix non autorisé</div>'
+    + '<div style="font-size:12px;color:var(--gris3);line-height:1.6;">'
+    + 'Le prix de vente doit être supérieur ou égal au prix d’achat.'
+    + '</div>'
+    + '<button onclick="this.parentNode.remove()" style="margin-top:16px;padding:8px 24px;'
+    + 'background:#ef4444;color:white;border:none;border-radius:8px;'
+    + 'font-size:13px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;">OK</button>';
+  document.body.appendChild(d);
+  setTimeout(function(){ if(d.parentNode) d.remove(); }, 5000);
+}
+/* Vérification en temps réel sur le champ prix */
+function checkPrix(){
+  var inp  = document.getElementById('s_prix');
+  var prix = parseFloat(inp.value)||0;
+  /* R1 : prix unitaire >= prix enregistré (mode unité) */
+  var pMinU = parseFloat(inp.dataset.prixMinUnite||0);
+  /* R2 : prix colis >= prix enregistré (mode colis) */
+  var pMinC = parseFloat(inp.dataset.prixMinColis||0);
+  /* Aussi vérifier prix d'achat (règle d'origine) */
+  var pa    = parseFloat(inp.dataset.prixAchat||0);
+  var useColis = (_saisieMode === 'colis');
+  var pMin  = useColis ? (pMinC||pMinU) : pMinU;
+  /* Violation R1/R2 */
+  if(pMin > 0 && prix > 0 && prix < pMin){
+    inp.style.borderColor = '#ef4444';
+    inp.style.background  = '#fff1f2';
+    inp.title = (useColis ? 'R2 — Prix colis min : ' : 'R1 — Prix unité min : ')
+                + fmtN(pMin) + ' ' + DEVISE;
+  /* Violation prix d'achat (prix de vente < coût) */
+  } else if(pa > 0 && prix > 0 && prix < pa){
+    inp.style.borderColor = '#f97316';
+    inp.style.background  = '#fff7ed';
+    inp.title = 'Prix d\'achat min : '+fmtN(pa)+' '+DEVISE;
+  } else {
+    inp.style.borderColor = '';
+    inp.style.background  = '';
+    inp.title = '';
+  }
+  saisieCalc();
+}
+
+/* ── Mode paiement ── */
+function selectMode(btn){
+  document.querySelectorAll('.sage-mode-btn[data-val]').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  document.getElementById('vte_mode').value = btn.dataset.val;
+}
+
+/* ── Statut ── */
+function selectStatut(val, btn){
+  document.getElementById('vte_statut').value = val;
+  document.getElementById('btnReglee').classList.toggle('active',   val==='reglee');
+  document.getElementById('btnAttente').classList.toggle('active', val==='en_attente');
+  document.getElementById('btnReglee').style.borderColor   = val==='reglee'      ? '#16a34a':'';
+  document.getElementById('btnReglee').style.background    = val==='reglee'      ? '#dcfce7':'';
+  document.getElementById('btnAttente').style.borderColor = val==='en_attente' ? '#f59e0b':'';
+  document.getElementById('btnAttente').style.background  = val==='en_attente' ? '#fef9c3':'';
+}
+
+/* ── Soumission ── */
+function submitVente(){
+  if(lines.length === 0){
+    showAlertModal('Ajoutez au moins une ligne avant de sauvegarder.');
+    return false;
+  }
+  document.getElementById('lignesJson').value = JSON.stringify(lines);
+  document.getElementById('vte_tva_h').value  = (document.getElementById('tvaInput')||{value:'0'}).value||0;
+  // Montant payé = encaissement immédiat si statut payée
+  var statut = document.getElementById('vte_statut').value;
+  var ttc = parseFloat(document.getElementById('ttcDisplay')||{textContent:'0'});
+  // Calculer TTC depuis les lignes
+  var totalTTC = lines.reduce(function(s,l){ return s + parseFloat(l.total_ttc||0); }, 0);
+  var remisePct = parseFloat((document.getElementById('remiseInput')||{value:0}).value)||0;
+  if(remisePct>0) totalTTC *= (1 - remisePct/100);
+  if(statut === 'reglee' || statut === 'reglee'){
+    document.getElementById('vte_montant_paye').value = totalTTC.toFixed(2);
+    document.getElementById('vte_statut').value = 'reglee';
+  } else {
+    document.getElementById('vte_montant_paye').value = '0';
+  }
+  document.getElementById('vte_remise_h').value = (totalTTC * remisePct/100).toFixed(2);
+  return true;
+}
+
+
+/* ── Règlement ── */
+function openReglementVente(btn){
+  var ttc=parseFloat(btn.dataset.ttc)||0, regle=parseFloat(btn.dataset.regle)||0;
+  document.getElementById('formReglementVente').action='/reglements/ajouter/'+btn.dataset.id;
+  document.getElementById('rvte_ref').textContent    = btn.dataset.ref;
+  document.getElementById('rvte_client').textContent = btn.dataset.client;
+  document.getElementById('rvte_ttc').textContent    = fmt(ttc);
+  document.getElementById('rvte_deja').textContent   = fmt(regle);
+  document.getElementById('rvte_reste').textContent  = fmt(ttc-regle);
+  document.getElementById('rvte_montant').value      = (ttc-regle).toFixed(0);
+  document.getElementById('rvte_mode').value         = btn.dataset.mode||'especes';
+  openModal('modalReglementVente');
+}
+
+/* Init */
+renderLines();
+document.getElementById('s_design').focus();
+
+/* ══ F4 — Catalogue articles live depuis /api/articles ════════════ */
+var f4Cat = '', f4Fil = [], f4Idx = -1, f4Timer = null;
+var _f4PollTimer = null; // polling stock temps réel
+
+function f4InitCats(cats){
+  var row=document.getElementById('f4CatsRow');
+  var cnt=document.getElementById('f4CntSpan');
+  if(!row||!cnt) return;
+  row.querySelectorAll('.f4-catbtn:not([data-all])').forEach(function(b){ b.remove(); });
+  cats.forEach(function(c){
+    var b=document.createElement('button');
+    b.type='button'; b.className='f4-catbtn'; b.textContent=c;
+    b.onclick=function(){ f4SetCat(b,c); };
+    row.insertBefore(b,cnt);
+  });
+}
+
+function ouvrirF4(){
+  var ov=document.getElementById('f4Overlay'); if(!ov) return;
+  ov.classList.add('f4-open');
+  var inp=document.getElementById('f4SearchInput');
+  if(inp) inp.value=(document.getElementById('s_design')||{value:''}).value||'';
+  f4Fetch();
+  setTimeout(function(){ var i=document.getElementById('f4SearchInput'); if(i) i.focus(); },60);
+  if(!_f4PollTimer) _f4PollTimer = setInterval(function(){ f4Fetch(); }, 10000);
+}
+
+function fermerF4(){
+  var ov=document.getElementById('f4Overlay'); if(ov) ov.classList.remove('f4-open');
+  var sd=document.getElementById('s_design'); if(sd) sd.focus();
+  if(_f4PollTimer){ clearInterval(_f4PollTimer); _f4PollTimer = null; }
+}
+
+function f4Filtrer(){
+  clearTimeout(f4Timer);
+  f4Timer=setTimeout(f4Fetch,250);
+}
+
+function f4Fetch(){
+  var q=(document.getElementById('f4SearchInput')||{value:''}).value.trim();
+  var url='/api/articles?q='+encodeURIComponent(q);
+  if(f4Cat) url+='&cat='+encodeURIComponent(f4Cat);
+  var body=document.getElementById('f4Lignes');
+  var cnt=document.getElementById('f4CntSpan');
+  if(body) body.innerHTML='<div class="f4-empty" style="color:#2563eb;">⏳ Chargement…</div>';
+  if(cnt) cnt.textContent='…';
+  fetch(url)
+    .then(function(r){
+      if(r.status===401){ window.location.href='/login'; return null; }
+      return r.json();
+    })
+    .then(function(data){
+      if(!data) return;
+      f4Fil=data.articles||[];
+      f4Idx=f4Fil.length>0?0:-1;
+      if(data.cats&&data.cats.length) f4InitCats(data.cats);
+      f4Rendu();
+    })
+    .catch(function(){
+      if(body) body.innerHTML='<div class="f4-empty">⚠️ Impossible de charger le catalogue — vérifiez que le serveur est actif</div>';
+    });
+}
+
+function f4SetCat(btn,cat){
+  document.querySelectorAll('.f4-catbtn').forEach(function(b){ b.classList.remove('f4-cat-active'); });
+  btn.classList.add('f4-cat-active');
+  f4Cat=cat; f4Fetch();
+}
+
+/* ── Calcule la quantité déjà engagée dans les lignes pour un article ── */
+function f4QteLignes(articleId){
+  var total = 0;
+  lines.forEach(function(l){
+    if(l.stock_id && String(l.stock_id) === String(articleId)){
+      total += (l.qte_unite || l.quantite || 0);
+    }
+  });
+  return total;
+}
+
+function f4Rendu(){
+  var body=document.getElementById('f4Lignes');
+  var cnt=document.getElementById('f4CntSpan');
+  if(!body) return;
+  if(cnt) cnt.textContent=f4Fil.length+' article'+(f4Fil.length>1?'s':'');
+  if(!f4Fil.length){ body.innerHTML='<div class="f4-empty">Aucun article dans le stock</div>'; return; }
+  body.innerHTML=f4Fil.map(function(a,i){
+    var engage   = f4QteLignes(a.id);
+    var restant  = Math.max(0, (a.quantite||0) - engage);
+    var stockBg, stockClr, stockIcon, stockLbl, estRupture;
+    if(restant <= 0){
+      estRupture = true;
+      stockBg  = '#fee2e2'; stockClr = '#dc2626';
+      stockIcon = '🚫';
+      stockLbl  = engage > 0 ? 'Épuisé ('+engage+' u engagées)' : 'Rupture';
+    } else if(restant <= (a.quantite_min||5)){
+      estRupture = false;
+      stockBg  = '#fef9c3'; stockClr = '#a16207';
+      stockIcon = '⚠️';
+      stockLbl  = restant+' u';
+    } else {
+      estRupture = false;
+      stockBg  = '#dcfce7'; stockClr = '#15803d';
+      stockIcon = '📦';
+      stockLbl  = restant+' u';
+    }
+    var engageBadge = engage > 0
+      ? '<span style="margin-left:4px;background:#dbeafe;color:#1d4ed8;padding:1px 5px;border-radius:8px;font-size:9px;font-weight:700;" title="Déjà dans les lignes">−'+engage+' u</span>'
+      : '';
+    return '<div class="f4-row'+(i===f4Idx?' f4-sel':'')+(estRupture?' f4-rupt':'')+'"'
+      +' id="f4r'+i+'" onclick="f4Pick('+i+',false)" ondblclick="f4Pick('+i+',true)">'
+      +'<div class="f4-td ref">'+esc(a.reference||'')+'</div>'
+      +'<div class="f4-td bold">'+esc(a.designation||'')+'</div>'
+      +'<div class="f4-td"><span style="background:#eff6ff;color:#3b82f6;padding:1px 7px;border-radius:12px;font-size:10px;font-weight:700;">'+esc(a.categorie||'—')+'</span></div>'
+      +'<div class="f4-td r"><span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:800;background:'+stockBg+';color:'+stockClr+';">'+stockIcon+' '+stockLbl+'</span>'+engageBadge+'</div>'
+      +'<div class="f4-td r prix">'+fmtN(a.prix_unitaire||a.prix_vente)+' '+DEVISE+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function f4Pick(i,fermer){
+  var a=f4Fil[i]; if(!a) return;
+  f4Idx=i;
+  document.querySelectorAll('.f4-row').forEach(function(r){ r.classList.remove('f4-sel'); });
+  var row=document.getElementById('f4r'+i); if(row) row.classList.add('f4-sel');
+  var elCode=document.getElementById('s_code');
+  var elDes=document.getElementById('s_design');
+  var elPrix=document.getElementById('s_prix');
+  if(elCode) elCode.value=a.reference||'';
+  if(elDes){ elDes.value=a.designation; delete elDes.dataset.editIdx; }
+  if(elPrix){
+    elPrix.dataset.prixColis    = a.prix_vente_ht || a.prix_vente || 0;
+    elPrix.dataset.prixUnitaire = a.prix_unitaire || 0;
+    elPrix.dataset.prixAchat    = a.prix_achat || 0;
+    /* R1/R2 : prix minimaux de vente enregistrés */
+    elPrix.dataset.prixMinUnite = a.prix_unitaire || 0;
+    elPrix.dataset.prixMinColis = a.prix_vente_ht || a.prix_vente || 0;
+    elPrix.dataset.stockId      = a.id;
+    elPrix.dataset.stockDispo   = a.quantite !== undefined ? a.quantite : 9999;
+    elPrix.value = a.prix_unitaire || a.prix_vente_ht || a.prix_vente || 0;
+  }
+  saisieCalc();
+  if(typeof checkPrix==='function') checkPrix();
+  // Stocker colisage pour calcul automatique
+  var scolis = document.getElementById('s_colis');
+  if(scolis) scolis.dataset.colisage = a.colisage||1;
+  if(fermer!==false){
+    fermerF4();
+    var sq=document.getElementById('s_qte'); if(sq){ sq.focus(); sq.select(); }
+  }
+}
+
+function f4NavClavier(e){
+  if(e.key==='Escape')        { e.preventDefault(); fermerF4(); }
+  else if(e.key==='Enter')    { e.preventDefault(); if(f4Idx>=0) f4Pick(f4Idx,true); }
+  else if(e.key==='ArrowDown'){ e.preventDefault(); f4Move(1); }
+  else if(e.key==='ArrowUp')  { e.preventDefault(); f4Move(-1); }
+}
+
+function f4Move(d){
+  if(!f4Fil.length) return;
+  f4Idx=Math.max(0,Math.min(f4Fil.length-1,f4Idx+d));
+  f4Rendu();
+  var r=document.getElementById('f4r'+f4Idx); if(r) r.scrollIntoView({block:'nearest'});
+}
+
+window.addEventListener('keydown',function(e){
+  var ov=document.getElementById('f4Overlay');
+  if(e.key==='F4'){
+    e.preventDefault();
+    if(!ov) return;
+    if(ov.classList.contains('f4-open')) fermerF4(); else ouvrirF4();
+  } else if(e.key==='Escape'){
+    if(ov && ov.classList.contains('f4-open')) return; // laisser F4 gérer
+    var saisie=document.getElementById('tab-saisie');
+    if(saisie && saisie.style.display==='block') switchTab('historique');
+  }
+},true);
+
+
+/* ════════════════════════════════════════════════════════════════
+   MODULE — Indicateur stock disponible (temps réel) + pop-up rupture
+   ════════════════════════════════════════════════════════════════ */
+
+/* Pop-up de blocage : stock insuffisant */
+function showStockAlert(design, dispo, demande, deja){
+  var old = document.getElementById('_stockAlert');
+  if(old) old.remove();
+  var d = document.createElement('div');
+  d.id = '_stockAlert';
+  d.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;'
+    + 'background:white;border:2px solid #ef4444;border-radius:12px;'
+    + 'padding:22px 26px;text-align:center;'
+    + 'box-shadow:0 8px 32px rgba(239,68,68,.25);'
+    + 'font-family:Inter,sans-serif;max-width:380px;width:90vw;';
+  var dispoTxt = ((dispo|0)).toLocaleString('fr-FR');
+  var demTxt   = ((demande|0)).toLocaleString('fr-FR');
+  var dejaTxt  = (deja|0);
+  d.innerHTML = '<div style="font-size:38px;margin-bottom:10px;">⛔</div>'
+    + '<div style="font-size:16px;font-weight:800;color:#b91c1c;margin-bottom:10px;">Stock insuffisant</div>'
+    + '<div style="font-size:12px;color:var(--gris3);line-height:1.7;text-align:left;background:#fef2f2;padding:10px 14px;border-radius:8px;border-left:3px solid #ef4444;">'
+    + '<b>Article :</b> ' + (design || '—') + '<br>'
+    + '<b>Stock disponible :</b> ' + dispoTxt + ' u<br>'
+    + '<b>Quantité demandée :</b> ' + demTxt + ' u'
+    + (dejaTxt > 0 ? '<br><b>Déjà au panier :</b> ' + dejaTxt + ' u' : '')
+    + '</div>'
+    + '<div style="font-size:11px;color:var(--gris3);margin-top:10px;">La ligne ne peut pas être validée.</div>'
+    + '<button type="button" onclick="var e=document.getElementById(\'_stockAlert\');if(e)e.remove();" style="margin-top:14px;padding:9px 28px;'
+    + 'background:#ef4444;color:white;border:none;border-radius:8px;'
+    + 'font-size:13px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;">OK</button>';
+  document.body.appendChild(d);
+  setTimeout(function(){ var e=document.getElementById('_stockAlert'); if(e) e.remove(); }, 8000);
+}
+
+/* Init */
+renderLines();
+{% if edit_doc %}switchTab('saisie');{% endif %}
+document.getElementById('s_design') && document.getElementById('s_design').focus();
+
+/* ── BroadcastChannel : signaler toute validation qui touche au stock ──
+   Les forms POST qui génèrent des mouvements stocks (BL, conversion facture,
+   livraison) déclenchent ici une notification immédiate vers le module Stock. */
+(function(){
+  if(!window.BroadcastChannel) return;
+  function emitStock(){ try{ new BroadcastChannel('distrigest_stock').postMessage({type:'vente'}); }catch(e){} }
+  // Form principal (création / édition document vente)
+  var mainForm = document.getElementById('venteForm');
+  if(mainForm) mainForm.addEventListener('submit', function(){ setTimeout(emitStock, 400); });
+  // Tous les mini-forms du tableau (convertir en facture, créer BL…)
+  document.querySelectorAll('form[method="POST"]').forEach(function(f){
+    f.addEventListener('submit', function(){ setTimeout(emitStock, 400); });
+  });
+  /* ── Réception : si un autre module touche au stock, invalider le cache F4 ── */
+  try {
+    var _bc = new BroadcastChannel('distrigest_stock');
+    _bc.onmessage = function(ev){
+      if(ev.data && (ev.data.type === 'vente' || ev.data.type === 'stock')){
+        f4Fil = [];
+        var ov = document.getElementById('f4Overlay');
+        if(ov && ov.classList.contains('f4-open')) f4Fetch();
+      }
+    };
+  } catch(e) {}
+})();
+
+/* ── Polling stock temps réel — rafraîchit les badges stock du F4 toutes les 15s ── */
+(function(){
+  var _stockPollTimer = null;
+
+  function _refreshStockCommande(){
+    var depSel = document.getElementById('depotSelect');
+    var depId  = (depSel ? depSel.value : '') || 1;
+    fetch('/api/facture/stock?depot_id=' + depId)
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(data){
+        if(!data) return;
+        var changed = false;
+        f4Fil.forEach(function(a){
+          var newStock = data[a.id];
+          if(newStock !== undefined && newStock !== a.quantite){
+            a.quantite = newStock;
+            changed = true;
+          }
+        });
+        var elPrix = document.getElementById('s_prix');
+        if(elPrix && elPrix.dataset.stockId){
+          var sid = parseInt(elPrix.dataset.stockId);
+          if(data[sid] !== undefined) elPrix.dataset.stockDispo = data[sid];
+        }
+        if(changed){
+          var ov = document.getElementById('f4Overlay');
+          if(ov && ov.classList.contains('f4-open')) f4Rendu();
+        }
+      })
+      .catch(function(){});
+  }
+
+  _stockPollTimer = setInterval(_refreshStockCommande, 15000);
+  setTimeout(_refreshStockCommande, 2000);
+
+  var depSel = document.getElementById('depotSelect');
+  if(depSel) depSel.addEventListener('change', function(){ setTimeout(_refreshStockCommande, 100); });
+})();
+
+
+
+
+</script>
+
+<!-- ═══ MODAL LIER RÈGLEMENT À COMMANDE ═══ -->
+<div id="modalLierRgl" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>🔗 Lier un règlement à la commande</h3>
+      <button class="modal-close" onclick="closeModal('modalLierRgl')">✕</button>
+    </div>
+    <form method="POST" id="formLierRgl" action="">
+      <div class="modal-body">
+        <div style="font-weight:700;margin-bottom:4px;color:var(--bleu);font-size:13px;" id="lierRglCmdLabel">CMD —</div>
+        <p style="font-size:12px;color:var(--gris3);margin:0 0 14px;">Sélectionne un règlement libre (avance client) à imputer sur cette commande. Quand la commande sera transformée en BL → Facture, la facture sera automatiquement marquée <strong>réglée</strong>.</p>
+
+        <div class="form-group full">
+          <label>Règlement libre</label>
+          <select id="lierRglSelect" name="reglement_id"
+            style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;">
+            <option value="">— Sélectionner un règlement —</option>
+            {% for rgl in reglements_libres %}
+            {% if not rgl.commande_id %}
+            <option value="{{ rgl.id }}"
+              data-client="{{ rgl.client_id }}"
+              data-montant="{{ rgl.montant }}"
+              data-ref="{{ rgl.reference }}">
+              {{ rgl.reference }} — {{ rgl.client_nom or 'Client Passager' }} — {{ rgl.montant | fcfa }} FCFA
+              {% if rgl.motif %}({{ rgl.motif }}){% endif %}
+            </option>
+            {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+
+        <div id="lierRglInfo" style="display:none;margin-top:10px;padding:10px 14px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;font-size:12px;">
+          <div style="display:flex;justify-content:space-between;">
+            <span>Montant règlement :</span>
+            <strong id="lierRglMontant" style="color:var(--vert);">—</strong>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sec" onclick="closeModal('modalLierRgl')">Annuler</button>
+        <button type="submit" class="btn btn-primary" style="background:#7c3aed;">🔗 Lier le règlement</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openLierRglModal(cmdId, cmdRef, clientId) {
+  document.getElementById('formLierRgl').action = '/commandes/' + cmdId + '/lier_reglement';
+  document.getElementById('lierRglCmdLabel').textContent = 'Commande ' + cmdRef;
+  document.getElementById('lierRglInfo').style.display = 'none';
+  // Pré-filtrer sur le client (facultatif — affiche tous mais signale le bon)
+  var sel = document.getElementById('lierRglSelect');
+  sel.selectedIndex = 0;
+  // Mettre en valeur les options du même client
+  for (var i = 1; i < sel.options.length; i++) {
+    var opt = sel.options[i];
+    var isMatch = (opt.dataset.client == clientId);
+    opt.style.fontWeight = isMatch ? '700' : '';
+    opt.style.color = isMatch ? 'var(--bleu)' : '';
+  }
+  openModal('modalLierRgl');
+}
+
+document.getElementById('lierRglSelect').addEventListener('change', function() {
+  var opt = this.options[this.selectedIndex];
+  if (!opt.value) {
+    document.getElementById('lierRglInfo').style.display = 'none';
+    return;
+  }
+  var montant = parseFloat(opt.dataset.montant || 0);
+  document.getElementById('lierRglMontant').textContent = Math.round(montant).toLocaleString('fr-FR') + ' FCFA';
+  document.getElementById('lierRglInfo').style.display = '';
+});
+</script>
+
+
+{# ── Patch thème sombre : éléments inline de cette page ── #}
+<style>
+/* ════════ DARK MODE — patch page ════════ */
+/* ════════ DARK — éléments SAGE (saisie type ERP) ════════ */
+[data-theme="dark"] .sage-wrap        { background:var(--bg-page) !important; }
+[data-theme="dark"] .sage-topbar      { background:var(--bg-card) !important; border-color:var(--border) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .sage-input,
+[data-theme="dark"] .sage-select      { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .sage-sep         { background:var(--border) !important; }
+[data-theme="dark"] .sage-grid        { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .sage-row         { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .sage-row:hover   { background:var(--row-hover) !important; }
+[data-theme="dark"] .sage-row.sel     { background:#1d3461 !important; }
+[data-theme="dark"] .sage-td          { color:var(--texte) !important; }
+[data-theme="dark"] .sage-td.num,
+[data-theme="dark"] .sage-td.grey     { color:var(--gris3) !important; }
+[data-theme="dark"] .sage-saisie      { background:#0d1d38 !important; }
+[data-theme="dark"] .saisie-in        { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .saisie-in:focus  { background:#0a1628 !important; border-color:var(--bleu2) !important; }
+[data-theme="dark"] .saisie-ro        { background:#1c2128 !important; border-color:var(--border) !important; color:var(--gris3) !important; }
+[data-theme="dark"] .saisie-ro.tva-c  { background:#0d1d38 !important; color:#93c5fd !important; border-color:#1d3461 !important; }
+[data-theme="dark"] .saisie-ro.ttc-c  { background:#1d3461 !important; color:#60a5fa !important; border-color:#2563eb !important; }
+[data-theme="dark"] .saisie-mt        { background:#1c2128 !important; color:var(--texte) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .saisie-mt.tva-c  { background:#0d1d38 !important; color:#93c5fd !important; }
+[data-theme="dark"] .saisie-mt.ttc-c  { background:#1d3461 !important; color:#60a5fa !important; }
+[data-theme="dark"] .sage-bottom      { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .sage-bottom-left { border-color:var(--border) !important; }
+[data-theme="dark"] .sage-totaux      { border-color:var(--border) !important; }
+[data-theme="dark"] .sage-tot-row .lbl { color:var(--gris3) !important; }
+[data-theme="dark"] .sage-tot-row .val { color:var(--texte) !important; }
+[data-theme="dark"] .sage-tot-ttc     { border-top-color:var(--border) !important; }
+[data-theme="dark"] .sage-tot-ttc .lbl { color:var(--texte) !important; }
+[data-theme="dark"] .sage-paiement    { border-color:var(--border) !important; }
+[data-theme="dark"] .sage-mode-btn    { background:var(--bg-input) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .sage-mode-btn:hover,
+[data-theme="dark"] .sage-mode-btn.active { background:#1d3461 !important; border-color:var(--bleu2) !important; }
+[data-theme="dark"] .sage-mode-lbl    { color:var(--gris3) !important; }
+[data-theme="dark"] .sage-mini-input  { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+
+/* ── F4 (catalogue) ── */
+[data-theme="dark"] #f4Overlay        { background:rgba(0,0,0,.7) !important; }
+[data-theme="dark"] #f4Panel          { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] #f4Header         { background:var(--bg-thead) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] #f4Search         { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .f4-catbtn        { background:var(--bg-input) !important; border-color:var(--border) !important; color:var(--gris3) !important; }
+[data-theme="dark"] .f4-catbtn:hover  { background:#0d1d38 !important; color:#93c5fd !important; }
+[data-theme="dark"] .f4-catbtn.f4-cat-active { background:var(--bleu) !important; color:#fff !important; border-color:var(--bleu) !important; }
+[data-theme="dark"] .f4-thead         { background:var(--bg-thead) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .f4-th            { color:var(--gris3) !important; }
+[data-theme="dark"] .f4-row           { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .f4-row:hover     { background:var(--row-hover) !important; }
+[data-theme="dark"] .f4-row.f4-sel    { background:#1d3461 !important; }
+[data-theme="dark"] .f4-td            { color:var(--texte) !important; }
+[data-theme="dark"] .f4-footer        { background:var(--bg-thead) !important; border-top-color:var(--border) !important; color:var(--gris3) !important; }
+[data-theme="dark"] .f4-key           { background:var(--bg-input) !important; border-color:var(--border) !important; color:var(--gris3) !important; }
+[data-theme="dark"] .f4-open-btn      { background:#0d1d38 !important; border-color:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] .f4-cnt           { color:var(--gris3) !important; }
+
+/* ── system auto ── */
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] .sage-wrap        { background:var(--bg-page) !important; }
+  [data-theme="system"] .sage-topbar      { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .sage-input,
+  [data-theme="system"] .sage-select      { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .sage-grid        { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .sage-row         { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] .sage-row:hover   { background:var(--row-hover) !important; }
+  [data-theme="system"] .sage-row.sel     { background:#1d3461 !important; }
+  [data-theme="system"] .sage-td          { color:var(--texte) !important; }
+  [data-theme="system"] .sage-saisie      { background:#0d1d38 !important; }
+  [data-theme="system"] .saisie-in        { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .saisie-ro        { background:#1c2128 !important; color:var(--gris3) !important; }
+  [data-theme="system"] .saisie-mt        { background:#1c2128 !important; color:var(--texte) !important; }
+  [data-theme="system"] .sage-bottom      { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .sage-totaux      { border-color:var(--border) !important; }
+  [data-theme="system"] .sage-tot-row .lbl { color:var(--gris3) !important; }
+  [data-theme="system"] .sage-tot-row .val { color:var(--texte) !important; }
+  [data-theme="system"] .sage-tot-ttc     { border-top-color:var(--border) !important; }
+  [data-theme="system"] .sage-mode-btn    { background:var(--bg-input) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .sage-mini-input  { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .f4-thead         { background:var(--bg-thead) !important; border-bottom-color:var(--border) !important; }
+  [data-theme="system"] .f4-th            { color:var(--gris3) !important; }
+  [data-theme="system"] .f4-row           { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] .f4-row:hover     { background:var(--row-hover) !important; }
+  [data-theme="system"] .f4-td            { color:var(--texte) !important; }
+  [data-theme="system"] .f4-footer        { background:var(--bg-thead) !important; border-top-color:var(--border) !important; }
+  [data-theme="system"] .f4-key           { background:var(--bg-input) !important; border-color:var(--border) !important; }
+  [data-theme="system"] #f4Panel          { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] #f4Header         { background:var(--bg-thead) !important; }
+  [data-theme="system"] #f4Search         { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .f4-catbtn        { background:var(--bg-input) !important; border-color:var(--border) !important; color:var(--gris3) !important; }
+}
+
+
+/* ── Inputs / selects / textareas ── */
+[data-theme="dark"] input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=hidden]):not([type=range]),
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: var(--bg-input) !important;
+  color: var(--texte) !important;
+  border-color: var(--border) !important;
+}
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder { color: var(--gris3) !important; opacity:1; }
+
+/* ── Fonds colorés sémantiques (info, success, warning, danger) ── */
+/* On assombrit les backgrounds pastel pour lisibilité sur fond sombre */
+[data-theme="dark"] [style*="background:#f0f7ff"],
+[data-theme="dark"] [style*="background: #f0f7ff"] { background:#0d1d38 !important; color:#93c5fd !important; }
+[data-theme="dark"] [style*="background:#eff6ff"],
+[data-theme="dark"] [style*="background: #eff6ff"] { background:#0d1d38 !important; }
+[data-theme="dark"] [style*="background:#dbeafe"],
+[data-theme="dark"] [style*="background: #dbeafe"] { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] [style*="background:#bfdbfe"]  { background:#1d3461 !important; }
+
+[data-theme="dark"] [style*="background:#f0fdf4"],
+[data-theme="dark"] [style*="background: #f0fdf4"] { background:#052e16 !important; color:#4ade80 !important; }
+[data-theme="dark"] [style*="background:#dcfce7"],
+[data-theme="dark"] [style*="background: #dcfce7"] { background:#052e16 !important; color:#4ade80 !important; }
+[data-theme="dark"] [style*="background:#bbf7d0"]  { background:#052e16 !important; }
+
+[data-theme="dark"] [style*="background:#fef9c3"],
+[data-theme="dark"] [style*="background: #fef9c3"] { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] [style*="background:#fefce8"],
+[data-theme="dark"] [style*="background: #fefce8"] { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] [style*="background:#fffbeb"],
+[data-theme="dark"] [style*="background: #fffbeb"] { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] [style*="background:#fef3c7"],
+[data-theme="dark"] [style*="background: #fef3c7"] { background:#3d2e00 !important; }
+[data-theme="dark"] [style*="background:#fde68a"]  { background:#3d2e00 !important; }
+
+[data-theme="dark"] [style*="background:#fee2e2"],
+[data-theme="dark"] [style*="background: #fee2e2"] { background:#3d0f0f !important; color:#fca5a5 !important; }
+[data-theme="dark"] [style*="background:#fff1f2"],
+[data-theme="dark"] [style*="background: #fff1f2"] { background:#3d0f0f !important; }
+[data-theme="dark"] [style*="background:#fff5f5"],
+[data-theme="dark"] [style*="background: #fff5f5"] { background:#3d0f0f !important; }
+[data-theme="dark"] [style*="background:#fecaca"]  { background:#3d0f0f !important; }
+[data-theme="dark"] [style*="background:#fecdd3"]  { background:#3d0f0f !important; }
+
+[data-theme="dark"] [style*="background:#f5f3ff"],
+[data-theme="dark"] [style*="background: #f5f3ff"] { background:#1e1040 !important; }
+[data-theme="dark"] [style*="background:#ede9fe"]  { background:#1e1040 !important; }
+
+[data-theme="dark"] [style*="background:#fff7ed"],
+[data-theme="dark"] [style*="background: #fff7ed"] { background:#3d1500 !important; color:#fb923c !important; }
+[data-theme="dark"] [style*="background:#ffedd5"]  { background:#3d1500 !important; }
+
+[data-theme="dark"] [style*="background:#f0f9ff"],
+[data-theme="dark"] [style*="background: #f0f9ff"] { background:#0a1e33 !important; }
+
+/* ── Badges ── */
+[data-theme="dark"] .badge-sec     { background:#1c2128 !important; color:#8b949e !important; }
+[data-theme="dark"] .badge-info    { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] .badge-success { background:#052e16 !important; color:#4ade80 !important; }
+[data-theme="dark"] .badge-warning { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] .badge-danger  { background:#3d0f0f !important; color:#fca5a5 !important; }
+
+/* ── Cards & tableaux ── */
+[data-theme="dark"] .kpi-card      { background:var(--bg-card) !important; }
+[data-theme="dark"] .kpi-card .label,
+[data-theme="dark"] .kpi-card .sub { color:var(--gris3) !important; }
+[data-theme="dark"] .table-card    { background:var(--bg-card) !important; }
+[data-theme="dark"] .table-card .thead { background:var(--bg-card) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] thead th       { background:var(--bg-thead) !important; color:var(--gris3) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody td       { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody tr:last-child td { border-bottom:none !important; }
+[data-theme="dark"] tbody tr:hover td { background:var(--row-hover) !important; }
+
+/* ── Boutons secondaires / actions ── */
+[data-theme="dark"] .btn-sec       { background:#1c2128 !important; color:#8b949e !important; border-color:var(--border) !important; }
+[data-theme="dark"] .btn-sec:hover { background:#30363d !important; color:var(--texte) !important; }
+[data-theme="dark"] .hist-action-btn { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+
+/* ── Modales ── */
+[data-theme="dark"] .modal         { background:var(--modal-bg) !important; }
+[data-theme="dark"] .modal-header  { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .modal-footer  { border-top-color:var(--border) !important; }
+[data-theme="dark"] .modal-body    { background:var(--modal-body-bg) !important; }
+
+/* ── Éléments spécifiques ── */
+[data-theme="dark"] .pcart         { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .pcart-head    { background:var(--bg-thead) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .pcart-body    { background:var(--bg-card) !important; }
+[data-theme="dark"] .result-section { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .result-section-header { background:var(--bg-thead) !important; }
+[data-theme="dark"] .result-table td { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .result-table tr:hover td { background:var(--row-hover) !important; }
+[data-theme="dark"] .sage-mode-btn { background:var(--bg-input) !important; border-color:var(--border) !important; color:var(--texte) !important; }
+[data-theme="dark"] .sage-mode-btn.active { background:var(--bleu2) !important; color:#fff !important; }
+[data-theme="dark"] .liv-select    { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+
+/* inv rows */
+[data-theme="dark"] .inv-row-ok  td { background:#052e16 !important; }
+[data-theme="dark"] .inv-row-pos td { background:#3d2e00 !important; }
+[data-theme="dark"] .inv-row-neg td { background:#3d0f0f !important; }
+
+/* ════════ SYSTEM AUTO ════════ */
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=hidden]):not([type=range]),
+  [data-theme="system"] select,
+  [data-theme="system"] textarea {
+    background:var(--bg-input) !important;
+    color:var(--texte) !important;
+    border-color:var(--border) !important;
+  }
+  [data-theme="system"] input::placeholder,
+  [data-theme="system"] textarea::placeholder { color:var(--gris3) !important; opacity:1; }
+
+  [data-theme="system"] [style*="background:#f0f7ff"],
+  [data-theme="system"] [style*="background: #f0f7ff"]  { background:#0d1d38 !important; color:#93c5fd !important; }
+  [data-theme="system"] [style*="background:#eff6ff"],
+  [data-theme="system"] [style*="background: #eff6ff"]  { background:#0d1d38 !important; }
+  [data-theme="system"] [style*="background:#dbeafe"],
+  [data-theme="system"] [style*="background: #dbeafe"]  { background:#1d3461 !important; color:#93c5fd !important; }
+  [data-theme="system"] [style*="background:#f0fdf4"],
+  [data-theme="system"] [style*="background: #f0fdf4"]  { background:#052e16 !important; color:#4ade80 !important; }
+  [data-theme="system"] [style*="background:#dcfce7"],
+  [data-theme="system"] [style*="background: #dcfce7"]  { background:#052e16 !important; color:#4ade80 !important; }
+  [data-theme="system"] [style*="background:#fef9c3"],
+  [data-theme="system"] [style*="background: #fef9c3"]  { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] [style*="background:#fefce8"],
+  [data-theme="system"] [style*="background: #fefce8"]  { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] [style*="background:#fffbeb"],
+  [data-theme="system"] [style*="background: #fffbeb"]  { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] [style*="background:#fee2e2"],
+  [data-theme="system"] [style*="background: #fee2e2"]  { background:#3d0f0f !important; color:#fca5a5 !important; }
+  [data-theme="system"] [style*="background:#fff1f2"],
+  [data-theme="system"] [style*="background: #fff1f2"]  { background:#3d0f0f !important; }
+  [data-theme="system"] [style*="background:#fff5f5"],
+  [data-theme="system"] [style*="background: #fff5f5"]  { background:#3d0f0f !important; }
+  [data-theme="system"] [style*="background:#fff7ed"],
+  [data-theme="system"] [style*="background: #fff7ed"]  { background:#3d1500 !important; color:#fb923c !important; }
+  [data-theme="system"] [style*="background:#f5f3ff"],
+  [data-theme="system"] [style*="background: #f5f3ff"]  { background:#1e1040 !important; }
+
+  [data-theme="system"] .badge-sec     { background:#1c2128 !important; color:#8b949e !important; }
+  [data-theme="system"] .badge-info    { background:#1d3461 !important; color:#93c5fd !important; }
+  [data-theme="system"] .badge-success { background:#052e16 !important; color:#4ade80 !important; }
+  [data-theme="system"] .badge-warning { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] .badge-danger  { background:#3d0f0f !important; color:#fca5a5 !important; }
+  [data-theme="system"] .kpi-card      { background:var(--bg-card) !important; }
+  [data-theme="system"] .table-card    { background:var(--bg-card) !important; }
+  [data-theme="system"] .table-card .thead { background:var(--bg-card) !important; border-bottom-color:var(--border) !important; }
+  [data-theme="system"] thead th       { background:var(--bg-thead) !important; color:var(--gris3) !important; border-bottom-color:var(--border) !important; }
+  [data-theme="system"] tbody td       { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] tbody tr:hover td { background:var(--row-hover) !important; }
+  [data-theme="system"] .btn-sec       { background:#1c2128 !important; color:#8b949e !important; border-color:var(--border) !important; }
+  [data-theme="system"] .hist-action-btn { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .modal         { background:var(--modal-bg) !important; }
+  [data-theme="system"] .modal-header  { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] .modal-footer  { border-top-color:var(--border) !important; }
+  [data-theme="system"] .pcart         { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .sage-mode-btn { background:var(--bg-input) !important; border-color:var(--border) !important; color:var(--texte) !important; }
+  [data-theme="system"] .inv-row-ok  td { background:#052e16 !important; }
+  [data-theme="system"] .inv-row-pos td { background:#3d2e00 !important; }
+  [data-theme="system"] .inv-row-neg td { background:#3d0f0f !important; }
+  [data-theme="system"] .result-section { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .result-section-header { background:var(--bg-thead) !important; }
+}
+</style>
+
+{% endblock %}

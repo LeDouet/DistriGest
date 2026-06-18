@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DISTRIGEST</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #060e1f;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; overflow: hidden;
+    }
+
+    #splash-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+      background: #060e1f;
+      animation: splashExit 0.65s ease 4.4s forwards;
+    }
+    @keyframes splashExit {
+      0%   { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(1.04); pointer-events: none; }
+    }
+
+    .bg-circle { position: absolute; border-radius: 50%; filter: blur(70px); pointer-events: none; }
+    .bg-c1 { width: 500px; height: 500px; background: #1a3a6c; opacity: 0.45; top: -160px; right: -100px; animation: floatA 7s ease-in-out infinite; }
+    .bg-c2 { width: 320px; height: 320px; background: #d4a017; opacity: 0.12; bottom: -90px; left: -70px; animation: floatB 8s ease-in-out infinite; }
+    .bg-c3 { width: 220px; height: 220px; background: #1e4fa0; opacity: 0.20; top: 42%; left: 18%; animation: floatA 5.5s ease-in-out 1s infinite; }
+    @keyframes floatA { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-20px)} }
+    @keyframes floatB { 0%,100%{transform:translateY(0)} 50%{transform:translateY(16px)} }
+
+    .splash-card {
+      position: relative; z-index: 1;
+      background: linear-gradient(145deg, #0f2347 0%, #132d5e 60%, #0c1d3a 100%);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 28px;
+      padding: 42px 60px 36px;
+      box-shadow: 0 40px 100px rgba(0,0,0,0.65), 0 0 0 1px rgba(212,160,23,0.14);
+      display: flex; flex-direction: column; align-items: center;
+      min-width: 520px;
+      animation: cardIn 0.72s cubic-bezier(0.34,1.38,0.64,1) 0.1s both;
+    }
+    @keyframes cardIn {
+      0%   { opacity: 0; transform: scale(0.86) translateY(24px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    #logo-wrap {
+      width: 440px;
+      animation: logoIn 0.6s ease 0.35s both;
+    }
+    @keyframes logoIn {
+      0%   { opacity: 0; transform: translateY(16px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Animations SVG ── */
+    /* Entrepôt / dépôt */
+    .depot      { animation: riseUp 0.75s cubic-bezier(0.34,1.5,0.64,1) 0.40s both; }
+    .depot-roof { animation: riseUp 0.75s cubic-bezier(0.34,1.5,0.64,1) 0.35s both; }
+    .porte      { animation: riseUp 0.75s cubic-bezier(0.34,1.5,0.64,1) 0.55s both; }
+
+    /* Bouteilles */
+    .btle1 { animation: bottleIn 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.70s both; }
+    .btle2 { animation: bottleIn 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.82s both; }
+    .btle3 { animation: bottleIn 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.94s both; }
+    .btle4 { animation: bottleIn 0.55s cubic-bezier(0.34,1.56,0.64,1) 1.06s both; }
+    @keyframes bottleIn {
+      0%   { opacity: 0; transform: translateY(40px) scale(0.6); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Casier */
+    .casier { animation: riseUp 0.60s cubic-bezier(0.34,1.4,0.64,1) 1.15s both; }
+
+    /* Bulle mousse */
+    .bulle1 { animation: bulleIn 0.4s ease 1.35s both; }
+    .bulle2 { animation: bulleIn 0.4s ease 1.50s both; }
+    .bulle3 { animation: bulleIn 0.4s ease 1.62s both; }
+    @keyframes bulleIn {
+      0%   { opacity: 0; transform: scale(0); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes riseUp {
+      0%   { opacity: 0; transform: translateY(55px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Gold cap */
+    .goldcap { animation: capIn 0.45s ease 1.05s both; transform-origin: left center; }
+    @keyframes capIn {
+      0%   { opacity: 0; transform: scaleX(0); }
+      100% { opacity: 1; transform: scaleX(1); }
+    }
+
+    /* Arc */
+    .arc-main { stroke-dasharray: 340; stroke-dashoffset: 340; animation: drawArc 0.85s ease 1.05s forwards; }
+    .arc-left  { stroke-dasharray: 60;  stroke-dashoffset: 60;  animation: drawArc 0.45s ease 1.65s forwards; }
+    .arc-right { stroke-dasharray: 60;  stroke-dashoffset: 60;  animation: drawArc 0.45s ease 1.65s forwards; }
+    @keyframes drawArc { to { stroke-dashoffset: 0; } }
+
+    /* Textes */
+    .txt-main    { animation: textIn 0.6s ease 1.55s both; }
+    .txt-badge   { animation: popIn 0.5s cubic-bezier(0.34,1.56,0.64,1) 1.80s both; }
+    .txt-tagline { animation: textIn 0.5s ease 2.05s both; }
+    .txt-topbar  { animation: textIn 0.4s ease 0.55s both; }
+    @keyframes textIn {
+      0%   { opacity: 0; transform: translateY(10px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes popIn {
+      0%   { opacity: 0; transform: scale(0) rotate(-10deg); }
+      100% { opacity: 1; transform: scale(1) rotate(0deg); }
+    }
+
+    .top-accent { animation: lineIn 0.5s ease 0.45s both; transform-origin: center; }
+    @keyframes lineIn {
+      0%   { opacity: 0; transform: scaleX(0); }
+      100% { opacity: 1; transform: scaleX(1); }
+    }
+
+    .loader { display: flex; gap: 8px; margin-top: 28px; animation: textIn 0.4s ease 2.25s both; }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: rgba(255,255,255,0.22);
+      animation: blink 1.3s ease-in-out infinite;
+    }
+    .dot:nth-child(2) { animation-delay: 0.22s; }
+    .dot:nth-child(3) { animation-delay: 0.44s; }
+    @keyframes blink {
+      0%,100% { background: rgba(255,255,255,0.18); transform: scale(1); }
+      50%      { background: #f5c842; transform: scale(1.45); }
+    }
+
+    .stinaug-label {
+      margin-top: 10px;
+      font-size: 10px; letter-spacing: 2.5px; color: rgba(255,255,255,0.3);
+      text-transform: uppercase;
+      animation: textIn 0.5s ease 2.4s both;
+    }
+  </style>
+</head>
+<body>
+
+<div id="splash-overlay">
+  <div class="bg-circle bg-c1"></div>
+  <div class="bg-circle bg-c2"></div>
+  <div class="bg-circle bg-c3"></div>
+
+  <div class="splash-card">
+
+    <div id="logo-wrap">
+      <svg width="100%" viewBox="0 0 680 320" xmlns="http://www.w3.org/2000/svg" style="overflow:visible;">
+        <defs>
+          <linearGradient id="goldGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#f5c842"/>
+            <stop offset="100%" stop-color="#d4900a"/>
+          </linearGradient>
+          <linearGradient id="blueGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#4a9eff"/>
+            <stop offset="100%" stop-color="#2563eb"/>
+          </linearGradient>
+          <linearGradient id="beerGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#f5c842"/>
+            <stop offset="60%" stop-color="#d4900a"/>
+            <stop offset="100%" stop-color="#a06000"/>
+          </linearGradient>
+          <linearGradient id="bottleGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#34d399"/>
+            <stop offset="100%" stop-color="#059669"/>
+          </linearGradient>
+          <linearGradient id="bottle2Grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#60a5fa"/>
+            <stop offset="100%" stop-color="#2563eb"/>
+          </linearGradient>
+          <linearGradient id="depotGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#1e4fa0"/>
+            <stop offset="100%" stop-color="#132d5e"/>
+          </linearGradient>
+        </defs>
+
+        <!-- ── Accent doré haut ── -->
+        <rect class="top-accent txt-topbar" x="300" y="12" width="80" height="3" rx="1.5" fill="url(#goldGrad)" opacity="0.7"/>
+
+        <!-- ══════════════════════════════════
+             COMMERCE GÉNÉRAL
+        ══════════════════════════════════ -->
+
+        <!-- Toit entrepôt (arrondi, grand) -->
+        <g class="depot-roof">
+          <rect x="215" y="120" width="250" height="12" rx="6" fill="url(#goldGrad)" opacity="0.85"/>
+          <polygon points="210,132 340,95 470,132" fill="#1a3a6c" stroke="url(#goldGrad)" stroke-width="1.5"/>
+          <!-- Petite cheminée -->
+          <rect x="320" y="96" width="10" height="22" rx="2" fill="#163880"/>
+          <rect x="316" y="93" width="18" height="5" rx="2" fill="url(#goldGrad)" opacity="0.7"/>
+        </g>
+
+        <!-- Corps entrepôt -->
+        <g class="depot">
+          <rect x="215" y="132" width="250" height="105" rx="4" fill="url(#depotGrad)"/>
+          <!-- Façade reflets -->
+          <rect x="215" y="132" width="250" height="105" rx="4" fill="none" stroke="#4a9eff" stroke-width="0.5" opacity="0.25"/>
+          <!-- Bandes horizontales déco -->
+          <rect x="215" y="175" width="250" height="2" fill="white" opacity="0.06"/>
+          <rect x="215" y="205" width="250" height="1.5" fill="white" opacity="0.05"/>
+          <!-- Fenêtres latérales gauche -->
+          <rect x="225" y="143" width="30" height="22" rx="3" fill="#0f2347" opacity="0.7" stroke="#4a9eff" stroke-width="0.5"/>
+          <rect x="226" y="144" width="14" height="20" rx="2" fill="white" opacity="0.12"/>
+          <!-- Fenêtres latérales droite -->
+          <rect x="425" y="143" width="30" height="22" rx="3" fill="#0f2347" opacity="0.7" stroke="#4a9eff" stroke-width="0.5"/>
+          <rect x="426" y="144" width="14" height="20" rx="2" fill="white" opacity="0.12"/>
+          <!-- Texte enseigne -->
+          <rect x="268" y="140" width="144" height="26" rx="4" fill="#0f2347" opacity="0.55"/>
+          <text x="340" y="158" text-anchor="middle"
+            font-family="'Inter',-apple-system,sans-serif"
+            font-size="9" font-weight="700" fill="url(#goldGrad)" letter-spacing="2" opacity="0.9">COMMERCE GÉNÉRAL</text>
+        </g>
+
+        <!-- Grande porte de chargement -->
+        <g class="porte">
+          <rect x="295" y="183" width="90" height="54" rx="4" fill="#0a1828"/>
+          <rect x="295" y="183" width="90" height="54" rx="4" fill="none" stroke="#4a9eff" stroke-width="0.8" opacity="0.4"/>
+          <!-- Rouleau porte -->
+          <rect x="295" y="183" width="90" height="5" rx="2" fill="url(#goldGrad)" opacity="0.6"/>
+          <!-- Panneaux porte -->
+          <rect x="298" y="191" width="40" height="42" rx="2" fill="#0d2040" opacity="0.8"/>
+          <rect x="342" y="191" width="40" height="42" rx="2" fill="#0d2040" opacity="0.8"/>
+          <!-- Lignes porte -->
+          <line x1="318" y1="191" x2="318" y2="233" stroke="#1e4fa0" stroke-width="1" opacity="0.5"/>
+          <line x1="362" y1="191" x2="362" y2="233" stroke="#1e4fa0" stroke-width="1" opacity="0.5"/>
+          <line x1="298" y1="207" x2="338" y2="207" stroke="#1e4fa0" stroke-width="0.8" opacity="0.4"/>
+          <line x1="342" y1="207" x2="382" y2="207" stroke="#1e4fa0" stroke-width="0.8" opacity="0.4"/>
+          <line x1="298" y1="220" x2="338" y2="220" stroke="#1e4fa0" stroke-width="0.8" opacity="0.4"/>
+          <line x1="342" y1="220" x2="382" y2="220" stroke="#1e4fa0" stroke-width="0.8" opacity="0.4"/>
+          <!-- Poignées -->
+          <circle cx="337" cy="213" r="3" fill="url(#goldGrad)" opacity="0.8"/>
+          <circle cx="343" cy="213" r="3" fill="url(#goldGrad)" opacity="0.8"/>
+        </g>
+
+        <!-- ══════════════════════════════════
+             PRODUITS DEVANT LE COMMERCE
+        ══════════════════════════════════ -->
+
+        <!-- Produit 1 — article gauche -->
+        <g class="btle1" style="transform-origin:240px 237px">
+          <!-- Corps -->
+          <rect x="229" y="190" width="16" height="47" rx="4" fill="url(#beerGrad)"/>
+          <!-- Col -->
+          <rect x="232" y="180" width="10" height="12" rx="3" fill="#c07a00"/>
+          <!-- Capsule -->
+          <rect x="231" y="178" width="12" height="5" rx="2" fill="#d4a017"/>
+          <!-- Étiquette -->
+          <rect x="230" y="202" width="14" height="20" rx="2" fill="#fffbeb" opacity="0.85"/>
+          <text x="237" y="216" text-anchor="middle" font-size="4" font-weight="700" fill="#92400e">🍺</text>
+          <!-- Reflet -->
+          <rect x="237" y="182" width="3" height="50" rx="1.5" fill="white" opacity="0.15"/>
+        </g>
+
+        <!-- Produit 2 — article gauche centre -->
+        <g class="btle2" style="transform-origin:260px 237px">
+          <rect x="249" y="187" width="18" height="50" rx="4" fill="url(#bottleGrad)"/>
+          <rect x="252" y="176" width="12" height="13" rx="3" fill="#059669"/>
+          <rect x="251" y="174" width="14" height="5" rx="2" fill="#34d399"/>
+          <rect x="250" y="200" width="16" height="22" rx="2" fill="white" opacity="0.9"/>
+          <text x="258" y="215" text-anchor="middle" font-size="4.5" font-weight="700" fill="#065f46">MKT</text>
+          <rect x="257" y="178" width="3" height="55" rx="1.5" fill="white" opacity="0.2"/>
+        </g>
+
+        <!-- Produit 3 — article droite centre -->
+        <g class="btle3" style="transform-origin:412px 237px">
+          <rect x="401" y="187" width="18" height="50" rx="4" fill="url(#bottle2Grad)"/>
+          <rect x="404" y="176" width="12" height="13" rx="3" fill="#1d4ed8"/>
+          <rect x="403" y="174" width="14" height="5" rx="2" fill="#60a5fa"/>
+          <rect x="402" y="200" width="16" height="22" rx="2" fill="white" opacity="0.9"/>
+          <text x="410" y="215" text-anchor="middle" font-size="4.5" font-weight="700" fill="#1e3a8a">LOG</text>
+          <rect x="409" y="178" width="3" height="55" rx="1.5" fill="white" opacity="0.2"/>
+        </g>
+
+        <!-- Produit 4 — article droite -->
+        <g class="btle4" style="transform-origin:430px 237px">
+          <rect x="420" y="190" width="16" height="47" rx="4" fill="url(#beerGrad)"/>
+          <rect x="423" y="180" width="10" height="12" rx="3" fill="#c07a00"/>
+          <rect x="422" y="178" width="12" height="5" rx="2" fill="#d4a017"/>
+          <rect x="421" y="202" width="14" height="20" rx="2" fill="#fffbeb" opacity="0.85"/>
+          <text x="428" y="216" text-anchor="middle" font-size="4" font-weight="700" fill="#92400e">🍺</text>
+          <rect x="428" y="182" width="3" height="50" rx="1.5" fill="white" opacity="0.15"/>
+        </g>
+
+        <!-- Palette de marchandises devant -->
+        <g class="casier">
+          <!-- Palette basse -->
+          <rect x="270" y="225" width="140" height="12" rx="3" fill="#92400e" opacity="0.7"/>
+          <rect x="275" y="220" width="130" height="8" rx="2" fill="#a0522d" opacity="0.6"/>
+          <!-- Cartons empilés -->
+          <rect x="275" y="200" width="40" height="22" rx="3" fill="#d4a017" opacity="0.8"/>
+          <rect x="277" y="202" width="36" height="18" rx="2" fill="none" stroke="#92400e" stroke-width="0.8" opacity="0.5"/>
+          <rect x="320" y="200" width="40" height="22" rx="3" fill="#d4a017" opacity="0.8"/>
+          <rect x="322" y="202" width="36" height="18" rx="2" fill="none" stroke="#92400e" stroke-width="0.8" opacity="0.5"/>
+          <rect x="365" y="200" width="40" height="22" rx="3" fill="#d4a017" opacity="0.8"/>
+          <rect x="367" y="202" width="36" height="18" rx="2" fill="none" stroke="#92400e" stroke-width="0.8" opacity="0.5"/>
+          <!-- Labels cartons -->
+          <text x="295" y="214" text-anchor="middle" font-size="5" font-weight="700" fill="#0f2347" opacity="0.7">ARTICLES</text>
+          <text x="340" y="214" text-anchor="middle" font-size="5" font-weight="700" fill="#0f2347" opacity="0.7">STOCKS</text>
+          <text x="385" y="214" text-anchor="middle" font-size="5" font-weight="700" fill="#0f2347" opacity="0.7">VENTES</text>
+        </g>
+
+        <!-- Éléments décoratifs -->
+        <circle class="bulle1" cx="248" cy="172" r="5" fill="url(#goldGrad)" opacity="0.6"/>
+        <circle class="bulle2" cx="240" cy="163" r="3.5" fill="url(#goldGrad)" opacity="0.4"/>
+        <circle class="bulle3" cx="254" cy="159" r="2.5" fill="url(#goldGrad)" opacity="0.35"/>
+
+        <!-- ── Arc sol ── -->
+        <path class="arc-main" d="M215,238 Q340,258 465,238" fill="none" stroke="url(#goldGrad)" stroke-width="3" stroke-linecap="round"/>
+        <line class="arc-left"  x1="215" y1="238" x2="183" y2="246" stroke="#d4900a" stroke-width="2" stroke-linecap="round" opacity="0.65"/>
+        <line class="arc-right" x1="465" y1="238" x2="497" y2="246" stroke="#d4900a" stroke-width="2" stroke-linecap="round" opacity="0.65"/>
+
+        <!-- ── Texte principal ── -->
+        <text class="txt-main" x="340" y="278" text-anchor="middle"
+          font-family="'Inter',-apple-system,BlinkMacSystemFont,sans-serif"
+          font-size="28" font-weight="800" letter-spacing="3" fill="white">DISTRIGEST</text>
+
+        <!-- Badge CI -->
+        <g class="txt-badge" style="transform-origin:482px 270px;">
+          <rect x="466" y="259" width="36" height="22" rx="4" fill="url(#goldGrad)"/>
+          <text x="484" y="275" text-anchor="middle"
+            font-family="'Inter',-apple-system,sans-serif"
+            font-size="13" font-weight="800" fill="#0f2347">CI</text>
+        </g>
+
+        <!-- Tagline -->
+        <text class="txt-tagline" x="340" y="300" text-anchor="middle"
+          font-family="'Inter',-apple-system,sans-serif"
+          font-size="10" letter-spacing="3.5" fill="white" opacity="0.45">GESTION COMMERCIALE GÉNÉRALE</text>
+
+      </svg>
+    </div>
+
+    <div class="loader">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+
+    <div class="stinaug-label">STiNAUG TECHNOLOGIE · Abidjan, CI</div>
+
+  </div>
+</div>
+
+<script>
+  setTimeout(function() {
+    window.location.href = '{{ redirect_to | default("/activation") }}';
+  }, 4600);
+
+  document.getElementById('splash-overlay').addEventListener('animationend', function(e) {
+    if (e.animationName === 'splashExit') this.remove();
+  });
+</script>
+
+</body>
+</html>

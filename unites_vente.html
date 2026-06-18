@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Unités de vente — DISTRIGEST{% endblock %}
+{% block topbar_title %}📏 Unités de vente{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>📏 Unités de vente</h1>
+    <div class="sub" style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap;">
+      <span style="display:flex;align-items:center;gap:7px;padding:6px 14px;border-radius:20px;background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--ombre);font-size:12px;font-weight:600;color:var(--texte);"><span style="width:8px;height:8px;border-radius:50%;background:var(--bleu);flex-shrink:0;"></span><strong style="color:var(--bleu);">{{ unites|length }}</strong>&nbsp;unité{{ 's' if unites|length > 1 }}</span>
+      <span style="display:flex;align-items:center;gap:7px;padding:6px 14px;border-radius:20px;background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--ombre);font-size:12px;font-weight:600;color:var(--texte);"><span style="width:8px;height:8px;border-radius:50%;background:var(--vert);flex-shrink:0;"></span><strong style="color:var(--vert);">{{ unites|sum(attribute='nb_articles') }}</strong>&nbsp;article{{ 's' if unites|sum(attribute='nb_articles') > 1 }} couverts</span>
+    </div>
+  </div>
+  <button onclick="openModal('modalAddUnite')" class="btn btn-primary">➕ Nouvelle unité</button>
+</div>
+
+<!-- Tableau -->
+<div class="table-card">
+  <div class="thead"><h3>{{ unites|length }} unité(s) de vente</h3></div>
+  <table>
+    <thead>
+      <tr>
+        <th>Unité</th>
+        <th style="text-align:center;">Articles</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for u in unites %}
+    <tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:36px;height:36px;border-radius:8px;background:var(--bleu3);
+               display:flex;align-items:center;justify-content:center;font-size:16px;">📏</div>
+          <div style="font-size:14px;font-weight:700;color:var(--bleu);">{{ u.nom }}</div>
+        </div>
+      </td>
+      <td style="text-align:center;">
+        {% if u.nb_articles > 0 %}
+        <a href="{{ url_for('articles_list') }}" class="badge badge-info">{{ u.nb_articles }} article{{ 's' if u.nb_articles != 1 }}</a>
+        {% else %}
+        <span style="color:var(--gris3);font-size:12px;">—</span>
+        {% endif %}
+      </td>
+      <td style="white-space:nowrap;">
+        <div style="display:inline-flex;gap:6px;align-items:center;">
+          <button class="hist-action-btn hist-btn-action-sec"
+            data-id="{{ u.id }}" data-nom="{{ u.nom|e }}"
+            onclick="openEditUnite(this)">✏️ <span>Modifier</span></button>
+          <a href="{{ url_for('unite_delete', id=u.id) }}"
+             onclick="return confirm('Supprimer l\'unité {{ u.nom }} ?')"
+             class="hist-action-btn hist-btn-supprimer">🗑️ <span>Supprimer</span></a>
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr>
+      <td colspan="3" style="text-align:center;padding:48px;color:var(--gris3);">
+        <div style="font-size:36px;margin-bottom:10px;">📏</div>
+        Aucune unité de vente — <button onclick="openModal('modalAddUnite')" style="background:none;border:none;color:var(--bleu2);cursor:pointer;font-weight:700;">Créer la première</button>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- MODAL Ajouter -->
+<div id="modalAddUnite" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>📏 Nouvelle unité de vente</h3>
+      <button class="modal-close" onclick="closeModal('modalAddUnite')">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('unite_add') }}">
+      <div class="modal-body">
+        <div class="form-group full">
+          <label>Nom de l'unité *</label>
+          <input name="nom" required placeholder="Bouteille, Carton, Caisse, Pack, Palette…"
+            oninput="this.value=this.value.charAt(0).toUpperCase()+this.value.slice(1)">
+        </div>
+        <div style="margin-top:12px;padding:10px 14px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--bleu2);">
+          💡 Exemples : Bouteille, Canette, Carton, Caisse, Pack, Palette, Litre, Unité
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalAddUnite')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL Modifier -->
+<div id="modalEditUnite" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>✏️ Modifier l'unité</h3>
+      <button class="modal-close" onclick="closeModal('modalEditUnite')">✕</button>
+    </div>
+    <form method="POST" id="formEditUnite" action="">
+      <div class="modal-body">
+        <div class="form-group full">
+          <label>Nom *</label>
+          <input name="nom" id="eu_nom" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalEditUnite')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+.hist-action-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:7px;font-size:11px;font-weight:700;font-family:inherit;border:1.5px solid transparent;cursor:pointer;transition:all .15s;white-space:nowrap;line-height:1;text-decoration:none;background:none;}
+.hist-action-btn span{font-size:11px;}
+.hist-btn-action-sec{background:var(--bg-input);color:var(--gris3);border-color:var(--border);}
+.hist-btn-action-sec:hover{background:#475569;color:white;border-color:#475569;box-shadow:0 2px 8px rgba(71,85,105,.2);}
+.hist-btn-supprimer{background:var(--bg-input);color:#dc2626;border-color:#fca5a5;}
+.hist-btn-supprimer:hover{background:#dc2626;color:white;border-color:#dc2626;box-shadow:0 2px 8px rgba(220,38,38,.25);}
+</style>
+<script>
+function openEditUnite(btn) {
+  document.getElementById('formEditUnite').action = '/catalogue/unites/edit/' + btn.dataset.id;
+  document.getElementById('eu_nom').value = btn.dataset.nom;
+  openModal('modalEditUnite');
+}
+</script>
+
+{# ── Patch thème sombre — unites_vente ── #}
+<style>
+[data-theme="dark"] .table-card      { background:var(--bg-card) !important; }
+[data-theme="dark"] .table-card .thead { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] thead th          { background:var(--bg-thead) !important; color:var(--gris3) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody td          { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody tr:hover td { background:var(--row-hover) !important; }
+[data-theme="dark"] .badge-info       { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] .hist-btn-action-sec { background:var(--bg-input) !important; color:var(--gris3) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .hist-btn-supprimer  { background:#3d0f0f !important; color:#fca5a5 !important; border-color:#7f1d1d !important; }
+[data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
+  background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+}
+[data-theme="dark"] .modal            { background:var(--modal-bg) !important; }
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer     { border-color:var(--border) !important; }
+[data-theme="dark"] .btn-sec          { background:#1c2128 !important; color:#8b949e !important; border-color:var(--border) !important; }
+/* Icône unité */
+[data-theme="dark"] [style*="background:var(--bleu3)"] { background:#1d3461 !important; }
+@media (prefers-color-scheme:dark) {
+  [data-theme="system"] .table-card   { background:var(--bg-card) !important; }
+  [data-theme="system"] thead th      { background:var(--bg-thead) !important; color:var(--gris3) !important; }
+  [data-theme="system"] tbody td      { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] .badge-info   { background:#1d3461 !important; color:#93c5fd !important; }
+  [data-theme="system"] .hist-btn-action-sec { background:var(--bg-input) !important; color:var(--gris3) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .hist-btn-supprimer  { background:#3d0f0f !important; color:#fca5a5 !important; border-color:#7f1d1d !important; }
+  [data-theme="system"] input, [data-theme="system"] select { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .modal        { background:var(--modal-bg) !important; }
+  [data-theme="system"] .btn-sec      { background:#1c2128 !important; color:#8b949e !important; }
+  [data-theme="system"] [style*="background:var(--bleu3)"] { background:#1d3461 !important; }
+}
+</style>
+{% endblock %}

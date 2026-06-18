@@ -1,0 +1,3110 @@
+{% extends "base.html" %}
+{% block title %}Paramètres — DISTRIGEST{% endblock %}
+{% block topbar_title %}⚙️ Paramètres{% endblock %}
+
+{% block topbar_actions %}{% endblock %}
+
+{% block content %}
+
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;">
+  <div><h1>⚙️ Paramètres</h1><div class="sub">Configuration générale du dépôt</div></div>
+  <button id="btn-save-global"
+     onclick="sauvegarderOngletActif(this)"
+     class="btn btn-primary"
+     style="font-weight:700;display:inline-flex;align-items:center;gap:8px;font-size:14px;padding:10px 22px;cursor:pointer;"
+     title="Enregistrer les paramètres de l'onglet actif">
+    💾 Sauvegarder
+  </button>
+</div>
+
+<style>
+/* Police système — aucun chargement réseau requis */
+
+/* ══ Pill-bar glassmorphism ══ */
+.ptab-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 5px;
+  margin-bottom: 28px;
+  padding: 6px;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(99,102,241,.06) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(59,130,246,.07) 0%, transparent 50%),
+    linear-gradient(135deg,
+      rgba(219,234,254,.72) 0%,
+      rgba(224,231,255,.60) 40%,
+      rgba(219,234,254,.68) 100%);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border-radius: 20px;
+  border: 1px solid rgba(147,197,253,.45);
+  box-shadow:
+    0 1px 0 0 rgba(255,255,255,.9) inset,
+    0 -1px 0 0 rgba(147,197,253,.25) inset,
+    1px 0 0 0 rgba(255,255,255,.6) inset,
+    -1px 0 0 0 rgba(255,255,255,.6) inset,
+    0 8px 32px rgba(59,130,246,.10),
+    0 2px 8px rgba(59,130,246,.06);
+  position: relative;
+  overflow: hidden;
+}
+.ptab-bar::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 10%; right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(255,255,255,.95) 30%,
+    rgba(255,255,255,.95) 70%,
+    transparent);
+  border-radius: 1px;
+  pointer-events: none;
+}
+.ptab-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.018'/%3E%3C/svg%3E");
+  pointer-events: none;
+  border-radius: 20px;
+  opacity: 0.6;
+}
+.ptab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 20px 11px;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: system-ui,-apple-system,'Segoe UI',Arial,sans-serif;
+  color: #64748b;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  transition: color .2s ease, background .2s ease, box-shadow .2s ease, transform .15s ease;
+  letter-spacing: .15px;
+  user-select: none;
+  position: relative;
+  flex: 1;
+  white-space: nowrap;
+  z-index: 1;
+}
+.ptab .tab-icon {
+  font-size: 15px;
+  display: inline-block;
+  transition: transform .28s cubic-bezier(.34,1.56,.64,1);
+  transform-origin: center;
+}
+.ptab:hover {
+  color: #1e3a5f;
+  background: rgba(255,255,255,.55);
+  border-color: rgba(147,197,253,.3);
+  box-shadow: 0 1px 6px rgba(59,130,246,.08);
+}
+.ptab:hover .tab-icon { transform: scale(1.22) rotate(-6deg); }
+.ptab.active {
+  font-weight: 700;
+  background: var(--bg-card);
+  border-color: rgba(255,255,255,.9);
+  box-shadow:
+    0 4px 16px rgba(0,0,0,.10),
+    0 1px 4px rgba(0,0,0,.06),
+    0 0 0 1px rgba(255,255,255,.8) inset;
+  transform: translateY(-1px);
+}
+.ptab.active .tab-icon { transform: scale(1.1); }
+.ptab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 5px; left: 20%; right: 20%;
+  height: 2.5px;
+  border-radius: 2px;
+  background: var(--ptab-indicator, linear-gradient(90deg, #3b82f6, #1e3a6c));
+  opacity: .85;
+}
+
+/* Thèmes par onglet */
+.ptab-infos.active {
+  color: #1e3a8a;
+  box-shadow: 0 6px 20px rgba(37,99,235,.16), 0 1px 4px rgba(0,0,0,.06), 0 0 0 1px rgba(255,255,255,.8) inset;
+  --ptab-indicator: linear-gradient(90deg, #60a5fa, #3b82f6, #2563eb);
+}
+.ptab-acces.active {
+  color: #4c1d95;
+  box-shadow: 0 6px 20px rgba(124,58,237,.16), 0 1px 4px rgba(0,0,0,.06), 0 0 0 1px rgba(255,255,255,.8) inset;
+  --ptab-indicator: linear-gradient(90deg, #c084fc, #a855f7, #7c3aed);
+}
+.ptab-reseau.active {
+  color: #065f46;
+  box-shadow: 0 6px 20px rgba(5,150,105,.16), 0 1px 4px rgba(0,0,0,.06), 0 0 0 1px rgba(255,255,255,.8) inset;
+  --ptab-indicator: linear-gradient(90deg, #34d399, #10b981, #059669);
+}
+.ptab-article.active {
+  color: #92400e;
+  box-shadow: 0 6px 20px rgba(245,158,11,.16), 0 1px 4px rgba(0,0,0,.06), 0 0 0 1px rgba(255,255,255,.8) inset;
+  --ptab-indicator: linear-gradient(90deg, #fcd34d, #f59e0b, #d97706);
+}
+.ptab-notifications.active {
+  color: #b91c1c;
+  box-shadow: 0 6px 20px rgba(220,38,38,.16), 0 1px 4px rgba(0,0,0,.06), 0 0 0 1px rgba(255,255,255,.8) inset;
+  --ptab-indicator: linear-gradient(90deg, #fca5a5, #f87171, #dc2626);
+}
+
+.ptab .tab-badge {
+  font-family: system-ui,-apple-system,'Segoe UI',Arial,sans-serif;
+  font-size: 10px; font-weight: 700;
+  padding: 2px 7px; border-radius: 20px;
+  min-width: 20px; text-align: center;
+  background: rgba(100,116,139,.10);
+  color: #94a3b8;
+  border: 1px solid rgba(100,116,139,.12);
+  transition: all .22s ease;
+  line-height: 1.5;
+}
+.ptab-infos.active .tab-badge {
+  background: linear-gradient(135deg, #bfdbfe, #60a5fa);
+  color: #1e3a8a; border-color: rgba(96,165,250,.35);
+  box-shadow: 0 2px 8px rgba(37,99,235,.22);
+}
+.ptab-acces.active .tab-badge {
+  background: linear-gradient(135deg, #e9d5ff, #c084fc);
+  color: #4c1d95; border-color: rgba(192,132,252,.35);
+  box-shadow: 0 2px 8px rgba(124,58,237,.22);
+}
+.ptab-reseau.active .tab-badge {
+  background: linear-gradient(135deg, #a7f3d0, #34d399);
+  color: #064e3b; border-color: rgba(52,211,153,.35);
+  box-shadow: 0 2px 8px rgba(5,150,105,.22);
+}
+.ptab-article.active .tab-badge {
+  background: linear-gradient(135deg, #fde68a, #fcd34d);
+  color: #78350f; border-color: rgba(252,211,77,.35);
+  box-shadow: 0 2px 8px rgba(245,158,11,.22);
+}
+.ptab-notifications.active .tab-badge {
+  background: linear-gradient(135deg, #fecaca, #f87171);
+  color: #7f1d1d; border-color: rgba(248,113,113,.35);
+  box-shadow: 0 2px 8px rgba(220,38,38,.22);
+}
+
+
+/* ══ Panneau ══ */
+.ptab-panel { display: none; }
+.ptab-panel.active { display: block; }
+
+
+/* ══ Carte section ══ */
+.pcart {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 18px;
+  box-shadow: var(--ombre);
+}
+.pcart-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 20px;
+  background: var(--bg-thead);
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--bleu);
+  letter-spacing: .1px;
+}
+.pcart-body { padding: 20px 24px; }
+
+/* ══ Toggle switch ══ */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--gris2);
+}
+.toggle-row:last-child { border-bottom: none; }
+.toggle-info .tlabel { font-size: 13px; font-weight: 600; color: var(--texte); }
+.toggle-info .tdesc  { font-size: 11px; color: var(--gris3); margin-top: 2px; }
+.tswitch {
+  position: relative;
+  display: inline-block;
+  width: 42px; height: 23px;
+  flex-shrink: 0;
+}
+.tswitch input { opacity: 0; width: 0; height: 0; }
+.tslider {
+  position: absolute; inset: 0;
+  background: var(--gris2);
+  border-radius: 23px;
+  cursor: pointer;
+  transition: background .2s;
+}
+.tslider::before {
+  content: '';
+  position: absolute;
+  width: 17px; height: 17px;
+  left: 3px; top: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: transform .2s;
+  box-shadow: 0 1px 4px rgba(0,0,0,.2);
+}
+.tswitch input:checked + .tslider { background: var(--bleu2); }
+.tswitch input:checked + .tslider::before { transform: translateX(19px); }
+
+/* ══ Ligne info système ══ */
+.sysrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--gris2);
+  font-size: 12.5px;
+}
+.sysrow:last-child { border-bottom: none; }
+.sysrow .sk { color: var(--gris3); }
+.sysrow .sv { font-weight: 700; color: var(--texte); font-family: monospace; font-size: 12px; }
+
+/* ══ Badge statut réseau ══ */
+.net-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10.5px; font-weight: 700;
+  padding: 3px 10px; border-radius: 20px;
+}
+.net-ok   { background: #dcfce7; color: #15803d; }
+.net-warn { background: #fef9c3; color: #a16207; }
+.net-off  { background: #fee2e2; color: #b91c1c; }
+
+/* ══ Flux réseau schéma ══ */
+.net-schema {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 20px 0 8px;
+  flex-wrap: wrap;
+}
+.net-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 90px;
+}
+.net-node .node-icon {
+  width: 52px; height: 52px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  border: 2px solid var(--gris2);
+  background: var(--gris);
+}
+.net-node .node-icon.primary { background: var(--bleu2); border-color: var(--bleu2); }
+.net-node .node-label { font-size: 10px; font-weight: 700; color: var(--gris3); text-align: center; text-transform: uppercase; letter-spacing: .4px; }
+.net-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+}
+.net-arrow .arr-line {
+  height: 2px;
+  width: 48px;
+  background: linear-gradient(90deg, var(--bleu2), var(--bleu));
+  border-radius: 2px;
+  position: relative;
+}
+.net-arrow .arr-line::after {
+  content: '▶';
+  position: absolute;
+  right: -6px; top: -7px;
+  font-size: 8px;
+  color: var(--bleu);
+}
+.net-arrow .arr-line.reverse::after { content: ''; }
+.net-arrow .arr-line.reverse::before {
+  content: '◀';
+  position: absolute;
+  left: -6px; top: -7px;
+  font-size: 8px;
+  color: var(--bleu2);
+}
+.net-arrow .arr-label { font-size: 9px; color: var(--gris3); font-weight: 600; white-space: nowrap; }
+.net-port-tag {
+  display: inline-flex; align-items: center;
+  background: var(--bleu3); color: var(--bleu2);
+  font-size: 10px; font-weight: 700;
+  padding: 2px 8px; border-radius: 5px;
+  font-family: monospace;
+}
+
+/* ══ Séparateur section ══ */
+.section-sep {
+  font-size: 10px; font-weight: 700; color: var(--gris3);
+  text-transform: uppercase; letter-spacing: .6px;
+  padding: 0 0 8px;
+  margin: 18px 0 4px;
+  border-bottom: 1px solid var(--gris2);
+  display: flex; align-items: center; gap: 6px;
+}
+
+/* ══ Bouton footer ══ */
+.param-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+/* ══ Sous-onglets accès ══ */
+  /* ══ Sous-onglets accès ══ */
+  .acces-subtab-bar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 22px;
+    padding: 5px;
+    background: linear-gradient(135deg, rgba(237,233,254,.80) 0%, rgba(245,243,255,.70) 100%);
+    backdrop-filter: blur(16px);
+    border-radius: 16px;
+    border: 1px solid rgba(196,181,253,.40);
+    box-shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 4px 16px rgba(124,58,237,.08);
+  }
+  .acces-stab {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 9px 18px 10px;
+    font-size: 12.5px;
+    font-weight: 600;
+    font-family: system-ui,-apple-system,'Segoe UI',Arial,sans-serif;
+    color: #6d28d9;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    background: transparent;
+    transition: all .2s ease;
+    letter-spacing: .1px;
+    white-space: nowrap;
+    user-select: none;
+  }
+  .acces-stab .stab-icon { font-size: 15px; transition: transform .25s cubic-bezier(.34,1.56,.64,1); }
+  .acces-stab:hover { background: rgba(255,255,255,.60); border-color: rgba(196,181,253,.4); color: #4c1d95; }
+  .acces-stab:hover .stab-icon { transform: scale(1.18) rotate(-5deg); }
+  .acces-stab.active {
+    background: var(--bg-card);
+    border-color: rgba(196,181,253,.5);
+    color: #4c1d95;
+    font-weight: 700;
+    box-shadow: 0 4px 14px rgba(124,58,237,.14), 0 1px 3px rgba(0,0,0,.06), 0 0 0 1px rgba(255,255,255,.8) inset;
+    transform: translateY(-1px);
+  }
+  .acces-subpanel { display: none; }
+  .acces-subpanel.active { display: block; }
+
+  /* ══ Tableau utilisateurs ══ */
+  .user-table-wrap { overflow-x: auto; }
+  .user-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .user-table thead tr {
+    background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+    border-bottom: 2px solid #ddd6fe;
+  }
+  .user-table th {
+    padding: 10px 14px;
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .5px;
+    color: #5b21b6; text-align: left;
+  }
+  .user-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--gris2);
+    vertical-align: middle;
+    color: var(--texte);
+  }
+  .user-table tr:last-child td { border-bottom: none; }
+  .user-table tr:hover td { background: #faf5ff; }
+  .role-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10.5px; font-weight: 700;
+    padding: 3px 10px; border-radius: 20px; white-space: nowrap;
+  }
+  .role-admin        { background: #ede9fe; color: #5b21b6; border: 1px solid #c4b5fd; }
+  .role-commercial   { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+  .role-caissier     { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+  .role-acheteur     { background: #fce7f3; color: #9d174d; border: 1px solid #f9a8d4; }
+  .role-compta       { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+  .role-stock        { background: #ffedd5; color: #9a3412; border: 1px solid #fdba74; }
+  .role-rh           { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
+  .role-superviseur  { background: #fdf4ff; color: #7e22ce; border: 1px solid #e9d5ff; }
+  .role-representant { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+  .stat-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10.5px; font-weight: 700;
+    padding: 3px 10px; border-radius: 20px;
+  }
+  .stat-actif   { background: #dcfce7; color: #15803d; }
+  .stat-inactif { background: #fee2e2; color: #b91c1c; }
+  .action-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 600;
+    padding: 4px 10px; border-radius: 7px; border: 1px solid;
+    cursor: pointer; transition: all .15s;
+    background: var(--bg-input); margin-right: 4px;
+  }
+  .action-btn.edit  { color: #2563eb; border-color: #93c5fd; }
+  .action-btn.edit:hover  { background: #eff6ff; }
+  .action-btn.del   { color: #dc2626; border-color: #fca5a5; }
+  .action-btn.del:hover   { background: #fef2f2; }
+
+  /* ══ Modale utilisateur ══ */
+  .user-modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.45);
+    backdrop-filter: blur(4px);
+    z-index: 9000;
+    align-items: center; justify-content: center;
+  }
+  .user-modal-overlay.open { display: flex; }
+  .user-modal {
+    background: var(--modal-bg); border-radius: 16px;
+    width: min(520px, 95vw);
+    box-shadow: 0 20px 60px rgba(0,0,0,.2);
+    overflow: visible;
+    animation: modalIn .22s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes modalIn {
+    from { transform: scale(.92) translateY(16px); opacity: 0; }
+    to   { transform: scale(1)   translateY(0);    opacity: 1; }
+  }
+  .user-modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 22px;
+    background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+    border-bottom: 1px solid #ddd6fe;
+    border-radius: 16px 16px 0 0;
+  }
+  .user-modal-head h3 { font-size: 14px; font-weight: 700; color: #4c1d95; margin: 0; }
+  .modal-close-btn {
+    width: 28px; height: 28px; border-radius: 50%; border: none;
+    background: rgba(109,40,217,.1); color: #6d28d9;
+    font-size: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s;
+  }
+  .modal-close-btn:hover { background: rgba(109,40,217,.2); }
+  .user-modal-body { padding: 22px; overflow: visible; }
+  .user-modal-footer {
+    padding: 14px 22px;
+    border-top: 1px solid var(--gris2);
+    display: flex; justify-content: flex-end; gap: 10px;
+    background: #fafafa;
+    border-radius: 0 0 16px 16px;
+  }
+
+  /* ══ Grille permissions ══ */
+  .perm-section-title {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .6px;
+    color: #5b21b6;
+    padding: 10px 0 6px;
+    border-bottom: 2px solid #ede9fe;
+    margin-bottom: 2px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .perm-row {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--gris2);
+    gap: 8px;
+  }
+  .perm-row:last-child { border-bottom: none; }
+  .perm-label { font-size: 12.5px; font-weight: 600; color: var(--texte); }
+  .perm-desc  { font-size: 10.5px; color: var(--gris3); margin-top: 1px; }
+
+  /* ══ Sélecteur 3 états : Aucun / Lecture / Écriture ══ */
+  .perm-tristate {
+    display: inline-flex;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1.5px solid #ddd6fe;
+    flex-shrink: 0;
+  }
+  .perm-tristate input[type=radio] { display: none; }
+  .perm-tristate label {
+    display: flex; align-items: center; gap: 4px;
+    padding: 5px 10px;
+    font-size: 11px; font-weight: 600;
+    cursor: pointer;
+    border-right: 1px solid var(--border);
+    color: #94a3b8;
+    background: var(--bg-input);
+    transition: all .15s;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .perm-tristate label:last-child { border-right: none; }
+  /* Aucun */
+  .perm-tristate input[value=non]:checked + label,
+  .perm-tristate label[for$=_non]:has(~ input[value=non]:checked) { background: #fee2e2; color: #b91c1c; }
+  /* Lecture */
+  .perm-tristate input[value=lecture]:checked + label { background: #fef9c3; color: #92400e; }
+  /* Écriture */
+  .perm-tristate input[value=ecriture]:checked + label { background: #dcfce7; color: #15803d; }
+
+  /* ── Champ mot de passe avec œil intégré ── */
+  .pwd-wrap {
+    position: relative;
+    display: block;
+    width: 100%;
+  }
+  .pwd-wrap input {
+    width: 100%;
+    box-sizing: border-box;
+    padding-right: 40px !important;
+  }
+  .pwd-eye {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--gris3);
+    padding: 0;
+    transition: background .15s ease, color .15s ease;
+    z-index: 2;
+  }
+  .pwd-eye:hover    { background: var(--gris1); color: var(--bleu2); }
+  .pwd-eye:active   { transform: translateY(-50%) scale(.92); }
+  .pwd-eye svg      { width: 16px; height: 16px; display: block; }
+  .pwd-eye .icn-on  { display: none; }
+  .pwd-eye.is-shown .icn-off { display: none; }
+  .pwd-eye.is-shown .icn-on  { display: block; }
+
+  /* Approche plus simple — js driven */
+  .pts-opt { padding: 5px 10px; font-size: 11px; font-weight: 600;
+    cursor: pointer; border-right: 1px solid var(--border); color: var(--gris3);
+    background: var(--bg-input); transition: all .15s; user-select: none; white-space: nowrap;
+    display:flex; align-items:center; gap:4px; }
+  .pts-opt:last-child { border-right: none; }
+  .pts-opt.pts-none.pts-sel    { background:#fee2e2; color:#b91c1c; }
+  .pts-opt.pts-read.pts-sel    { background:#fef9c3; color:#92400e; }
+  .pts-opt.pts-write.pts-sel   { background:#dcfce7; color:#15803d; }
+  .pts-opt:hover:not(.pts-sel) { background:#f8fafc; color:#475569; }
+
+  /* ── Dropdown multi-rôles (même style que poste employé) ── */
+  .role-dropdown{position:relative;}
+  .role-trigger{
+    display:flex;align-items:center;justify-content:space-between;
+    width:100%;height:36px;padding:0 10px;box-sizing:border-box;
+    border:1.5px solid var(--gris2);border-radius:6px;
+    font-size:12px;font-family:inherit;background:var(--bg-input);color:var(--texte);
+    cursor:pointer;user-select:none;transition:border-color .12s;
+  }
+  .role-trigger:hover,.role-trigger.open{border-color:var(--bleu);}
+  .role-trigger .arrow{font-size:9px;color:var(--gris3);transition:transform .15s;}
+  .role-trigger.open .arrow{transform:rotate(180deg);}
+  .role-menu{
+    display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:9999;
+    background:var(--bg-card);border:1.5px solid var(--bleu);border-radius:8px;
+    box-shadow:0 6px 20px rgba(26,58,108,.15);
+    max-height:220px;overflow-y:auto;overflow-x:hidden;
+  }
+  .role-menu.open{display:block;}
+  .role-menu-item{
+    display:flex;align-items:center;gap:10px;
+    padding:8px 12px;cursor:pointer;font-size:12px;font-family:inherit;
+    border-bottom:1px solid var(--border);transition:background .1s;
+  }
+  .role-menu-item:last-child{border-bottom:none;}
+  .role-menu-item:hover{background:#f0f7ff;}
+  .role-menu-item input[type=checkbox]{
+    width:15px;height:15px;accent-color:var(--bleu);cursor:pointer;flex-shrink:0;
+  }
+  .role-menu-item span{flex:1;color:var(--texte);}
+  .role-menu-item.checked span{color:var(--bleu);font-weight:700;}
+
+  /* Chips visuels rôle (même style que chips poste) */
+  .role-chip{
+    display:inline-flex;align-items:center;gap:5px;
+    padding:4px 10px;border-radius:20px;cursor:pointer;
+    font-size:11px;font-weight:600;user-select:none;
+    border:1.5px solid var(--border);background:var(--bg-input);color:var(--gris3);
+    transition:all .13s;
+  }
+  .role-chip:hover{border-color:var(--bleu);color:var(--bleu);background:#f0f7ff;}
+  .role-chip.selected{background:#dbeafe;border-color:var(--bleu);color:var(--bleu);}
+  .role-chip .chip-check{
+    width:13px;height:13px;border-radius:50%;
+    border:1.5px solid currentColor;display:flex;align-items:center;justify-content:center;
+    font-size:9px;flex-shrink:0;
+  }
+  .role-chip.selected .chip-check::after{content:'✓';}
+</style>
+
+<!-- ══ Pill-bar glassmorphism ══ -->
+<div class="ptab-bar">
+  <button class="ptab ptab-infos {% if active_tab == 'infos' %}active{% endif %}"
+    onclick="switchPTab('infos', this)">
+    <span class="tab-icon">🏢</span> Établissement
+    <span class="tab-badge">3</span>
+  </button>
+  <button class="ptab ptab-acces {% if active_tab == 'acces' %}active{% endif %}"
+    onclick="switchPTab('acces', this)">
+    <span class="tab-icon">🔐</span> Sécurité &amp; droits
+    <span class="tab-badge">4</span>
+  </button>
+  <button class="ptab ptab-reseau {% if active_tab == 'reseau' %}active{% endif %}"
+    onclick="switchPTab('reseau', this)">
+    <span class="tab-icon">🌐</span> Réseau &amp; serveur
+    <span class="tab-badge">5</span>
+  </button>
+  <button class="ptab ptab-notifications {% if active_tab == 'notifications' %}active{% endif %}"
+    onclick="switchPTab('notifications', this)">
+    <span class="tab-icon">🔔</span> Relances auto
+    <span class="tab-badge">3</span>
+  </button>
+
+</div>
+
+
+{# ════════════════════════════════════════
+   ONGLET 1 — Établissement
+   ════════════════════════════════════════ #}
+<div class="ptab-panel {% if active_tab == 'infos' %}active{% endif %}" id="ppanel-infos">
+  <form method="POST" action="{{ url_for('parametres') }}" enctype="multipart/form-data">
+    <input type="hidden" name="onglet" value="infos">
+
+    <div class="pcart">
+      <div class="pcart-head" style="display:flex;align-items:center;gap:10px;">
+        <span>🏢 Identité sociale</span>
+        <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;background:#fef3c7;color:#92400e;letter-spacing:.3px;">DGI · CÔTE D'IVOIRE</span>
+      </div>
+      <div class="pcart-body">
+        <div class="form-grid">
+
+          {# ── Identification ── #}
+          <div class="form-group full">
+            <label>Raison sociale *</label>
+            <input name="nom_depot" required
+              value="{{ config.nom_depot or '' }}"
+              placeholder="Ex : MON COMMERCE GÉNÉRAL SARL">
+            <small style="color:var(--gris3);font-size:10px;margin-top:4px;display:block;">
+              Nom légal de votre entreprise tel qu'enregistré à la DGI
+            </small>
+          </div>
+
+          <div class="form-group">
+            <label>NCC — Numéro Compte Contribuable</label>
+            <input name="ncc"
+              value="{{ config.ncc or '' }}"
+              placeholder="Ex : 9606123E"
+              style="font-family:'SF Mono','Consolas',monospace;letter-spacing:.5px;">
+            <small style="color:var(--gris3);font-size:10px;margin-top:4px;display:block;">
+              Identifiant fiscal DGI — optionnel
+            </small>
+          </div>
+
+          <div class="form-group">
+            <label>N° RCCM</label>
+            <input name="rccm"
+              value="{{ config.rccm or '' }}"
+              placeholder="CI-ABJ-XXXX-X-XXXXX">
+            <small style="color:var(--gris3);font-size:10px;margin-top:4px;display:block;">
+              Registre du Commerce et du Crédit Mobilier
+            </small>
+          </div>
+
+          <div class="form-group full">
+            <label>Adresse complète *</label>
+            <input name="adresse"
+              value="{{ config.adresse or '' }}"
+              placeholder="Quartier, commune…">
+          </div>
+
+          <div class="form-group">
+            <label>Ville *</label>
+            <input name="ville"
+              value="{{ config.ville or '' }}"
+              placeholder="Ex : Abidjan">
+          </div>
+
+          <div class="form-group">
+            <label>Téléphone principal *</label>
+            <input name="telephone"
+              value="{{ config.telephone or '' }}"
+              placeholder="+225 07 XX XX XX XX">
+          </div>
+
+          <div class="form-group">
+            <label>Email de contact</label>
+            <input name="email" type="email"
+              value="{{ config.email or '' }}"
+              placeholder="contact@moncommerce.ci">
+          </div>
+
+          <div class="form-group">
+            <label>TVA applicable (%)</label>
+            <div style="position:relative;">
+              <input name="tva" type="number" step="0.01" min="0" max="100"
+                style="padding-right:36px;"
+                value="{{ config.tva if config.tva is not none else '18' }}"
+                placeholder="18">
+              <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:13px;font-weight:700;color:var(--gris3);pointer-events:none;">%</span>
+            </div>
+            <small style="color:var(--gris3);font-size:10px;margin-top:4px;display:block;">
+              Taux DGI : 18% (normal) · 9% (réduit) · 0% (exonéré)
+            </small>
+          </div>
+
+          <div class="form-group">
+            <label>Devise</label>
+            <select name="devise">
+              {% set dev = config.devise or 'FCFA' %}
+              <option value="FCFA" {% if dev=='FCFA' %}selected{% endif %}>FCFA — Franc CFA</option>
+              <option value="XOF"  {% if dev=='XOF'  %}selected{% endif %}>XOF — Franc CFA BCEAO</option>
+              <option value="EUR"  {% if dev=='EUR'  %}selected{% endif %}>EUR — Euro</option>
+              <option value="USD"  {% if dev=='USD'  %}selected{% endif %}>USD — Dollar US</option>
+            </select>
+          </div>
+
+          {# ── Facture normalisée (FNE — DGI Côte d'Ivoire) ── #}
+          <div class="form-group full" style="padding-top:14px;border-top:1px dashed var(--gris2);margin-top:4px;">
+            <div style="font-size:11px;font-weight:700;color:#92400e;margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+              🧾 Facture normalisée (FNE — DGI)
+            </div>
+            <div style="font-size:10px;color:var(--gris3);line-height:1.5;margin-bottom:8px;">
+              Paramètres de transmission à la plateforme FNE de la DGI (Côte d'Ivoire).
+              La <strong>clé API</strong> est indispensable : sans elle, aucune facture
+              ne peut être certifiée.
+            </div>
+          </div>
+
+          <div class="form-group full">
+            <label>Clé API FNE *</label>
+            <input name="cle_api_fne" autocomplete="off"
+              value="{{ config.get('cle_api_fne','') }}"
+              placeholder="Clé fournie par la DGI (en-tête Authorization)"
+              style="font-family:'SF Mono','Consolas',monospace;font-size:12px;">
+            <small style="color:var(--gris3);font-size:10px;margin-top:4px;display:block;line-height:1.5;">
+              Clé d'authentification délivrée par la DGI pour votre établissement.
+              <strong>Obligatoire</strong> pour activer la facture normalisée.
+            </small>
+          </div>
+
+          <div class="form-group full">
+            <label>URL du service FNE</label>
+            <input name="fne_url"
+              value="{{ config.get('fne_url','') }}"
+              placeholder="http://54.247.95.108/ws"
+              style="font-family:'SF Mono','Consolas',monospace;font-size:12px;">
+            <small style="color:var(--gris3);font-size:10px;margin-top:4px;display:block;line-height:1.5;">
+              Adresse du web-service FNE. Laissez vide pour utiliser la valeur par défaut
+              (<code>http://54.247.95.108/ws</code>). Renseignez l'URL de production
+              fournie par la DGI le moment venu.
+            </small>
+          </div>
+
+          <div class="form-group">
+            <label>Établissement</label>
+            <input name="fne_etablissement"
+              value="{{ config.get('fne_etablissement','') }}"
+              placeholder="Défaut : nom du dépôt">
+          </div>
+
+          <div class="form-group">
+            <label>Point de vente</label>
+            <input name="fne_point_vente"
+              value="{{ config.get('fne_point_vente','01') }}"
+              placeholder="01">
+          </div>
+
+          <div class="form-group">
+            <label>Nom du vendeur</label>
+            <input name="fne_vendeur"
+              value="{{ config.get('fne_vendeur','') }}"
+              placeholder="Nom de l'agent / caissier">
+          </div>
+
+          <div class="form-group">
+            <label>Mode</label>
+            <select name="fne_mode">
+              {% set fmode = config.get('fne_mode','test') %}
+              <option value="test"       {% if fmode != 'production' %}selected{% endif %}>🧪 Test / Sandbox</option>
+              <option value="production" {% if fmode == 'production' %}selected{% endif %}>✅ Production</option>
+            </select>
+            <small style="color:var(--gris3);font-size:10px;margin-top:4px;display:block;line-height:1.5;">
+              Repère informatif. Le basculement réel test ↔ production se fait via l'URL
+              et la clé API de production de la DGI.
+            </small>
+          </div>
+
+          <div class="form-group">
+            <label>Format des documents imprimés</label>
+            <select name="format_doc" id="format_doc">
+              {% set fmt = config.get('format_doc') or config.get('imprimante_type','a4') %}
+              <option value="a4"   {% if fmt=='a4'   %}selected{% endif %}>A4 — 210 × 297 mm</option>
+              <option value="a5"   {% if fmt=='a5'   %}selected{% endif %}>A5 — 148 × 210 mm</option>
+              <option value="a6"   {% if fmt=='a6'   %}selected{% endif %}>A6 — 105 × 148 mm</option>
+              <option value="a7"   {% if fmt=='a7'   %}selected{% endif %}>A7 —  74 × 105 mm</option>
+              <option value="80mm" {% if fmt=='80mm' %}selected{% endif %}>80 mm — Ticket thermique</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Rendu couleur</label>
+            <div style="display:flex;gap:8px;">
+              {% set imp_couleur = config.get('impression_couleur','couleur') %}
+              <label style="display:flex;align-items:center;gap:7px;padding:8px 14px;border-radius:8px;
+                border:1.5px solid {{ 'var(--bleu2)' if imp_couleur == 'couleur' else 'var(--border)' }};
+                background:{{ 'var(--bleu3)' if imp_couleur == 'couleur' else 'var(--bg-input)' }};
+                cursor:pointer;font-size:12px;font-weight:600;transition:all .15s;">
+                <input type="radio" name="impression_couleur" value="couleur"
+                  {{ 'checked' if imp_couleur == 'couleur' }}
+                  style="accent-color:var(--bleu2);">
+                🎨 Couleur
+              </label>
+              <label style="display:flex;align-items:center;gap:7px;padding:8px 14px;border-radius:8px;
+                border:1.5px solid {{ 'var(--bleu2)' if imp_couleur == 'nb' else 'var(--border)' }};
+                background:{{ 'var(--bleu3)' if imp_couleur == 'nb' else 'var(--bg-input)' }};
+                cursor:pointer;font-size:12px;font-weight:600;transition:all .15s;">
+                <input type="radio" name="impression_couleur" value="nb"
+                  {{ 'checked' if imp_couleur == 'nb' }}
+                  style="accent-color:var(--bleu2);">
+                🖤 Noir & Blanc
+              </label>
+            </div>
+            <small style="color:var(--gris3);font-size:10px;margin-top:4px;display:block;line-height:1.5;">
+              <strong>Couleur</strong> : documents imprimés avec fonds et couleurs.<br>
+              <strong>Noir & Blanc</strong> : impression sans couleur — économie d'encre, compatible toutes imprimantes.
+            </small>
+          </div>
+
+          <div class="form-group full" style="padding-top:14px;border-top:1px dashed var(--gris2);margin-top:4px;">
+            <div style="font-size:11px;font-weight:700;color:#1e3a8a;margin-bottom:12px;display:flex;align-items:center;gap:6px;">
+              🖨️ Impression
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Mode d'impression</label>
+            <select name="impression_mode" id="impression_mode">
+              {% set imode = config.get('impression_mode','apercu') %}
+              <option value="apercu"  {% if imode != 'directe' %}selected{% endif %}>🖥️ Aperçu PDF dans le navigateur</option>
+              <option value="directe" {% if imode == 'directe' %}selected{% endif %}>⚡ Impression directe (silencieuse)</option>
+            </select>
+            <small style="color:var(--gris3);font-size:10px;margin-top:4px;display:block;line-height:1.5;">
+              <strong>Aperçu</strong> : chaque clic sur 🖨️ Imprimer ouvre le document en PDF (impression via Ctrl+P).<br>
+              <strong>Directe</strong> : le document part immédiatement à l'imprimante configurée ci-dessous,
+              sans aperçu ni boîte de dialogue. S'applique à <strong>tous</strong> les documents :
+              factures, devis, commandes, BL, avoirs, journaux, fiches de paie, relevés clients.
+            </small>
+          </div>
+
+          <div class="form-group" style="max-width:50%;">
+            <label>Imprimante par défaut</label>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input name="imprimante_nom" id="imprimante_nom"
+                     value="{{ config.get('imprimante_nom','') }}"
+                     placeholder="Nom exact de l'imprimante (ex: HP LaserJet Pro M404)"
+                     style="flex:1;">
+              <button type="button" onclick="detecterImprimantes()"
+                      class="btn btn-sec btn-sm" style="white-space:nowrap;flex-shrink:0;">
+                🔍 Détecter
+              </button>
+              <button type="button" id="btn-tester-imprimante" onclick="testerImprimante()"
+                      class="btn btn-sec btn-sm" style="white-space:nowrap;flex-shrink:0;background:#1e3a8a;color:#fff;border-color:#1e3a8a;">
+                🖨️ Tester
+              </button>
+            </div>
+            <small style="color:var(--gris3);font-size:10px;margin-top:4px;display:block;line-height:1.5;">
+              Laissez vide pour utiliser l'imprimante par défaut du système.
+              Le bouton <strong>Détecter</strong> liste les imprimantes disponibles sur ce poste.
+              Le bouton <strong>Tester</strong> envoie une page de test en temps réel.
+            </small>
+            <div id="imprimantes-liste" style="display:none;margin-top:8px;border:1px solid var(--gris2);border-radius:8px;overflow:hidden;max-height:180px;overflow-y:auto;"></div>
+            <div id="test-imprimante-result" style="display:none;margin-top:8px;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:600;"></div>
+          </div>
+
+          {# ── Tiroir-caisse (ESC/POS) ── #}
+          <div class="form-group full" style="padding-top:14px;border-top:1px dashed var(--gris2);margin-top:4px;">
+            <div style="font-size:11px;font-weight:700;color:#15803d;margin-bottom:12px;display:flex;align-items:center;gap:6px;">
+              🗄️ Tiroir-caisse
+            </div>
+          </div>
+
+          <div class="form-group full" style="display:flex;align-items:flex-start;gap:10px;">
+            <input type="checkbox" name="tiroir_caisse" id="tiroir_caisse" value="oui"
+                   {% if config.get('tiroir_caisse') == 'oui' %}checked{% endif %}
+                   style="width:16px;height:16px;cursor:pointer;margin-top:2px;">
+            <label for="tiroir_caisse" style="cursor:pointer;font-weight:600;line-height:1.5;">
+              Activer le tiroir-caisse
+              <small style="display:block;color:var(--gris3);font-weight:400;font-size:10px;">
+                Affiche le bouton 🗄️ Tiroir en caisse (admin) et permet l'envoi de l'impulsion
+                d'ouverture à l'imprimante thermique. Le tiroir doit être branché sur le port
+                RJ11/RJ12 de l'imprimante ticket.
+              </small>
+            </label>
+          </div>
+
+          <div class="form-group full" style="display:flex;align-items:flex-start;gap:10px;">
+            <input type="checkbox" name="tiroir_auto" id="tiroir_auto" value="oui"
+                   {% if config.get('tiroir_auto', 'oui') == 'oui' %}checked{% endif %}
+                   style="width:16px;height:16px;cursor:pointer;margin-top:2px;">
+            <label for="tiroir_auto" style="cursor:pointer;font-weight:600;line-height:1.5;">
+              Ouverture automatique sur encaissement espèces
+              <small style="display:block;color:var(--gris3);font-weight:400;font-size:10px;">
+                Le tiroir s'ouvre tout seul lorsqu'une vente en caisse est réglée en espèces.
+              </small>
+            </label>
+          </div>
+
+          <div class="form-group full">
+            <label>Imprimante thermique (nom Windows)</label>
+            <input name="thermique_nom" id="thermique_nom"
+                   value="{{ config.get('thermique_nom','') }}"
+                   placeholder="Ex : POS-80 / XP-80C (laisser vide = imprimante par défaut)">
+            <small style="color:var(--gris3);font-size:10px;margin-top:4px;display:block;line-height:1.5;">
+              Nom exact, sous Windows, de l'imprimante ticket sur laquelle le tiroir est branché.
+              L'impulsion d'ouverture lui est envoyée directement (RAW). Laissez vide si c'est
+              l'imprimante par défaut du système. À renseigner si l'imprimante de documents (A4)
+              est différente de l'imprimante thermique.
+            </small>
+          </div>
+
+          <div class="form-group full">
+            <button type="button" id="btn-tester-tiroir" onclick="testerTiroir()"
+                    class="btn btn-sec btn-sm"
+                    style="white-space:nowrap;background:#15803d;color:#fff;border-color:#15803d;">
+              🗄️ Tester l'ouverture du tiroir
+            </button>
+            <div id="test-tiroir-result" style="display:none;margin-top:8px;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:600;"></div>
+            <small style="color:var(--gris3);font-size:10px;margin-top:4px;display:block;line-height:1.5;">
+              Envoie une impulsion d'ouverture en temps réel. Nécessite
+              <strong>python-escpos</strong> et une imprimante thermique connectée.
+            </small>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    {# ── TVA déductible ── #}
+    <div class="pcart">
+      <div class="pcart-head">📥📤 TVA déductible &amp; collectée</div>
+      <div class="pcart-body">
+        <div class="form-grid">
+
+          {# ── TVA déductible ── #}
+          <div class="form-group full" style="padding-bottom:4px;">
+            <div style="font-size:11px;font-weight:700;color:#15803d;margin-bottom:10px;">📥 TVA déductible — sur achats</div>
+          </div>
+          <div class="form-group">
+            <label>Taux TVA déductible (%)</label>
+            <input type="number" name="tva_deductible_taux" step="0.1" min="0" max="100"
+                   value="{{ config.get('tva_deductible_taux','') }}"
+                   placeholder="0"
+                   oninput="document.getElementById('recap-ded-taux').textContent=(this.value||'0')+' %'">
+          </div>
+          <div class="form-group">
+            <label>Compte comptable (SYSCOHADA)</label>
+            <input type="text" name="tva_deductible_compte"
+                   value="{{ config.get('tva_deductible_compte','4452') }}"
+                   placeholder="4452"
+                   oninput="document.getElementById('recap-ded-compte').textContent=this.value||'—'">
+          </div>
+          <div class="form-group full">
+            <label>Libellé comptable</label>
+            <input type="text" name="tva_deductible_libelle"
+                   value="{{ config.get('tva_deductible_libelle','TVA déductible sur achats') }}"
+                   placeholder="TVA déductible sur achats">
+          </div>
+
+          {# ── Séparateur ── #}
+          <div class="form-group full" style="border-top:1px dashed var(--gris2);padding-top:14px;margin-top:4px;">
+            <div style="font-size:11px;font-weight:700;color:#1d4ed8;margin-bottom:10px;">📤 TVA collectée — sur ventes</div>
+          </div>
+          <div class="form-group">
+            <label>Taux TVA collectée (%)</label>
+            <input type="number" name="tva_collectee_taux" step="0.1" min="0" max="100"
+                   value="{{ config.get('tva_collectee_taux', config.get('tva','0')) }}"
+                   placeholder="0%"
+                   oninput="document.getElementById('recap-col-taux').textContent=(this.value||'0')+' %'">
+          </div>
+          <div class="form-group">
+            <label>Compte comptable (SYSCOHADA)</label>
+            <input type="text" name="tva_collectee_compte"
+                   value="{{ config.get('tva_collectee_compte','4431') }}"
+                   placeholder="4431"
+                   oninput="document.getElementById('recap-col-compte').textContent=this.value||'—'">
+          </div>
+          <div class="form-group full">
+            <label>Libellé comptable</label>
+            <input type="text" name="tva_collectee_libelle"
+                   value="{{ config.get('tva_collectee_libelle','TVA collectée sur ventes') }}"
+                   placeholder="TVA collectée sur ventes">
+          </div>
+
+        </div>
+
+        {# ── Récapitulatif côte à côte ── #}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
+          <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:14px 16px;">
+            <div style="font-size:11px;font-weight:700;color:#15803d;margin-bottom:8px;">📥 Déductible</div>
+            <div style="display:flex;gap:20px;flex-wrap:wrap;">
+              <div>
+                <div style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:700;">Taux</div>
+                <div style="font-size:18px;font-weight:800;color:#15803d;" id="recap-ded-taux">{{ config.get('tva_deductible_taux','0') }} %</div>
+              </div>
+              <div>
+                <div style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:700;">Compte</div>
+                <div style="font-size:18px;font-weight:800;color:#15803d;" id="recap-ded-compte">{{ config.get('tva_deductible_compte','4452') }}</div>
+              </div>
+            </div>
+          </div>
+          <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:14px 16px;">
+            <div style="font-size:11px;font-weight:700;color:#1d4ed8;margin-bottom:8px;">📤 Collectée</div>
+            <div style="display:flex;gap:20px;flex-wrap:wrap;">
+              <div>
+                <div style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:700;">Taux</div>
+                <div style="font-size:18px;font-weight:800;color:#1d4ed8;" id="recap-col-taux">{{ config.get('tva_collectee_taux', config.get('tva','0')) }} %</div>
+              </div>
+              <div>
+                <div style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:700;">Compte</div>
+                <div style="font-size:18px;font-weight:800;color:#1d4ed8;" id="recap-col-compte">{{ config.get('tva_collectee_compte','4431') }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    {# ── Logo des reçus ── #}
+    <div class="pcart">
+      <div class="pcart-head">🖼️ Logo des reçus &amp; documents imprimés</div>
+      <div class="pcart-body">
+        <div style="font-size:11px;color:var(--gris3);margin-bottom:14px;">
+          Ce logo apparaîtra en haut de tous les reçus imprimés (factures, devis, bons de livraison, commandes…) <strong>sauf</strong> le module Caisse / POS.
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap;">
+          {# Prévisualisation #}
+          <div id="previewLogoRecu" style="flex-shrink:0;width:120px;height:80px;border-radius:10px;
+               border:2px dashed var(--border);background:var(--bg-input);
+               display:flex;align-items:center;justify-content:center;overflow:hidden;">
+            {% if config.get('logo_recu') %}
+              <img src="{{ config.logo_recu }}" alt="Logo reçu"
+                   style="max-height:76px;max-width:116px;object-fit:contain;border-radius:8px;">
+            {% else %}
+              <span style="font-size:28px;opacity:.4;">🏢</span>
+            {% endif %}
+          </div>
+          {# Zone drag & drop #}
+          <div id="logo_recu_zone" style="flex:1;min-width:200px;border:2px dashed var(--border);
+               border-radius:10px;padding:16px 20px;background:var(--bg-input);cursor:pointer;
+               transition:border-color .2s,background .2s;text-align:center;"
+               ondragover="logoDragOver(event,'logo_recu_zone')"
+               ondragleave="logoDragLeave('logo_recu_zone')"
+               ondrop="logoDrop(event,'previewLogoRecu','logo_recu')"
+               onclick="document.getElementById('logo_recu_input').click()">
+            <div style="font-size:22px;margin-bottom:6px;">📁</div>
+            <div style="font-size:12px;font-weight:700;color:var(--bleu);">Cliquer ou glisser une image</div>
+            <div style="font-size:10px;color:var(--gris3);margin-top:4px;">PNG, JPG, SVG — max 500 Mo · Idéal : fond transparent</div>
+          </div>
+        </div>
+        {# Inputs cachés #}
+        <input type="file" id="logo_recu_input" name="logo_recu_file" accept="image/*"
+               style="display:none;" onchange="logoPreviewRecu(this)">
+        <input type="hidden" id="logo_recu_data" name="logo_recu" value="{{ config.get('logo_recu','') }}">
+        {# Bouton supprimer #}
+        {% if config.get('logo_recu') %}
+        <div style="margin-top:10px;">
+          <button type="button" onclick="logoSupprimerRecu()"
+            class="btn btn-sec btn-sm" style="color:var(--rouge);border-color:#fecaca;">
+            🗑 Supprimer le logo
+          </button>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ── Modules optionnels ── #}
+    <div class="pcart">
+      <div class="pcart-head">🧩 Modules optionnels</div>
+      <div class="pcart-body">
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="tlabel">🛒 Module Caisse / POS</div>
+            <div class="tdesc">Active l'accès au module de caisse et point de vente. Affiche le lien dans la barre latérale.</div>
+          </div>
+          <label class="tswitch">
+            <input type="checkbox" name="module_caisse" value="oui"
+              id="toggle_module_caisse"
+              {% if config.get('module_caisse') == 'oui' %}checked{% endif %}
+              onchange="toggleModule(this, 'module_caisse', 'sidebar-link-caisse')">
+            <span class="tslider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="tlabel">🧴 Module Emballages &amp; Consignes</div>
+            <div class="tdesc">Active la gestion du parc d'emballages vides et consignes clients. Affiche le lien dans la barre latérale.</div>
+          </div>
+          <label class="tswitch">
+            <input type="checkbox" name="module_emballages" value="oui"
+              id="toggle_module_emballages"
+              {% if config.get('module_emballages') == 'oui' %}checked{% endif %}
+              onchange="toggleModule(this, 'module_emballages', 'sidebar-section-emballages')">
+            <span class="tslider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="tlabel">🔧 Module Atelier &amp; Réparation</div>
+            <div class="tdesc">Active la gestion des tickets de réparation et des équipements clients. Affiche la section Atelier dans la barre latérale.</div>
+          </div>
+          <label class="tswitch">
+            <input type="checkbox" name="module_atelier" value="oui"
+              id="toggle_module_atelier"
+              {% if config.get('module_atelier') == 'oui' %}checked{% endif %}
+              onchange="toggleModule(this, 'module_atelier', 'sidebar-section-atelier')">
+            <span class="tslider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    {# ── Apparence du menu ── #}
+    {% set _mm = config.get('menu_mode', 'classique') %}
+    <div class="pcart">
+      <div class="pcart-head">🎨 Apparence du menu</div>
+      <div class="pcart-body">
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="tlabel">✨ Mode Moderne</div>
+            <div class="tdesc">
+              <b>Désactivé</b> → menu <b>Classique</b> : barre latérale foncée toujours visible à gauche (style historique).<br>
+              <b>Activé</b> → menu <b>Moderne</b> : barre du haut épurée, menu tiroir clair ouvert via le bouton ☰, contenu pleine largeur.<br>
+              Le changement s'applique à tout le logiciel après enregistrement.
+            </div>
+          </div>
+          <label class="tswitch">
+            <input type="checkbox" name="menu_mode" value="moderne"
+              id="toggle_menu_mode"
+              {% if _mm == 'moderne' %}checked{% endif %}>
+            <span class="tslider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+  </form>
+</div>
+
+
+{# ════════════════════════════════════════
+   ONGLET 2 — Sécurité & droits
+   ════════════════════════════════════════ #}
+<div class="ptab-panel {% if active_tab == 'acces' %}active{% endif %}" id="ppanel-acces">
+
+  {# ── Sous-barre ── #}
+  <div class="acces-subtab-bar">
+    <button class="acces-stab active" id="stab-compte"
+      onclick="switchAccessTab('compte', this)">
+      <span class="stab-icon">👤</span> Compte utilisateur
+    </button>
+    <button class="acces-stab" id="stab-fonctions"
+      onclick="switchAccessTab('fonctions', this)">
+      <span class="stab-icon">🧩</span> Modules &amp; autorisations
+    </button>
+  </div>
+
+  {# ══════════════════════════════════════
+     SOUS-ONGLET A — Compte utilisateur
+  ══════════════════════════════════════ #}
+  <div class="acces-subpanel active" id="sub-compte">
+    <form method="POST" action="{{ url_for('parametres') }}">
+      <input type="hidden" name="onglet" value="acces">
+      <input type="hidden" name="sub_onglet" value="compte">
+
+      {# ── Compte administrateur principal ── #}
+      <div class="pcart">
+        <div class="pcart-head">👑 Compte administrateur principal</div>
+        <div class="pcart-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Nom d'affichage</label>
+              <input name="admin_nom" value="{{ config.admin_nom or '' }}" placeholder="Ex : Gérant du commerce">
+            </div>
+            <div class="form-group">
+              <label>Identifiant de connexion</label>
+              <input name="admin_username" value="{{ config.admin_username or 'admin' }}" placeholder="admin">
+              <small style="font-size:10px;color:var(--gris3);margin-top:4px;display:block">Utilisé sur la page de connexion</small>
+            </div>
+            <div class="form-group">
+              <label>Email administrateur</label>
+              <input name="admin_email" type="email" value="{{ config.admin_email or '' }}" placeholder="admin@moncommerce.ci">
+            </div>
+            <div class="form-group">
+              <label>Téléphone</label>
+              <input name="admin_telephone" value="{{ config.admin_telephone or '' }}" placeholder="+225 07 XX XX XX XX">
+            </div>
+            <div class="form-group">
+              <label>Nouveau mot de passe</label>
+              <div class="pwd-wrap">
+                <input id="pwd_field" name="admin_mot_de_passe" type="password"
+                  placeholder="Laisser vide pour conserver l'actuel">
+                <button type="button" class="pwd-eye" id="pwd_field_eye"
+                  onclick="togglePwd('pwd_field')" title="Afficher / Masquer" aria-label="Afficher le mot de passe">
+                  <svg class="icn-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  <svg class="icn-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-5.94"/>
+                    <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.8 21.8 0 0 1-3.17 4.19"/>
+                    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Confirmer le mot de passe</label>
+              <div class="pwd-wrap">
+                <input id="pwd_confirm" name="admin_mot_de_passe_confirm" type="password"
+                  placeholder="Répéter le nouveau mot de passe">
+                <button type="button" class="pwd-eye" id="pwd_confirm_eye"
+                  onclick="togglePwd('pwd_confirm')" title="Afficher / Masquer" aria-label="Afficher le mot de passe">
+                  <svg class="icn-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  <svg class="icn-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-5.94"/>
+                    <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.8 21.8 0 0 1-3.17 4.19"/>
+                    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
+                </button>
+              </div>
+              <small id="pwd_match_msg" style="font-size:10px;margin-top:4px;display:block;"></small>
+            </div>
+            <div class="form-group">
+              <label>Délai d'expiration de session (min)</label>
+              <input name="session_timeout" type="number" min="5" max="480"
+                value="{{ config.session_timeout or '60' }}" placeholder="60">
+              <small style="font-size:10px;color:var(--gris3);margin-top:4px;display:block">Entre 5 min et 8 h — Défaut : 60 min</small>
+            </div>
+            <div class="form-group">
+              <label>Poste / Fonction</label>
+              <select name="admin_poste">
+                {% set ap = config.admin_poste or 'gerant' %}
+                <option value="gerant"          {% if ap=='gerant'          %}selected{% endif %}>👔 Gérant général</option>
+                <option value="dg"              {% if ap=='dg'              %}selected{% endif %}>🏛️ Directeur général (DG)</option>
+                <option value="directeur"       {% if ap=='directeur'       %}selected{% endif %}>📈 Directeur commercial</option>
+                <option value="directeur_achat" {% if ap=='directeur_achat' %}selected{% endif %}>🛒 Directeur des achats</option>
+                <option value="directeur_fin"   {% if ap=='directeur_fin'   %}selected{% endif %}>💼 Directeur financier (DAF)</option>
+                <option value="superviseur"     {% if ap=='superviseur'     %}selected{% endif %}>🎯 Responsable des ventes</option>
+                <option value="resp_stock"      {% if ap=='resp_stock'      %}selected{% endif %}>📦 Responsable logistique</option>
+                <option value="resp_rh"         {% if ap=='resp_rh'         %}selected{% endif %}>👷 Responsable RH</option>
+                <option value="associe"         {% if ap=='associe'         %}selected{% endif %}>🤝 Associé / Actionnaire</option>
+                <option value="autre"           {% if ap=='autre'           %}selected{% endif %}>⚙️ Autre</option>
+              </select>
+            </div>
+          </div>
+
+          {# Carte récap compte #}
+          <div style="display:flex;align-items:center;gap:14px;margin-top:16px;padding:14px 18px;background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:10px;border:1px solid #ddd6fe;">
+            <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">👑</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:14px;font-weight:800;color:#4c1d95;">{{ config.admin_nom or 'Administrateur' }}</div>
+              <div style="font-size:11px;color:#6d28d9;margin-top:2px;">{{ config.admin_username or 'admin' }} · {{ config.admin_email or 'Non défini' }}</div>
+              <div style="margin-top:4px;"><span class="role-badge role-admin">👑 Administrateur</span></div>
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+              <div style="font-size:10px;color:var(--gris3);margin-bottom:3px;">Session expire après</div>
+              <div style="font-size:18px;font-weight:800;color:#7c3aed;">{{ config.session_timeout or '60' }}<span style="font-size:12px;font-weight:500;"> min</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ── Sécurité de connexion ── #}
+      <div class="pcart">
+        <div class="pcart-head">🔒 Sécurité de connexion</div>
+        <div class="pcart-body">
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="tlabel">Double authentification (2FA)</div>
+              <div class="tdesc">Envoie un code de vérification par email à chaque connexion</div>
+            </div>
+            <label class="tswitch">
+              <input type="checkbox" name="double_auth" value="oui"
+                {% if config.double_auth == 'oui' %}checked{% endif %}>
+              <span class="tslider"></span>
+            </label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="tlabel">Verrouillage après tentatives échouées</div>
+              <div class="tdesc">Bloque le compte après 5 tentatives incorrectes consécutives</div>
+            </div>
+            <label class="tswitch">
+              <input type="checkbox" name="lockout_active" value="oui"
+                {% if config.lockout_active == 'oui' %}checked{% endif %}>
+              <span class="tslider"></span>
+            </label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="tlabel">Journal des connexions</div>
+              <div class="tdesc">Enregistre chaque tentative de connexion (date, heure, IP)</div>
+            </div>
+            <label class="tswitch">
+              <input type="checkbox" name="log_connexions" value="oui"
+                {% if config.log_connexions != 'non' %}checked{% endif %}>
+              <span class="tslider"></span>
+            </label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="tlabel">Déconnexion automatique après inactivité</div>
+              <div class="tdesc">Ferme la session si aucune action détectée pendant le délai configuré</div>
+            </div>
+            <label class="tswitch">
+              <input type="checkbox" name="auto_logout" value="oui"
+                {% if config.auto_logout != 'non' %}checked{% endif %}>
+              <span class="tslider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {# ── Liste des utilisateurs ── #}
+      <div class="pcart">
+        <div class="pcart-head" style="justify-content:space-between;">
+          <span>👥 Utilisateurs du système</span>
+          <button type="button" class="btn btn-primary" style="font-size:11px;padding:6px 14px;"
+            onclick="openUserModal()">
+            ＋ Ajouter un utilisateur
+          </button>
+        </div>
+        <div class="pcart-body" style="padding:0;">
+          <div class="user-table-wrap">
+            <table class="user-table">
+              <thead>
+                <tr>
+                  <th>Utilisateur</th>
+                  <th>Rôle</th>
+                  <th>Email</th>
+                  <th>Statut</th>
+                  <th>Dernière connexion</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {# Ligne admin principal #}
+                <tr>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:9px;">
+                      <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">👑</div>
+                      <div>
+                        <div style="font-weight:700;font-size:12.5px;">{{ config.admin_nom or 'Administrateur' }}</div>
+                        <div style="font-size:10.5px;color:var(--gris3);">{{ config.admin_username or 'admin' }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="role-badge role-admin">👑 Admin</span></td>
+                  <td style="font-size:11.5px;color:var(--gris3);">{{ config.admin_email or '—' }}</td>
+                  <td><span class="stat-badge stat-actif">● Actif</span></td>
+                  <td style="font-size:11px;color:var(--gris3);">Aujourd'hui</td>
+                  <td>
+                    <button type="button" class="action-btn edit" onclick="openUserModal('admin')">✏️ Éditer</button>
+                  </td>
+                </tr>
+                {# ── Utilisateurs (5 slots maximum) ── #}
+                {% set palettes = [
+                  ('#2563eb', '#60a5fa'),
+                  ('#059669', '#34d399'),
+                  ('#dc2626', '#f87171'),
+                  ('#d97706', '#fbbf24'),
+                  ('#7c3aed', '#a78bfa')
+                ] %}
+                {% set has_users = namespace(val=false) %}
+                {% for i in range(1, 6) %}
+                  {% set s = 'user_' ~ i %}
+                  {% if config[s ~ '_nom'] %}
+                  {% set has_users.val = true %}
+                  {% set palette = palettes[i-1] %}
+                  <tr>
+                    <td>
+                      <div style="display:flex;align-items:center;gap:9px;">
+                        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,{{ palette[0] }},{{ palette[1] }});display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">🔧</div>
+                        <div>
+                          <div style="font-weight:700;font-size:12.5px;">{{ config[s ~ '_nom'] }}</div>
+                          <div style="font-size:10.5px;color:var(--gris3);">{{ config[s ~ '_login'] or '—' }}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      {% set r = config[s ~ '_role'] or 'commercial' %}
+                      {% if r == 'commercial' %}<span class="role-badge role-commercial">🧾 Commercial</span>
+                      {% elif r == 'caissier' %}<span class="role-badge role-caissier">💰 Caissier</span>
+                      {% elif r == 'acheteur' %}<span class="role-badge role-acheteur">🛒 Acheteur</span>
+                      {% elif r == 'comptable' %}<span class="role-badge role-compta">📊 Comptable</span>
+                      {% elif r == 'magasinier' %}<span class="role-badge role-stock">📦 Magasinier</span>
+                      {% elif r == 'rh' %}<span class="role-badge role-rh">👷 RH / Paie</span>
+                      {% elif r == 'superviseur_ventes' %}<span class="role-badge role-superviseur">🎯 Superviseur</span>
+                      {% elif r == 'representant' %}<span class="role-badge role-representant">🤝 Représentant</span>
+                      {% else %}<span class="role-badge role-commercial">{{ r|title }}</span>{% endif %}
+                    </td>
+                    <td style="font-size:11.5px;color:var(--gris3);">{{ config[s ~ '_email'] or '—' }}</td>
+                    <td>
+                      {% if config[s ~ '_statut'] == 'inactif' %}
+                        <span class="stat-badge stat-inactif">● Inactif</span>
+                      {% else %}
+                        <span class="stat-badge stat-actif">● Actif</span>
+                      {% endif %}
+                    </td>
+                    <td style="font-size:11px;color:var(--gris3);">—</td>
+                    <td>
+                      <button type="button" class="action-btn edit" onclick="openUserModal('{{ s }}')">✏️ Éditer</button>
+                      <button type="button" class="action-btn del" onclick="confirmDeleteUser('{{ s }}')">🗑️</button>
+                    </td>
+                  </tr>
+                  {% endif %}
+                {% endfor %}
+                {% if not has_users.val %}
+                <tr>
+                  <td colspan="6" style="text-align:center;padding:24px;color:var(--gris3);font-size:12px;">
+                    <div style="font-size:28px;margin-bottom:8px;">👥</div>
+                    Aucun autre utilisateur configuré — Cliquez sur « Ajouter un utilisateur »
+                  </td>
+                </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </form>
+  </div>{# /sub-compte #}
+
+  {# ══════════════════════════════════════
+     SOUS-ONGLET B — Modules & autorisations
+  ══════════════════════════════════════ #}
+  <div class="acces-subpanel" id="sub-fonctions">
+    <form method="POST" action="{{ url_for('parametres') }}">
+      <input type="hidden" name="onglet" value="acces">
+      <input type="hidden" name="sub_onglet" value="fonctions">
+      <input type="hidden" name="target_user_slot" id="target_user_slot" value="">
+
+      {# ── Sélecteur d'utilisateur ── #}
+      <div class="pcart">
+        <div class="pcart-head">👤 Sélectionner un utilisateur</div>
+        <div class="pcart-body">
+          <div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
+            <div class="form-group" style="flex:1;min-width:260px;margin-bottom:0;">
+              <label style="font-size:11px;font-weight:700;color:var(--gris3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;display:block;">
+                Les activations s'appliquent uniquement à l'utilisateur sélectionné
+              </label>
+              <select id="user_target_selector" onchange="chargerAccesUtilisateur(this)"
+                style="width:100%;padding:10px 14px;border:1px solid var(--gris2);border-radius:8px;font-size:13px;font-weight:600;color:var(--texte);background:var(--bg-input);cursor:pointer;outline:none;transition:border-color .18s,box-shadow .18s;">
+                <option value="">— Choisir un utilisateur —</option>
+                <option value="admin" data-role="administrateur">👑 {{ config.admin_nom or 'Administrateur' }} (Admin)</option>
+                {% if config.user_1_nom %}
+                <option value="user_1" data-role="{{ config.user_1_role or '' }}">🔧 {{ config.user_1_nom }} ({{ config.user_1_role or '—' }})</option>
+                {% endif %}
+                {% if config.user_2_nom %}
+                <option value="user_2" data-role="{{ config.user_2_role or '' }}">🔧 {{ config.user_2_nom }} ({{ config.user_2_role or '—' }})</option>
+                {% endif %}
+              </select>
+            </div>
+          </div>
+          <div id="user_selected_msg" style="display:none;margin-top:12px;padding:9px 14px;border-radius:8px;background:#dbeafe;border:1px solid #93c5fd;font-size:12px;font-weight:600;color:var(--bleu);">
+          </div>
+        </div>
+      </div>
+
+      {# ── Accès aux modules DISTRIGEST ── #}
+      <div class="pcart" id="modules_panel" style="display:none;">
+        <div class="pcart-head">🧩 Modules &amp; autorisations</div>
+        <div class="pcart-body">
+
+          <div class="perm-section-title" style="margin-top:18px;">🛒 Point de vente</div>
+          <div class="perm-row">
+            <div><div class="perm-label">Caisse / POS</div><div class="perm-desc">Accès au module de caisse, encaissement et suivi des ventes</div></div>
+            {% set _v_acces_caisse = acces_utilisateur.get('acces_caisse') if acces_utilisateur else config.get('acces_caisse','ecriture') %}{% set _v_acces_caisse = 'ecriture' if _v_acces_caisse == 'oui' else _v_acces_caisse %}<input type="hidden" name="acces_caisse" id="hid_acces_caisse" value="{% if _v_acces_caisse %}{{ _v_acces_caisse }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_caisse"><span class="pts-opt pts-none{% if _v_acces_caisse == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_caisse')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_caisse == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_caisse')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_caisse not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_caisse')">✏️ Écriture</span></div>
+          </div>
+
+          <div class="perm-section-title" style="margin-top:18px;">🔧 Atelier</div>
+          <div class="perm-row">
+            <div><div class="perm-label">Équipements</div><div class="perm-desc">Parc des équipements clients reçus en atelier</div></div>
+            {% set _v_acces_atelier_equipements = acces_utilisateur.get('acces_atelier_equipements') if acces_utilisateur else config.get('acces_atelier_equipements','ecriture') %}{% set _v_acces_atelier_equipements = 'ecriture' if _v_acces_atelier_equipements == 'oui' else _v_acces_atelier_equipements %}<input type="hidden" name="acces_atelier_equipements" id="hid_acces_atelier_equipements" value="{% if _v_acces_atelier_equipements %}{{ _v_acces_atelier_equipements }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_atelier_equipements"><span class="pts-opt pts-none{% if _v_acces_atelier_equipements == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_atelier_equipements')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_atelier_equipements == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_atelier_equipements')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_atelier_equipements not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_atelier_equipements')">✏️ Écriture</span></div>
+          </div>          <div class="perm-row">
+            <div><div class="perm-label">Tickets / réparations</div><div class="perm-desc">Suivi des interventions et tickets de réparation</div></div>
+            {% set _v_acces_atelier_tickets = acces_utilisateur.get('acces_atelier_tickets') if acces_utilisateur else config.get('acces_atelier_tickets','ecriture') %}{% set _v_acces_atelier_tickets = 'ecriture' if _v_acces_atelier_tickets == 'oui' else _v_acces_atelier_tickets %}<input type="hidden" name="acces_atelier_tickets" id="hid_acces_atelier_tickets" value="{% if _v_acces_atelier_tickets %}{{ _v_acces_atelier_tickets }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_atelier_tickets"><span class="pts-opt pts-none{% if _v_acces_atelier_tickets == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_atelier_tickets')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_atelier_tickets == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_atelier_tickets')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_atelier_tickets not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_atelier_tickets')">✏️ Écriture</span></div>
+          </div>
+
+          <div class="perm-section-title" style="margin-top:18px;">🧾 Commercial — Ventes</div>
+          <div class="perm-row">
+            <div><div class="perm-label">Devis</div><div class="perm-desc">Création, modification et conversion des devis clients</div></div>
+            {% set _v_acces_devis = acces_utilisateur.get('acces_devis') if acces_utilisateur else config.get('acces_devis','ecriture') %}{% set _v_acces_devis = 'ecriture' if _v_acces_devis == 'oui' else _v_acces_devis %}<input type="hidden" name="acces_devis" id="hid_acces_devis" value="{% if _v_acces_devis %}{{ _v_acces_devis }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_devis"><span class="pts-opt pts-none{% if _v_acces_devis == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_devis')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_devis == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_devis')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_devis not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_devis')">✏️ Écriture</span></div>
+          </div>          <div class="perm-row">
+            <div><div class="perm-label">Commandes vente</div><div class="perm-desc">Gestion des commandes clients et bons de livraison</div></div>
+            {% set _v_acces_commandes = acces_utilisateur.get('acces_commandes') if acces_utilisateur else config.get('acces_commandes','ecriture') %}{% set _v_acces_commandes = 'ecriture' if _v_acces_commandes == 'oui' else _v_acces_commandes %}<input type="hidden" name="acces_commandes" id="hid_acces_commandes" value="{% if _v_acces_commandes %}{{ _v_acces_commandes }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_commandes"><span class="pts-opt pts-none{% if _v_acces_commandes == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_commandes')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_commandes == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_commandes')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_commandes not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_commandes')">✏️ Écriture</span></div>
+          </div>          <div class="perm-row">
+            <div><div class="perm-label">Factures</div><div class="perm-desc">Émission, impression PDF et règlement des factures clients</div></div>
+            {% set _v_acces_factures = acces_utilisateur.get('acces_factures') if acces_utilisateur else config.get('acces_factures','ecriture') %}{% set _v_acces_factures = 'ecriture' if _v_acces_factures == 'oui' else _v_acces_factures %}<input type="hidden" name="acces_factures" id="hid_acces_factures" value="{% if _v_acces_factures %}{{ _v_acces_factures }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_factures"><span class="pts-opt pts-none{% if _v_acces_factures == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_factures')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_factures == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_factures')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_factures not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_factures')">✏️ Écriture</span></div>
+          </div>          <div class="perm-row">
+            <div><div class="perm-label">Avoirs clients</div><div class="perm-desc">Création et gestion des avoirs clients</div></div>
+            {% set _v_acces_avoirs = acces_utilisateur.get('acces_avoirs') if acces_utilisateur else config.get('acces_avoirs','ecriture') %}{% set _v_acces_avoirs = 'ecriture' if _v_acces_avoirs == 'oui' else _v_acces_avoirs %}<input type="hidden" name="acces_avoirs" id="hid_acces_avoirs" value="{% if _v_acces_avoirs %}{{ _v_acces_avoirs }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_avoirs"><span class="pts-opt pts-none{% if _v_acces_avoirs == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_avoirs')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_avoirs == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_avoirs')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_avoirs not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_avoirs')">✏️ Écriture</span></div>
+          </div>
+          <div class="perm-section-title" style="margin-top:18px;">🛒 Commercial — Achats</div>
+          <div class="perm-row">
+            <div><div class="perm-label">Devis achat</div><div class="perm-desc">Devis et commandes fournisseurs, réceptions</div></div>
+            {% set _v_acces_achats = acces_utilisateur.get('acces_achats') if acces_utilisateur else config.get('acces_achats','ecriture') %}{% set _v_acces_achats = 'ecriture' if _v_acces_achats == 'oui' else _v_acces_achats %}<input type="hidden" name="acces_achats" id="hid_acces_achats" value="{% if _v_acces_achats %}{{ _v_acces_achats }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_achats"><span class="pts-opt pts-none{% if _v_acces_achats == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_achats')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_achats == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_achats')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_achats not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_achats')">✏️ Écriture</span></div>
+          </div>          <div class="perm-row">
+            <div><div class="perm-label">Factures fournisseurs</div><div class="perm-desc">Saisie et règlement des factures fournisseurs</div></div>
+            {% set _v_acces_factures_fourn = acces_utilisateur.get('acces_factures_fourn') if acces_utilisateur else config.get('acces_factures_fourn','ecriture') %}{% set _v_acces_factures_fourn = 'ecriture' if _v_acces_factures_fourn == 'oui' else _v_acces_factures_fourn %}<input type="hidden" name="acces_factures_fourn" id="hid_acces_factures_fourn" value="{% if _v_acces_factures_fourn %}{{ _v_acces_factures_fourn }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_factures_fourn"><span class="pts-opt pts-none{% if _v_acces_factures_fourn == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_factures_fourn')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_factures_fourn == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_factures_fourn')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_factures_fourn not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_factures_fourn')">✏️ Écriture</span></div>
+          </div>
+          <div class="perm-section-title" style="margin-top:18px;">🤝 Tiers</div>
+          <div class="perm-row">
+            <div><div class="perm-label">Clients</div><div class="perm-desc">Fiches clients, historique, relances, représentants</div></div>
+            {% set _v_acces_clients = acces_utilisateur.get('acces_clients') if acces_utilisateur else config.get('acces_clients','ecriture') %}{% set _v_acces_clients = 'ecriture' if _v_acces_clients == 'oui' else _v_acces_clients %}<input type="hidden" name="acces_clients" id="hid_acces_clients" value="{% if _v_acces_clients %}{{ _v_acces_clients }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_clients"><span class="pts-opt pts-none{% if _v_acces_clients == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_clients')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_clients == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_clients')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_clients not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_clients')">✏️ Écriture</span></div>
+          </div>          <div class="perm-row">
+            <div><div class="perm-label">Fournisseurs</div><div class="perm-desc">Fiches fournisseurs, conditions, historique</div></div>
+            {% set _v_acces_fournisseurs = acces_utilisateur.get('acces_fournisseurs') if acces_utilisateur else config.get('acces_fournisseurs','ecriture') %}{% set _v_acces_fournisseurs = 'ecriture' if _v_acces_fournisseurs == 'oui' else _v_acces_fournisseurs %}<input type="hidden" name="acces_fournisseurs" id="hid_acces_fournisseurs" value="{% if _v_acces_fournisseurs %}{{ _v_acces_fournisseurs }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_fournisseurs"><span class="pts-opt pts-none{% if _v_acces_fournisseurs == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_fournisseurs')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_fournisseurs == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_fournisseurs')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_fournisseurs not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_fournisseurs')">✏️ Écriture</span></div>
+          </div>          <div class="perm-row">
+            <div><div class="perm-label">Relances</div><div class="perm-desc">Suivi des impayés et relances clients</div></div>
+            {% set _v_acces_relances = acces_utilisateur.get('acces_relances') if acces_utilisateur else config.get('acces_relances','ecriture') %}{% set _v_acces_relances = 'ecriture' if _v_acces_relances == 'oui' else _v_acces_relances %}<input type="hidden" name="acces_relances" id="hid_acces_relances" value="{% if _v_acces_relances %}{{ _v_acces_relances }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_relances"><span class="pts-opt pts-none{% if _v_acces_relances == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_relances')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_relances == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_relances')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_relances not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_relances')">✏️ Écriture</span></div>
+          </div>          <div class="perm-row">
+            <div><div class="perm-label">Représentants</div><div class="perm-desc">Gestion des représentants et commissions</div></div>
+            {% set _v_acces_representants = acces_utilisateur.get('acces_representants') if acces_utilisateur else config.get('acces_representants','ecriture') %}{% set _v_acces_representants = 'ecriture' if _v_acces_representants == 'oui' else _v_acces_representants %}<input type="hidden" name="acces_representants" id="hid_acces_representants" value="{% if _v_acces_representants %}{{ _v_acces_representants }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_representants"><span class="pts-opt pts-none{% if _v_acces_representants == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_representants')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_representants == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_representants')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_representants not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_representants')">✏️ Écriture</span></div>
+          </div>          <div class="perm-row">
+            <div><div class="perm-label">Emballages / Consignes</div><div class="perm-desc">Gestion du parc emballages et consignes</div></div>
+            {% set _v_acces_emballages = acces_utilisateur.get('acces_emballages') if acces_utilisateur else config.get('acces_emballages','ecriture') %}{% set _v_acces_emballages = 'ecriture' if _v_acces_emballages == 'oui' else _v_acces_emballages %}<input type="hidden" name="acces_emballages" id="hid_acces_emballages" value="{% if _v_acces_emballages %}{{ _v_acces_emballages }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_emballages"><span class="pts-opt pts-none{% if _v_acces_emballages == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_emballages')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_emballages == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_emballages')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_emballages not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_emballages')">✏️ Écriture</span></div>
+          </div>
+          <div class="perm-section-title" style="margin-top:18px;">💳 Finances</div>
+          <div class="perm-row">
+            <div><div class="perm-label">Règlements</div><div class="perm-desc">Encaissements, paiements et suivi des soldes</div></div>
+            {% set _v_acces_reglements = acces_utilisateur.get('acces_reglements') if acces_utilisateur else config.get('acces_reglements','ecriture') %}{% set _v_acces_reglements = 'ecriture' if _v_acces_reglements == 'oui' else _v_acces_reglements %}<input type="hidden" name="acces_reglements" id="hid_acces_reglements" value="{% if _v_acces_reglements %}{{ _v_acces_reglements }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_reglements"><span class="pts-opt pts-none{% if _v_acces_reglements == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_reglements')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_reglements == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_reglements')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_reglements not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_reglements')">✏️ Écriture</span></div>
+          </div>          <div class="perm-row">
+            <div><div class="perm-label">Dépenses</div><div class="perm-desc">Saisie et suivi des dépenses opérationnelles</div></div>
+            {% set _v_acces_depenses = acces_utilisateur.get('acces_depenses') if acces_utilisateur else config.get('acces_depenses','ecriture') %}{% set _v_acces_depenses = 'ecriture' if _v_acces_depenses == 'oui' else _v_acces_depenses %}<input type="hidden" name="acces_depenses" id="hid_acces_depenses" value="{% if _v_acces_depenses %}{{ _v_acces_depenses }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_depenses"><span class="pts-opt pts-none{% if _v_acces_depenses == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_depenses')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_depenses == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_depenses')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_depenses not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_depenses')">✏️ Écriture</span></div>
+          </div>          <div class="perm-row">
+            <div><div class="perm-label">Comptabilité</div><div class="perm-desc">Journal, recettes, dépenses, rapport comptable</div></div>
+            {% set _v_acces_comptabilite = acces_utilisateur.get('acces_comptabilite') if acces_utilisateur else config.get('acces_comptabilite','ecriture') %}{% set _v_acces_comptabilite = 'ecriture' if _v_acces_comptabilite == 'oui' else _v_acces_comptabilite %}<input type="hidden" name="acces_comptabilite" id="hid_acces_comptabilite" value="{% if _v_acces_comptabilite %}{{ _v_acces_comptabilite }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_comptabilite"><span class="pts-opt pts-none{% if _v_acces_comptabilite == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_comptabilite')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_comptabilite == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_comptabilite')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_comptabilite not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_comptabilite')">✏️ Écriture</span></div>
+          </div>
+          <div class="perm-section-title" style="margin-top:18px;">📦 Catalogue</div>
+          <div class="perm-row">
+            <div><div class="perm-label">Articles</div><div class="perm-desc">Catalogue articles, prix, colisage, familles</div></div>
+            {% set _v_acces_articles = acces_utilisateur.get('acces_articles') if acces_utilisateur else config.get('acces_articles','ecriture') %}{% set _v_acces_articles = 'ecriture' if _v_acces_articles == 'oui' else _v_acces_articles %}<input type="hidden" name="acces_articles" id="hid_acces_articles" value="{% if _v_acces_articles %}{{ _v_acces_articles }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_articles"><span class="pts-opt pts-none{% if _v_acces_articles == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_articles')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_articles == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_articles')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_articles not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_articles')">✏️ Écriture</span></div>
+          </div>          <div class="perm-row">
+            <div><div class="perm-label">Familles d'articles</div><div class="perm-desc">Catégories du catalogue (articles, familles…)</div></div>
+            {% set _v_acces_familles = acces_utilisateur.get('acces_familles') if acces_utilisateur else config.get('acces_familles','ecriture') %}{% set _v_acces_familles = 'ecriture' if _v_acces_familles == 'oui' else _v_acces_familles %}<input type="hidden" name="acces_familles" id="hid_acces_familles" value="{% if _v_acces_familles %}{{ _v_acces_familles }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_familles"><span class="pts-opt pts-none{% if _v_acces_familles == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_familles')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_familles == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_familles')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_familles not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_familles')">✏️ Écriture</span></div>
+          </div>          <div class="perm-row">
+            <div><div class="perm-label">Unités de vente</div><div class="perm-desc">Conditionnements : Bouteille, Carton, Caisse…</div></div>
+            {% set _v_acces_unites = acces_utilisateur.get('acces_unites') if acces_utilisateur else config.get('acces_unites','ecriture') %}{% set _v_acces_unites = 'ecriture' if _v_acces_unites == 'oui' else _v_acces_unites %}<input type="hidden" name="acces_unites" id="hid_acces_unites" value="{% if _v_acces_unites %}{{ _v_acces_unites }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_unites"><span class="pts-opt pts-none{% if _v_acces_unites == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_unites')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_unites == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_unites')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_unites not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_unites')">✏️ Écriture</span></div>
+          </div>          <div class="perm-row">
+            <div><div class="perm-label">Stock</div><div class="perm-desc">Mouvements, alertes de rupture, inventaire</div></div>
+            {% set _v_acces_stock = acces_utilisateur.get('acces_stock') if acces_utilisateur else config.get('acces_stock','ecriture') %}{% set _v_acces_stock = 'ecriture' if _v_acces_stock == 'oui' else _v_acces_stock %}<input type="hidden" name="acces_stock" id="hid_acces_stock" value="{% if _v_acces_stock %}{{ _v_acces_stock }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_stock"><span class="pts-opt pts-none{% if _v_acces_stock == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_stock')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_stock == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_stock')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_stock not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_stock')">✏️ Écriture</span></div>
+          </div>          <div class="perm-row">
+            <div><div class="perm-label">Dépôts</div><div class="perm-desc">Gestion des dépôts et transferts inter-dépôts</div></div>
+            {% set _v_acces_depots = acces_utilisateur.get('acces_depots') if acces_utilisateur else config.get('acces_depots','ecriture') %}{% set _v_acces_depots = 'ecriture' if _v_acces_depots == 'oui' else _v_acces_depots %}<input type="hidden" name="acces_depots" id="hid_acces_depots" value="{% if _v_acces_depots %}{{ _v_acces_depots }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_depots"><span class="pts-opt pts-none{% if _v_acces_depots == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_depots')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_depots == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_depots')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_depots not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_depots')">✏️ Écriture</span></div>
+          </div>
+          <div class="perm-section-title" style="margin-top:18px;">👷 Ressources Humaines</div>
+          <div class="perm-row">
+            <div><div class="perm-label">Employés</div><div class="perm-desc">Fiches du personnel, informations RH</div></div>
+            {% set _v_acces_employes = acces_utilisateur.get('acces_employes') if acces_utilisateur else config.get('acces_employes','ecriture') %}{% set _v_acces_employes = 'ecriture' if _v_acces_employes == 'oui' else _v_acces_employes %}<input type="hidden" name="acces_employes" id="hid_acces_employes" value="{% if _v_acces_employes %}{{ _v_acces_employes }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_employes"><span class="pts-opt pts-none{% if _v_acces_employes == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_employes')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_employes == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_employes')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_employes not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_employes')">✏️ Écriture</span></div>
+          </div>          <div class="perm-row">
+            <div><div class="perm-label">Paie</div><div class="perm-desc">Fiches de paie, validation, paiement des salaires</div></div>
+            {% set _v_acces_paie = acces_utilisateur.get('acces_paie') if acces_utilisateur else config.get('acces_paie','ecriture') %}{% set _v_acces_paie = 'ecriture' if _v_acces_paie == 'oui' else _v_acces_paie %}<input type="hidden" name="acces_paie" id="hid_acces_paie" value="{% if _v_acces_paie %}{{ _v_acces_paie }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_paie"><span class="pts-opt pts-none{% if _v_acces_paie == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_paie')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_paie == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_paie')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_paie not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_paie')">✏️ Écriture</span></div>
+          </div>          <div class="perm-row">
+            <div><div class="perm-label">Congés</div><div class="perm-desc">Demandes et approbation des congés du personnel</div></div>
+            {% set _v_acces_conges = acces_utilisateur.get('acces_conges') if acces_utilisateur else config.get('acces_conges','ecriture') %}{% set _v_acces_conges = 'ecriture' if _v_acces_conges == 'oui' else _v_acces_conges %}<input type="hidden" name="acces_conges" id="hid_acces_conges" value="{% if _v_acces_conges %}{{ _v_acces_conges }}{% else %}ecriture{% endif %}"><div class="perm-tristate" data-field="acces_conges"><span class="pts-opt pts-none{% if _v_acces_conges == 'non' %} pts-sel{% endif %}" onclick="setPts(this,'non','acces_conges')">🚫 Aucun</span><span class="pts-opt pts-read{% if _v_acces_conges == 'lecture' %} pts-sel{% endif %}" onclick="setPts(this,'lecture','acces_conges')">👁️ Lecture</span><span class="pts-opt pts-write{% if _v_acces_conges not in ['non','lecture'] %} pts-sel{% endif %}" onclick="setPts(this,'ecriture','acces_conges')">✏️ Écriture</span></div>
+          </div>
+
+        </div>
+      </div>
+
+    </form>
+  </div>{# /sub-fonctions #}
+
+</div>{# /ppanel-acces #}
+
+{# ── Injection de la config côté JS pour pré-remplir la modale ── #}
+<script>
+window.__PARAM_CFG__ = {
+  {% for k, v in config.items() %}
+    {% if k.startswith('user_') or k.startswith('admin_') %}
+      {{ k|tojson }}: {{ (v or '')|tojson }},
+    {% endif %}
+  {% endfor %}
+};
+</script>
+
+{# ── Modale ajout / édition utilisateur ── #}
+<div class="user-modal-overlay" id="userModalOverlay">
+  <div class="user-modal">
+    <div class="user-modal-head">
+      <h3 id="modalTitle">➕ Ajouter un utilisateur</h3>
+      <button class="modal-close-btn" onclick="closeUserModal()">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('parametres') }}">
+      <input type="hidden" name="onglet" value="acces">
+      <input type="hidden" name="sub_onglet" value="compte">
+      <input type="hidden" name="user_action" id="modalUserAction" value="add">
+      <input type="hidden" name="user_slot" id="modalUserSlot" value="">
+      <div class="user-modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nom complet *</label>
+            <input name="u_nom" id="u_nom" required placeholder="Prénom NOM">
+          </div>
+          <div class="form-group">
+            <label>Identifiant *</label>
+            <input name="u_login" id="u_login" required placeholder="Ex : tech01">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input name="u_email" id="u_email" type="email" placeholder="email@moncommerce.ci">
+          </div>
+          <div class="form-group full">
+            <label>Rôle(s) *</label>
+            <input type="hidden" name="u_role" id="u_role" required>
+            <!-- Menu déroulant -->
+            <div class="role-dropdown" id="uRoleDrop">
+              <div class="role-trigger" onclick="toggleRoleDrop()">
+                <span id="uRoleLabel" style="color:var(--gris3);">Sélectionner…</span>
+                <span class="arrow">▼</span>
+              </div>
+              <div class="role-menu" id="uRoleMenu">
+                <label class="role-menu-item"><input type="checkbox" value="commercial"         onchange="onRoleChange()"><span>🧾 Commercial / Vendeur</span></label>
+                <label class="role-menu-item"><input type="checkbox" value="caissier"           onchange="onRoleChange()"><span>💰 Caissier / POS</span></label>
+                <label class="role-menu-item"><input type="checkbox" value="acheteur"           onchange="onRoleChange()"><span>🛒 Acheteur / Approvisionneur</span></label>
+                <label class="role-menu-item"><input type="checkbox" value="comptable"          onchange="onRoleChange()"><span>📊 Comptable / Financier</span></label>
+                <label class="role-menu-item"><input type="checkbox" value="magasinier"         onchange="onRoleChange()"><span>📦 Magasinier / Logistique</span></label>
+                <label class="role-menu-item"><input type="checkbox" value="rh"                 onchange="onRoleChange()"><span>👷 Responsable RH / Paie</span></label>
+                <label class="role-menu-item"><input type="checkbox" value="superviseur_ventes" onchange="onRoleChange()"><span>🎯 Superviseur des ventes</span></label>
+                <label class="role-menu-item"><input type="checkbox" value="representant"       onchange="onRoleChange()"><span>🤝 Représentant / Agent</span></label>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Mot de passe *</label>
+            <input name="u_password" id="u_password" type="password" placeholder="Mot de passe">
+          </div>
+          <div class="form-group">
+            <label>Statut</label>
+            <select name="u_statut" id="u_statut">
+              <option value="actif">● Actif</option>
+              <option value="inactif">● Inactif</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="user-modal-footer">
+        <button type="button" class="btn btn-sec" onclick="closeUserModal()">Annuler</button>
+        <button type="submit" class="btn btn-primary" id="modalSubmitBtn">➕ Ajouter</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+{# ════════════════════════════════════════
+   ONGLET 3 — Réseau & serveur
+   ════════════════════════════════════════ #}
+<div class="ptab-panel {% if active_tab == 'reseau' %}active{% endif %}" id="ppanel-reseau">
+  <form method="POST" action="{{ url_for('parametres') }}">
+    <input type="hidden" name="onglet" value="reseau">
+
+    {# ── Config réseau ── #}
+    <div class="pcart">
+      <div class="pcart-head">🖥️ Configuration du serveur Flask</div>
+      <div class="pcart-body">
+        <div class="section-sep">📡 Adresse d'écoute</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Hôte (Host)</label>
+            <input name="server_host" value="{{ config.server_host or '0.0.0.0' }}" placeholder="0.0.0.0">
+            <small style="font-size:10px;color:var(--gris3);margin-top:4px;display:block">
+              <code>0.0.0.0</code> = accessible sur tout le réseau local · <code>127.0.0.1</code> = local uniquement
+            </small>
+          </div>
+          <div class="form-group">
+            <label>Port</label>
+            <input name="server_port" type="number" min="1024" max="65535" value="{{ config.server_port or '1439' }}" placeholder="1439">
+            <small style="font-size:10px;color:var(--gris3);margin-top:4px;display:block">
+              Port par défaut DISTRIGEST : <code>1439</code>. Évitez les ports réservés (80, 443…)
+            </small>
+          </div>
+        </div>
+
+        <div class="section-sep" style="margin-top:20px;">🗄️ Sauvegarde automatique</div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="tlabel">Backup automatique de la base</div>
+            <div class="tdesc">Copie automatique de distrigest.db selon le planning ci-dessous</div>
+          </div>
+          <label class="tswitch">
+            <input type="checkbox" name="backup_auto" value="oui"
+              {% if config.backup_auto == 'oui' %}checked{% endif %}>
+            <span class="tslider"></span>
+          </label>
+        </div>
+        <div class="form-grid" style="margin-top:14px;">
+          <div class="form-group">
+            <label>Heure du backup</label>
+            <input name="backup_heure" type="time" value="{{ config.backup_heure or '02:00' }}">
+          </div>
+          <div class="form-group">
+            <label>Dossier de destination</label>
+            <input name="backup_dossier" value="{{ config.backup_dossier or './backups' }}" placeholder="./backups">
+          </div>
+        </div>
+
+        <div class="section-sep" style="margin-top:20px;">🔧 Débogage &amp; journaux</div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="tlabel">Mode débogage (Debug)</div>
+            <div class="tdesc">Affiche les erreurs détaillées — désactiver en production</div>
+          </div>
+          <label class="tswitch">
+            <input type="checkbox" name="mode_debug" value="oui"
+              {% if config.mode_debug == 'oui' %}checked{% endif %}>
+            <span class="tslider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="tlabel">Journal des accès (Access log)</div>
+            <div class="tdesc">Enregistre chaque requête HTTP reçue par le serveur</div>
+          </div>
+          <label class="tswitch">
+            <input type="checkbox" name="log_acces" value="oui"
+              {% if config.log_acces != 'non' %}checked{% endif %}>
+            <span class="tslider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="param-footer">
+      <button type="button" class="btn btn-sec" onclick="testerServeur()">🔍 Tester la connexion</button>
+      <button type="submit" hidden aria-hidden="true"></button>
+    </div>
+  </form>
+
+  {# ── QR code connexion mobile ── #}
+  <div class="pcart">
+    <div class="pcart-head">📱 Connexion mobile — QR code</div>
+    <div class="pcart-body">
+      <p style="font-size:12px;color:var(--gris3);margin:0 0 14px;line-height:1.6;">
+        Scannez ce QR code avec l'appareil photo de votre téléphone pour ouvrir
+        DISTRIGEST. Le téléphone doit être connecté au
+        <strong>même réseau Wi-Fi</strong> que ce serveur.
+      </p>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:24px;justify-content:center;">
+        <div id="qr-connexion" data-url="{{ lan_url }}"
+             style="background:var(--bg-card);padding:12px;border-radius:14px;border:1px solid var(--border);
+                    box-shadow:0 2px 10px rgba(0,0,0,.06);min-width:184px;min-height:184px;
+                    display:flex;align-items:center;justify-content:center;"></div>
+        <div style="min-width:210px;">
+          <div style="font-size:10px;color:var(--gris3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">
+            Adresse du serveur
+          </div>
+          <a href="{{ lan_url }}" target="_blank"
+             style="font-family:'SF Mono','Consolas',monospace;font-size:14px;font-weight:700;
+                    color:var(--bleu2,#2563eb);text-decoration:none;word-break:break-all;">{{ lan_url }}</a>
+          <div style="margin-top:12px;">
+            <button type="button" class="btn btn-sec" onclick="copierLienConnexion()"
+                    style="font-size:12px;">📋 Copier le lien</button>
+          </div>
+          <div id="qr-copy-feedback" style="font-size:11px;color:var(--vert,#15803d);margin-top:7px;"></div>
+          <div style="font-size:10px;color:var(--gris3);margin-top:12px;line-height:1.6;">
+            ⚠️ Si l'adresse indique <code>127.0.0.1</code>, la machine n'est pas
+            connectée au réseau — vérifiez le Wi-Fi/câble, puis rechargez la page.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+{# ════════════════════════════════════════
+   ONGLET 4 — Relances automatiques (Notifications)
+   ════════════════════════════════════════ #}
+<div class="ptab-panel {% if active_tab == 'notifications' %}active{% endif %}" id="ppanel-notifications">
+
+  <form method="POST" action="{{ url_for('notif_save') }}">
+
+    {# ── Réglages fixes (invisibles) : envoi auto tous les jours à 8h ── #}
+    <input type="hidden" name="notif_auto_active"   value="oui">
+    <input type="hidden" name="notif_heure_envoi"   value="{{ config.notif_heure_envoi or '08:00' }}">
+    <input type="hidden" name="notif_jours_semaine" value="{{ config.notif_jours_semaine or '0123456' }}">
+
+    {# ── Bandeau d'info ── #}
+    <div class="pcart">
+      <div class="pcart-head">
+        <span>🔔 Relances automatiques</span>
+        <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;background:#fee2e2;color:#b91c1c;letter-spacing:.3px;">IMPAYÉS</span>
+      </div>
+      <div class="pcart-body">
+        <div style="display:flex;gap:12px;align-items:flex-start;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;font-size:12.5px;color:#166534;line-height:1.6;">
+          <span style="font-size:20px;">⚡</span>
+          <div>
+            Les relances partent <strong>automatiquement chaque jour à 8h</strong>, en arrière-plan, vers tous les clients ayant des factures impayées — sur les canaux activés ci-dessous.
+            <div style="font-size:11px;color:#15803d;margin-top:4px;">Il vous suffit de renseigner les identifiants et d'activer un canal. (Le serveur doit être allumé à 8h.)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ── Carte Gmail ── #}
+    <div class="pcart">
+      <div class="pcart-head"><span>📧 Canal Email (Gmail)</span></div>
+      <div class="pcart-body">
+
+        <div class="toggle-row" style="border-bottom:1px solid var(--gris2);padding-bottom:14px;margin-bottom:14px;">
+          <div class="toggle-info">
+            <div class="tlabel">Activer les relances par email</div>
+            <div class="tdesc">Envoi via votre compte Gmail (gratuit). Nécessite un « mot de passe d'application ».</div>
+          </div>
+          <label class="tswitch">
+            <input type="checkbox" name="notif_canal_gmail" value="oui"
+              {% if config.notif_canal_gmail == 'oui' %}checked{% endif %}>
+            <span class="tslider"></span>
+          </label>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Adresse Gmail expéditrice</label>
+            <input type="email" name="notif_gmail_user"
+              value="{{ config.notif_gmail_user or '' }}"
+              placeholder="moncommerce@gmail.com">
+          </div>
+          <div class="form-group">
+            <label>Mot de passe d'application (16 caractères)</label>
+            <input type="password" name="notif_gmail_pwd"
+              value="{{ config.notif_gmail_pwd or '' }}"
+              placeholder="xxxx xxxx xxxx xxxx" autocomplete="new-password">
+            <small style="color:var(--gris3);font-size:10px;margin-top:4px;display:block;">
+              À créer sur <strong>myaccount.google.com → Sécurité → Mots de passe des applications</strong> (la validation en 2 étapes doit être activée). Ce n'est PAS votre mot de passe Gmail habituel.
+            </small>
+          </div>
+        </div>
+        <div style="margin-top:12px;">
+          <button type="button" class="btn btn-sec" onclick="notifTest('gmail')" style="font-size:12px;">✉️ Envoyer un email de test</button>
+          <span id="notif-test-gmail" style="font-size:11px;margin-left:10px;"></span>
+        </div>
+
+      </div>
+    </div>
+
+    {# ── Carte WhatsApp (API Cloud officielle Meta) ── #}
+    <div class="pcart">
+      <div class="pcart-head"><span>📱 Canal WhatsApp (API officielle Meta)</span></div>
+      <div class="pcart-body">
+
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;font-size:11px;color:#1e40af;margin-bottom:16px;line-height:1.6;">
+          ℹ️ Envoi via l'<strong>API WhatsApp Cloud de Meta</strong> (sans Twilio). Nécessite un compte <strong>Meta Business</strong>, un numéro WhatsApp Business et un <strong>modèle de message approuvé</strong> par Meta comportant exactement 2 variables : <code>{% raw %}{{1}}{% endraw %}</code> = nom du client, <code>{% raw %}{{2}}{% endraw %}</code> = montant. Le texte du message est défini dans ce modèle, côté Meta.
+        </div>
+
+        <div class="toggle-row" style="border-bottom:1px solid var(--gris2);padding-bottom:14px;margin-bottom:14px;">
+          <div class="toggle-info">
+            <div class="tlabel">Activer les relances WhatsApp</div>
+            <div class="tdesc">Messages envoyés depuis votre numéro WhatsApp Business.</div>
+          </div>
+          <label class="tswitch">
+            <input type="checkbox" name="notif_canal_whatsapp" value="oui"
+              {% if config.notif_canal_whatsapp == 'oui' %}checked{% endif %}>
+            <span class="tslider"></span>
+          </label>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>ID du numéro WhatsApp (Phone Number ID)</label>
+            <input type="text" name="notif_wa_phone_id"
+              value="{{ config.notif_wa_phone_id or '' }}"
+              placeholder="123456789012345" style="font-family:monospace;">
+            <small style="color:var(--gris3);font-size:10px;margin-top:4px;display:block;">
+              Tableau de bord Meta → WhatsApp → Configuration de l'API.
+            </small>
+          </div>
+          <div class="form-group">
+            <label>Token d'accès permanent</label>
+            <input type="password" name="notif_wa_token"
+              value="{{ config.notif_wa_token or '' }}"
+              placeholder="EAAJB..." autocomplete="new-password" style="font-family:monospace;">
+            <small style="color:var(--gris3);font-size:10px;margin-top:4px;display:block;">
+              Jeton « System User » permanent (et non le token temporaire de 24h).
+            </small>
+          </div>
+          <div class="form-group">
+            <label>Nom du modèle approuvé</label>
+            <input type="text" name="notif_wa_template"
+              value="{{ config.notif_wa_template or '' }}"
+              placeholder="relance_impaye">
+          </div>
+          <div class="form-group">
+            <label>Langue du modèle</label>
+            <input type="text" name="notif_wa_lang"
+              value="{{ config.notif_wa_lang or 'fr' }}"
+              placeholder="fr">
+            <small style="color:var(--gris3);font-size:10px;margin-top:4px;display:block;">
+              Code de langue exact du modèle (ex. <code>fr</code>, <code>fr_FR</code>, <code>en</code>).
+            </small>
+          </div>
+        </div>
+
+        <div style="margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="wa-tel-test" placeholder="+225 07 00 00 00 00"
+            style="height:32px;padding:0 10px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;width:180px;">
+          <button type="button" class="btn btn-sec" onclick="notifTest('whatsapp')" style="font-size:12px;">📱 Test WhatsApp</button>
+          <span id="notif-test-wa" style="font-size:11px;"></span>
+        </div>
+
+      </div>
+    </div>
+
+    {# ── Carte SMS (passerelle locale ivoirienne) ── #}
+    <div class="pcart">
+      <div class="pcart-head"><span>✉️ Canal SMS (passerelle locale)</span></div>
+      <div class="pcart-body">
+
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;font-size:11px;color:#92400e;margin-bottom:16px;line-height:1.6;">
+          ⚠️ Envoi via une passerelle SMS locale (Orange CI, LeTexto, HSMS, SMS Partner…). Le code est câblé pour le format standard : <strong>POST JSON</strong> avec clé d'API en en-tête <code>Bearer</code>. Si votre fournisseur utilise un autre format (Orange en OAuth2, LeTexto en 2 étapes…), indiquez-le-moi et j'adapte.
+        </div>
+
+        <div class="toggle-row" style="border-bottom:1px solid var(--gris2);padding-bottom:14px;margin-bottom:14px;">
+          <div class="toggle-info">
+            <div class="tlabel">Activer les relances SMS</div>
+            <div class="tdesc">SMS envoyés via votre passerelle locale.</div>
+          </div>
+          <label class="tswitch">
+            <input type="checkbox" name="notif_canal_sms" value="oui"
+              {% if config.notif_canal_sms == 'oui' %}checked{% endif %}>
+            <span class="tslider"></span>
+          </label>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>URL de l'API d'envoi</label>
+            <input type="text" name="notif_sms_api_url"
+              value="{{ config.notif_sms_api_url or '' }}"
+              placeholder="https://api.mapasserelle.ci/v1/sms" style="font-family:monospace;">
+          </div>
+          <div class="form-group">
+            <label>Clé API</label>
+            <input type="password" name="notif_sms_api_key"
+              value="{{ config.notif_sms_api_key or '' }}"
+              placeholder="••••••••••••••••" autocomplete="new-password" style="font-family:monospace;">
+          </div>
+          <div class="form-group">
+            <label>Nom d'expéditeur (Sender ID)</label>
+            <input type="text" name="notif_sms_sender"
+              value="{{ config.notif_sms_sender or '' }}"
+              placeholder="MONCOMMERCE" maxlength="11">
+            <small style="color:var(--gris3);font-size:10px;margin-top:4px;display:block;">
+              11 caractères max, à faire valider auprès de la passerelle.
+            </small>
+          </div>
+        </div>
+
+        <div style="margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="sms-tel-test" placeholder="+225 07 00 00 00 00"
+            style="height:32px;padding:0 10px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;width:180px;">
+          <button type="button" class="btn btn-sec" onclick="notifTest('sms')" style="font-size:12px;">✉️ Test SMS</button>
+          <span id="notif-test-sms" style="font-size:11px;"></span>
+        </div>
+
+      </div>
+    </div>
+
+    {# ── Enregistrer ── #}
+    <div style="display:flex;justify-content:flex-end;margin-bottom:18px;">
+      <button type="submit" class="btn btn-primary"
+        style="background:linear-gradient(135deg,#dc2626,#f87171);">💾 Enregistrer la configuration</button>
+    </div>
+  </form>
+
+  {# ── Carte 4 : actions immédiates + historique (HORS du form principal) ── #}
+  <div class="pcart">
+    <div class="pcart-head"><span>🚀 Envoi manuel &amp; historique</span></div>
+    <div class="pcart-body">
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">
+        <form method="POST" action="{{ url_for('notif_envoyer_maintenant') }}" style="display:inline;"
+          onsubmit="return confirm('Lancer maintenant l\'envoi des relances à tous les clients impayés ?');">
+          <button type="submit" class="btn btn-primary">🚀 Envoyer les relances maintenant</button>
+        </form>
+        <button type="button" class="btn btn-sec" onclick="notifChargerHistorique()" style="font-size:12px;">🔄 Actualiser l'historique</button>
+        <span style="font-size:11px;color:var(--gris3);">Teste l'envoi immédiat sans attendre l'heure planifiée.</span>
+      </div>
+
+      <div id="notif-historique" style="font-size:12px;">
+        <div style="color:var(--gris3);padding:14px;text-align:center;">Cliquez sur « Actualiser l'historique » pour afficher les derniers envois.</div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ===== Librairie QR (davidshimjs/qrcodejs) — embarquée, hors-ligne ===== */
+var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this.parsedData=[];for(var b=[],d=0,e=this.data.length;e>d;d++){var f=this.data.charCodeAt(d);f>65536?(b[0]=240|(1835008&f)>>>18,b[1]=128|(258048&f)>>>12,b[2]=128|(4032&f)>>>6,b[3]=128|63&f):f>2048?(b[0]=224|(61440&f)>>>12,b[1]=128|(4032&f)>>>6,b[2]=128|63&f):f>128?(b[0]=192|(1984&f)>>>6,b[1]=128|63&f):b[0]=f,this.parsedData=this.parsedData.concat(b)}this.parsedData.length!=this.data.length&&(this.parsedData.unshift(191),this.parsedData.unshift(187),this.parsedData.unshift(239))}function b(a,b){this.typeNumber=a,this.errorCorrectLevel=b,this.modules=null,this.moduleCount=0,this.dataCache=null,this.dataList=[]}function i(a,b){if(void 0==a.length)throw new Error(a.length+"/"+b);for(var c=0;c<a.length&&0==a[c];)c++;this.num=new Array(a.length-c+b);for(var d=0;d<a.length-c;d++)this.num[d]=a[d+c]}function j(a,b){this.totalCount=a,this.dataCount=b}function k(){this.buffer=[],this.length=0}function m(){return"undefined"!=typeof CanvasRenderingContext2D}function n(){var a=!1,b=navigator.userAgent;return/android/i.test(b)&&(a=!0,aMat=b.toString().match(/android ([0-9]\.[0-9])/i),aMat&&aMat[1]&&(a=parseFloat(aMat[1]))),a}function r(a,b){for(var c=1,e=s(a),f=0,g=l.length;g>=f;f++){var h=0;switch(b){case d.L:h=l[f][0];break;case d.M:h=l[f][1];break;case d.Q:h=l[f][2];break;case d.H:h=l[f][3]}if(h>=e)break;c++}if(c>l.length)throw new Error("Too long data");return c}function s(a){var b=encodeURI(a).toString().replace(/\%[0-9a-fA-F]{2}/g,"a");return b.length+(b.length!=a?3:0)}a.prototype={getLength:function(){return this.parsedData.length},write:function(a){for(var b=0,c=this.parsedData.length;c>b;b++)a.put(this.parsedData[b],8)}},b.prototype={addData:function(b){var c=new a(b);this.dataList.push(c),this.dataCache=null},isDark:function(a,b){if(0>a||this.moduleCount<=a||0>b||this.moduleCount<=b)throw new Error(a+","+b);return this.modules[a][b]},getModuleCount:function(){return this.moduleCount},make:function(){this.makeImpl(!1,this.getBestMaskPattern())},makeImpl:function(a,c){this.moduleCount=4*this.typeNumber+17,this.modules=new Array(this.moduleCount);for(var d=0;d<this.moduleCount;d++){this.modules[d]=new Array(this.moduleCount);for(var e=0;e<this.moduleCount;e++)this.modules[d][e]=null}this.setupPositionProbePattern(0,0),this.setupPositionProbePattern(this.moduleCount-7,0),this.setupPositionProbePattern(0,this.moduleCount-7),this.setupPositionAdjustPattern(),this.setupTimingPattern(),this.setupTypeInfo(a,c),this.typeNumber>=7&&this.setupTypeNumber(a),null==this.dataCache&&(this.dataCache=b.createData(this.typeNumber,this.errorCorrectLevel,this.dataList)),this.mapData(this.dataCache,c)},setupPositionProbePattern:function(a,b){for(var c=-1;7>=c;c++)if(!(-1>=a+c||this.moduleCount<=a+c))for(var d=-1;7>=d;d++)-1>=b+d||this.moduleCount<=b+d||(this.modules[a+c][b+d]=c>=0&&6>=c&&(0==d||6==d)||d>=0&&6>=d&&(0==c||6==c)||c>=2&&4>=c&&d>=2&&4>=d?!0:!1)},getBestMaskPattern:function(){for(var a=0,b=0,c=0;8>c;c++){this.makeImpl(!0,c);var d=f.getLostPoint(this);(0==c||a>d)&&(a=d,b=c)}return b},createMovieClip:function(a,b,c){var d=a.createEmptyMovieClip(b,c),e=1;this.make();for(var f=0;f<this.modules.length;f++)for(var g=f*e,h=0;h<this.modules[f].length;h++){var i=h*e,j=this.modules[f][h];j&&(d.beginFill(0,100),d.moveTo(i,g),d.lineTo(i+e,g),d.lineTo(i+e,g+e),d.lineTo(i,g+e),d.endFill())}return d},setupTimingPattern:function(){for(var a=8;a<this.moduleCount-8;a++)null==this.modules[a][6]&&(this.modules[a][6]=0==a%2);for(var b=8;b<this.moduleCount-8;b++)null==this.modules[6][b]&&(this.modules[6][b]=0==b%2)},setupPositionAdjustPattern:function(){for(var a=f.getPatternPosition(this.typeNumber),b=0;b<a.length;b++)for(var c=0;c<a.length;c++){var d=a[b],e=a[c];if(null==this.modules[d][e])for(var g=-2;2>=g;g++)for(var h=-2;2>=h;h++)this.modules[d+g][e+h]=-2==g||2==g||-2==h||2==h||0==g&&0==h?!0:!1}},setupTypeNumber:function(a){for(var b=f.getBCHTypeNumber(this.typeNumber),c=0;18>c;c++){var d=!a&&1==(1&b>>c);this.modules[Math.floor(c/3)][c%3+this.moduleCount-8-3]=d}for(var c=0;18>c;c++){var d=!a&&1==(1&b>>c);this.modules[c%3+this.moduleCount-8-3][Math.floor(c/3)]=d}},setupTypeInfo:function(a,b){for(var c=this.errorCorrectLevel<<3|b,d=f.getBCHTypeInfo(c),e=0;15>e;e++){var g=!a&&1==(1&d>>e);6>e?this.modules[e][8]=g:8>e?this.modules[e+1][8]=g:this.modules[this.moduleCount-15+e][8]=g}for(var e=0;15>e;e++){var g=!a&&1==(1&d>>e);8>e?this.modules[8][this.moduleCount-e-1]=g:9>e?this.modules[8][15-e-1+1]=g:this.modules[8][15-e-1]=g}this.modules[this.moduleCount-8][8]=!a},mapData:function(a,b){for(var c=-1,d=this.moduleCount-1,e=7,g=0,h=this.moduleCount-1;h>0;h-=2)for(6==h&&h--;;){for(var i=0;2>i;i++)if(null==this.modules[d][h-i]){var j=!1;g<a.length&&(j=1==(1&a[g]>>>e));var k=f.getMask(b,d,h-i);k&&(j=!j),this.modules[d][h-i]=j,e--,-1==e&&(g++,e=7)}if(d+=c,0>d||this.moduleCount<=d){d-=c,c=-c;break}}}},b.PAD0=236,b.PAD1=17,b.createData=function(a,c,d){for(var e=j.getRSBlocks(a,c),g=new k,h=0;h<d.length;h++){var i=d[h];g.put(i.mode,4),g.put(i.getLength(),f.getLengthInBits(i.mode,a)),i.write(g)}for(var l=0,h=0;h<e.length;h++)l+=e[h].dataCount;if(g.getLengthInBits()>8*l)throw new Error("code length overflow. ("+g.getLengthInBits()+">"+8*l+")");for(g.getLengthInBits()+4<=8*l&&g.put(0,4);0!=g.getLengthInBits()%8;)g.putBit(!1);for(;;){if(g.getLengthInBits()>=8*l)break;if(g.put(b.PAD0,8),g.getLengthInBits()>=8*l)break;g.put(b.PAD1,8)}return b.createBytes(g,e)},b.createBytes=function(a,b){for(var c=0,d=0,e=0,g=new Array(b.length),h=new Array(b.length),j=0;j<b.length;j++){var k=b[j].dataCount,l=b[j].totalCount-k;d=Math.max(d,k),e=Math.max(e,l),g[j]=new Array(k);for(var m=0;m<g[j].length;m++)g[j][m]=255&a.buffer[m+c];c+=k;var n=f.getErrorCorrectPolynomial(l),o=new i(g[j],n.getLength()-1),p=o.mod(n);h[j]=new Array(n.getLength()-1);for(var m=0;m<h[j].length;m++){var q=m+p.getLength()-h[j].length;h[j][m]=q>=0?p.get(q):0}}for(var r=0,m=0;m<b.length;m++)r+=b[m].totalCount;for(var s=new Array(r),t=0,m=0;d>m;m++)for(var j=0;j<b.length;j++)m<g[j].length&&(s[t++]=g[j][m]);for(var m=0;e>m;m++)for(var j=0;j<b.length;j++)m<h[j].length&&(s[t++]=h[j][m]);return s};for(var c={MODE_NUMBER:1,MODE_ALPHA_NUM:2,MODE_8BIT_BYTE:4,MODE_KANJI:8},d={L:1,M:0,Q:3,H:2},e={PATTERN000:0,PATTERN001:1,PATTERN010:2,PATTERN011:3,PATTERN100:4,PATTERN101:5,PATTERN110:6,PATTERN111:7},f={PATTERN_POSITION_TABLE:[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],G15:1335,G18:7973,G15_MASK:21522,getBCHTypeInfo:function(a){for(var b=a<<10;f.getBCHDigit(b)-f.getBCHDigit(f.G15)>=0;)b^=f.G15<<f.getBCHDigit(b)-f.getBCHDigit(f.G15);return(a<<10|b)^f.G15_MASK},getBCHTypeNumber:function(a){for(var b=a<<12;f.getBCHDigit(b)-f.getBCHDigit(f.G18)>=0;)b^=f.G18<<f.getBCHDigit(b)-f.getBCHDigit(f.G18);return a<<12|b},getBCHDigit:function(a){for(var b=0;0!=a;)b++,a>>>=1;return b},getPatternPosition:function(a){return f.PATTERN_POSITION_TABLE[a-1]},getMask:function(a,b,c){switch(a){case e.PATTERN000:return 0==(b+c)%2;case e.PATTERN001:return 0==b%2;case e.PATTERN010:return 0==c%3;case e.PATTERN011:return 0==(b+c)%3;case e.PATTERN100:return 0==(Math.floor(b/2)+Math.floor(c/3))%2;case e.PATTERN101:return 0==b*c%2+b*c%3;case e.PATTERN110:return 0==(b*c%2+b*c%3)%2;case e.PATTERN111:return 0==(b*c%3+(b+c)%2)%2;default:throw new Error("bad maskPattern:"+a)}},getErrorCorrectPolynomial:function(a){for(var b=new i([1],0),c=0;a>c;c++)b=b.multiply(new i([1,g.gexp(c)],0));return b},getLengthInBits:function(a,b){if(b>=1&&10>b)switch(a){case c.MODE_NUMBER:return 10;case c.MODE_ALPHA_NUM:return 9;case c.MODE_8BIT_BYTE:return 8;case c.MODE_KANJI:return 8;default:throw new Error("mode:"+a)}else if(27>b)switch(a){case c.MODE_NUMBER:return 12;case c.MODE_ALPHA_NUM:return 11;case c.MODE_8BIT_BYTE:return 16;case c.MODE_KANJI:return 10;default:throw new Error("mode:"+a)}else{if(!(41>b))throw new Error("type:"+b);switch(a){case c.MODE_NUMBER:return 14;case c.MODE_ALPHA_NUM:return 13;case c.MODE_8BIT_BYTE:return 16;case c.MODE_KANJI:return 12;default:throw new Error("mode:"+a)}}},getLostPoint:function(a){for(var b=a.getModuleCount(),c=0,d=0;b>d;d++)for(var e=0;b>e;e++){for(var f=0,g=a.isDark(d,e),h=-1;1>=h;h++)if(!(0>d+h||d+h>=b))for(var i=-1;1>=i;i++)0>e+i||e+i>=b||(0!=h||0!=i)&&g==a.isDark(d+h,e+i)&&f++;f>5&&(c+=3+f-5)}for(var d=0;b-1>d;d++)for(var e=0;b-1>e;e++){var j=0;a.isDark(d,e)&&j++,a.isDark(d+1,e)&&j++,a.isDark(d,e+1)&&j++,a.isDark(d+1,e+1)&&j++,(0==j||4==j)&&(c+=3)}for(var d=0;b>d;d++)for(var e=0;b-6>e;e++)a.isDark(d,e)&&!a.isDark(d,e+1)&&a.isDark(d,e+2)&&a.isDark(d,e+3)&&a.isDark(d,e+4)&&!a.isDark(d,e+5)&&a.isDark(d,e+6)&&(c+=40);for(var e=0;b>e;e++)for(var d=0;b-6>d;d++)a.isDark(d,e)&&!a.isDark(d+1,e)&&a.isDark(d+2,e)&&a.isDark(d+3,e)&&a.isDark(d+4,e)&&!a.isDark(d+5,e)&&a.isDark(d+6,e)&&(c+=40);for(var k=0,e=0;b>e;e++)for(var d=0;b>d;d++)a.isDark(d,e)&&k++;var l=Math.abs(100*k/b/b-50)/5;return c+=10*l}},g={glog:function(a){if(1>a)throw new Error("glog("+a+")");return g.LOG_TABLE[a]},gexp:function(a){for(;0>a;)a+=255;for(;a>=256;)a-=255;return g.EXP_TABLE[a]},EXP_TABLE:new Array(256),LOG_TABLE:new Array(256)},h=0;8>h;h++)g.EXP_TABLE[h]=1<<h;for(var h=8;256>h;h++)g.EXP_TABLE[h]=g.EXP_TABLE[h-4]^g.EXP_TABLE[h-5]^g.EXP_TABLE[h-6]^g.EXP_TABLE[h-8];for(var h=0;255>h;h++)g.LOG_TABLE[g.EXP_TABLE[h]]=h;i.prototype={get:function(a){return this.num[a]},getLength:function(){return this.num.length},multiply:function(a){for(var b=new Array(this.getLength()+a.getLength()-1),c=0;c<this.getLength();c++)for(var d=0;d<a.getLength();d++)b[c+d]^=g.gexp(g.glog(this.get(c))+g.glog(a.get(d)));return new i(b,0)},mod:function(a){if(this.getLength()-a.getLength()<0)return this;for(var b=g.glog(this.get(0))-g.glog(a.get(0)),c=new Array(this.getLength()),d=0;d<this.getLength();d++)c[d]=this.get(d);for(var d=0;d<a.getLength();d++)c[d]^=g.gexp(g.glog(a.get(d))+b);return new i(c,0).mod(a)}},j.RS_BLOCK_TABLE=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]],j.getRSBlocks=function(a,b){var c=j.getRsBlockTable(a,b);if(void 0==c)throw new Error("bad rs block @ typeNumber:"+a+"/errorCorrectLevel:"+b);for(var d=c.length/3,e=[],f=0;d>f;f++)for(var g=c[3*f+0],h=c[3*f+1],i=c[3*f+2],k=0;g>k;k++)e.push(new j(h,i));return e},j.getRsBlockTable=function(a,b){switch(b){case d.L:return j.RS_BLOCK_TABLE[4*(a-1)+0];case d.M:return j.RS_BLOCK_TABLE[4*(a-1)+1];case d.Q:return j.RS_BLOCK_TABLE[4*(a-1)+2];case d.H:return j.RS_BLOCK_TABLE[4*(a-1)+3];default:return void 0}},k.prototype={get:function(a){var b=Math.floor(a/8);return 1==(1&this.buffer[b]>>>7-a%8)},put:function(a,b){for(var c=0;b>c;c++)this.putBit(1==(1&a>>>b-c-1))},getLengthInBits:function(){return this.length},putBit:function(a){var b=Math.floor(this.length/8);this.buffer.length<=b&&this.buffer.push(0),a&&(this.buffer[b]|=128>>>this.length%8),this.length++}};var l=[[17,14,11,7],[32,26,20,14],[53,42,32,24],[78,62,46,34],[106,84,60,44],[134,106,74,58],[154,122,86,64],[192,152,108,84],[230,180,130,98],[271,213,151,119],[321,251,177,137],[367,287,203,155],[425,331,241,177],[458,362,258,194],[520,412,292,220],[586,450,322,250],[644,504,364,280],[718,560,394,310],[792,624,442,338],[858,666,482,382],[929,711,509,403],[1003,779,565,439],[1091,857,611,461],[1171,911,661,511],[1273,997,715,535],[1367,1059,751,593],[1465,1125,805,625],[1528,1190,868,658],[1628,1264,908,698],[1732,1370,982,742],[1840,1452,1030,790],[1952,1538,1112,842],[2068,1628,1168,898],[2188,1722,1228,958],[2303,1809,1283,983],[2431,1911,1351,1051],[2563,1989,1423,1093],[2699,2099,1499,1139],[2809,2213,1579,1219],[2953,2331,1663,1273]],o=function(){var a=function(a,b){this._el=a,this._htOption=b};return a.prototype.draw=function(a){function g(a,b){var c=document.createElementNS("http://www.w3.org/2000/svg",a);for(var d in b)b.hasOwnProperty(d)&&c.setAttribute(d,b[d]);return c}var b=this._htOption,c=this._el,d=a.getModuleCount();Math.floor(b.width/d),Math.floor(b.height/d),this.clear();var h=g("svg",{viewBox:"0 0 "+String(d)+" "+String(d),width:"100%",height:"100%",fill:b.colorLight});h.setAttributeNS("http://www.w3.org/2000/xmlns/","xmlns:xlink","http://www.w3.org/1999/xlink"),c.appendChild(h),h.appendChild(g("rect",{fill:b.colorDark,width:"1",height:"1",id:"template"}));for(var i=0;d>i;i++)for(var j=0;d>j;j++)if(a.isDark(i,j)){var k=g("use",{x:String(i),y:String(j)});k.setAttributeNS("http://www.w3.org/1999/xlink","href","#template"),h.appendChild(k)}},a.prototype.clear=function(){for(;this._el.hasChildNodes();)this._el.removeChild(this._el.lastChild)},a}(),p="svg"===document.documentElement.tagName.toLowerCase(),q=p?o:m()?function(){function a(){this._elImage.src=this._elCanvas.toDataURL("image/png"),this._elImage.style.display="block",this._elCanvas.style.display="none"}function d(a,b){var c=this;if(c._fFail=b,c._fSuccess=a,null===c._bSupportDataURI){var d=document.createElement("img"),e=function(){c._bSupportDataURI=!1,c._fFail&&_fFail.call(c)},f=function(){c._bSupportDataURI=!0,c._fSuccess&&c._fSuccess.call(c)};return d.onabort=e,d.onerror=e,d.onload=f,d.src="data:image/gif;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==",void 0}c._bSupportDataURI===!0&&c._fSuccess?c._fSuccess.call(c):c._bSupportDataURI===!1&&c._fFail&&c._fFail.call(c)}if(this._android&&this._android<=2.1){var b=1/window.devicePixelRatio,c=CanvasRenderingContext2D.prototype.drawImage;CanvasRenderingContext2D.prototype.drawImage=function(a,d,e,f,g,h,i,j){if("nodeName"in a&&/img/i.test(a.nodeName))for(var l=arguments.length-1;l>=1;l--)arguments[l]=arguments[l]*b;else"undefined"==typeof j&&(arguments[1]*=b,arguments[2]*=b,arguments[3]*=b,arguments[4]*=b);c.apply(this,arguments)}}var e=function(a,b){this._bIsPainted=!1,this._android=n(),this._htOption=b,this._elCanvas=document.createElement("canvas"),this._elCanvas.width=b.width,this._elCanvas.height=b.height,a.appendChild(this._elCanvas),this._el=a,this._oContext=this._elCanvas.getContext("2d"),this._bIsPainted=!1,this._elImage=document.createElement("img"),this._elImage.style.display="none",this._el.appendChild(this._elImage),this._bSupportDataURI=null};return e.prototype.draw=function(a){var b=this._elImage,c=this._oContext,d=this._htOption,e=a.getModuleCount(),f=d.width/e,g=d.height/e,h=Math.round(f),i=Math.round(g);b.style.display="none",this.clear();for(var j=0;e>j;j++)for(var k=0;e>k;k++){var l=a.isDark(j,k),m=k*f,n=j*g;c.strokeStyle=l?d.colorDark:d.colorLight,c.lineWidth=1,c.fillStyle=l?d.colorDark:d.colorLight,c.fillRect(m,n,f,g),c.strokeRect(Math.floor(m)+.5,Math.floor(n)+.5,h,i),c.strokeRect(Math.ceil(m)-.5,Math.ceil(n)-.5,h,i)}this._bIsPainted=!0},e.prototype.makeImage=function(){this._bIsPainted&&d.call(this,a)},e.prototype.isPainted=function(){return this._bIsPainted},e.prototype.clear=function(){this._oContext.clearRect(0,0,this._elCanvas.width,this._elCanvas.height),this._bIsPainted=!1},e.prototype.round=function(a){return a?Math.floor(1e3*a)/1e3:a},e}():function(){var a=function(a,b){this._el=a,this._htOption=b};return a.prototype.draw=function(a){for(var b=this._htOption,c=this._el,d=a.getModuleCount(),e=Math.floor(b.width/d),f=Math.floor(b.height/d),g=['<table style="border:0;border-collapse:collapse;">'],h=0;d>h;h++){g.push("<tr>");for(var i=0;d>i;i++)g.push('<td style="border:0;border-collapse:collapse;padding:0;margin:0;width:'+e+"px;height:"+f+"px;background-color:"+(a.isDark(h,i)?b.colorDark:b.colorLight)+';"></td>');g.push("</tr>")}g.push("</table>"),c.innerHTML=g.join("");var j=c.childNodes[0],k=(b.width-j.offsetWidth)/2,l=(b.height-j.offsetHeight)/2;k>0&&l>0&&(j.style.margin=l+"px "+k+"px")},a.prototype.clear=function(){this._el.innerHTML=""},a}();QRCode=function(a,b){if(this._htOption={width:256,height:256,typeNumber:4,colorDark:"#000000",colorLight:"#ffffff",correctLevel:d.H},"string"==typeof b&&(b={text:b}),b)for(var c in b)this._htOption[c]=b[c];"string"==typeof a&&(a=document.getElementById(a)),this._android=n(),this._el=a,this._oQRCode=null,this._oDrawing=new q(this._el,this._htOption),this._htOption.text&&this.makeCode(this._htOption.text)},QRCode.prototype.makeCode=function(a){this._oQRCode=new b(r(a,this._htOption.correctLevel),this._htOption.correctLevel),this._oQRCode.addData(a),this._oQRCode.make(),this._el.title=a,this._oDrawing.draw(this._oQRCode),this.makeImage()},QRCode.prototype.makeImage=function(){"function"==typeof this._oDrawing.makeImage&&(!this._android||this._android>=3)&&this._oDrawing.makeImage()},QRCode.prototype.clear=function(){this._oDrawing.clear()},QRCode.CorrectLevel=d}();
+</script>
+<script>
+/* ===== QR de connexion mobile ===== */
+(function(){
+  function renderQR(){
+    var box = document.getElementById('qr-connexion');
+    if(!box || box.dataset.rendered === '1') return;
+    var url = box.getAttribute('data-url') || '';
+    if(!url || typeof QRCode === 'undefined') return;
+    try {
+      box.innerHTML = '';
+      new QRCode(box, { text:url, width:160, height:160,
+        colorDark:'#0f172a', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.M });
+      box.dataset.rendered = '1';
+    } catch(e){ box.textContent = 'QR indisponible'; }
+  }
+  if(document.readyState !== 'loading') renderQR();
+  else document.addEventListener('DOMContentLoaded', renderQR);
+  document.addEventListener('click', function(ev){
+    if(ev.target && ev.target.closest && ev.target.closest('.ptab-reseau')){ setTimeout(renderQR, 60); }
+  });
+})();
+function copierLienConnexion(){
+  var box = document.getElementById('qr-connexion');
+  var url = box ? box.getAttribute('data-url') : '';
+  var fb  = document.getElementById('qr-copy-feedback');
+  if(navigator.clipboard && url){
+    navigator.clipboard.writeText(url).then(function(){
+      if(fb){ fb.textContent='✅ Lien copié !'; setTimeout(function(){ fb.textContent=''; },2000); }
+    }).catch(function(){ if(fb) fb.textContent='Copie impossible — copiez manuellement.'; });
+  }
+}
+</script>
+<script>
+/* ── Permissions par rôle DISTRIGEST ── */
+var ALL_MODULES = [
+  "acces_caisse",
+  "acces_atelier_equipements","acces_atelier_tickets",
+  "acces_devis","acces_commandes","acces_factures","acces_avoirs",
+  "acces_achats","acces_factures_fourn",
+  "acces_clients","acces_fournisseurs","acces_relances","acces_representants","acces_emballages",
+  "acces_reglements","acces_depenses","acces_comptabilite",
+  "acces_articles","acces_familles","acces_unites","acces_stock","acces_depots",
+  "acces_employes","acces_paie","acces_conges"
+];
+
+var ROLE_PERMISSIONS = {
+  "administrateur": {
+    label: "👑 Administrateur — accès total à tous les modules",
+    modules: ALL_MODULES.slice()
+  },
+  "commercial": {
+    label: "🧾 Commercial / Vendeur — ventes, clients, devis, factures, encaissement",
+    modules: ["acces_caisse","acces_devis","acces_commandes","acces_factures","acces_avoirs",
+              "acces_clients","acces_relances","acces_representants","acces_reglements",
+              "acces_articles","acces_stock"]
+  },
+  "caissier": {
+    label: "💰 Caissier / POS — point de vente, encaissement, clients",
+    modules: ["acces_caisse","acces_clients","acces_articles","acces_reglements"]
+  },
+  "acheteur": {
+    label: "🛒 Acheteur / Approvisionneur — achats, fournisseurs, réceptions, stock",
+    modules: ["acces_achats","acces_factures_fourn","acces_fournisseurs",
+              "acces_articles","acces_familles","acces_unites","acces_stock","acces_depots","acces_emballages"]
+  },
+  "comptable": {
+    label: "📊 Comptable / Financier — finances, règlements, dépenses, comptabilité, paie",
+    modules: ["acces_factures","acces_factures_fourn","acces_reglements","acces_depenses",
+              "acces_comptabilite","acces_paie","acces_employes","acces_avoirs"]
+  },
+  "magasinier": {
+    label: "📦 Magasinier / Logistique — stock, articles, dépôts, emballages",
+    modules: ["acces_articles","acces_familles","acces_unites","acces_stock","acces_depots","acces_emballages"]
+  },
+  "rh": {
+    label: "👷 Responsable RH / Paie — employés, fiches de paie, congés",
+    modules: ["acces_employes","acces_paie","acces_conges"]
+  },
+  "superviseur_ventes": {
+    label: "🎯 Superviseur des ventes — ventes + achats + clients + reporting complet",
+    modules: ["acces_caisse","acces_devis","acces_commandes","acces_factures","acces_avoirs",
+              "acces_clients","acces_fournisseurs","acces_relances","acces_representants",
+              "acces_reglements","acces_achats","acces_factures_fourn",
+              "acces_articles","acces_familles","acces_unites","acces_stock","acces_depots"]
+  },
+  "representant": {
+    label: "🤝 Représentant / Agent — devis, clients, commandes en lecture",
+    modules: ["acces_devis","acces_commandes","acces_clients","acces_articles","acces_representants"]
+  }
+};
+
+/* Applique un preset rôle : écriture sur les modules autorisés, aucun sur les autres */
+function applyRolePreset(roleKey) {
+  var role = ROLE_PERMISSIONS[roleKey];
+  if (!role) return;
+  ALL_MODULES.forEach(function(mod) {
+    var val = (role.modules.indexOf(mod) >= 0) ? 'ecriture' : 'non';
+    setPtsValue(mod, val);
+  });
+}
+
+/* ── Accès par utilisateur ── */
+var USER_ACCES = {
+  "admin": {
+    {% set all_keys = ["acces_caisse","acces_atelier_equipements","acces_atelier_tickets","acces_devis","acces_commandes","acces_factures","acces_avoirs","acces_achats","acces_factures_fourn","acces_clients","acces_fournisseurs","acces_relances","acces_representants","acces_emballages","acces_reglements","acces_depenses","acces_comptabilite","acces_articles","acces_familles","acces_unites","acces_stock","acces_depots","acces_employes","acces_paie","acces_conges"] %}
+    {% for k in all_keys %}
+    {% set _raw = config.get('admin_' + k, 'ecriture') %}
+    "{{ k }}": "{{ 'ecriture' if _raw == 'oui' else _raw }}"{% if not loop.last %},{% endif %}
+    {% endfor %}
+  },
+  "user_1": {
+    {% for k in all_keys %}
+    {% set _raw = config.get('user_1_' + k, 'ecriture') %}
+    "{{ k }}": "{{ 'ecriture' if _raw == 'oui' else _raw }}"{% if not loop.last %},{% endif %}
+    {% endfor %}
+  },
+  "user_2": {
+    {% for k in all_keys %}
+    {% set _raw = config.get('user_2_' + k, 'ecriture') %}
+    "{{ k }}": "{{ 'ecriture' if _raw == 'oui' else _raw }}"{% if not loop.last %},{% endif %}
+    {% endfor %}
+  }
+};
+
+function chargerAccesUtilisateur(sel) {
+  var slot = sel ? sel.value : '';
+  var panel  = document.getElementById('modules_panel');
+  var footer = document.getElementById('fonctions_footer');
+  var slotIn = document.getElementById('target_user_slot');
+  var msg    = document.getElementById('user_selected_msg');
+
+  if (!slot) {
+    if (panel)  panel.style.display  = 'none';
+    if (footer) footer.style.display = 'none';
+    if (msg)    msg.style.display    = 'none';
+    if (slotIn) slotIn.value = '';
+    return;
+  }
+
+  if (slotIn) slotIn.value = slot;
+
+  // ── Admin : tous les droits, panel en lecture seule ──
+  if (slot === 'admin') {
+    ALL_MODULES.forEach(function(mod) { setPtsValue(mod, 'ecriture'); });
+    // Désactiver tous les boutons tristate
+    document.querySelectorAll('.perm-tristate .pts-opt').forEach(function(btn) {
+      btn.style.pointerEvents = 'none';
+      btn.style.opacity = '0.55';
+      btn.style.cursor  = 'default';
+    });
+    if (panel)  panel.style.display  = '';
+    if (footer) footer.style.display = 'none'; // cacher le bouton Enregistrer
+    if (msg) {
+      msg.innerHTML = '👑 Administrateur — accès <strong>Écriture</strong> sur tous les modules (immuable)';
+      msg.style.background = '#fef3c7';
+      msg.style.borderColor = '#fbbf24';
+      msg.style.color = '#92400e';
+      msg.style.display = 'block';
+    }
+    return;
+  }
+
+  // ── Réactiver les boutons (si on revient d'admin vers un autre user) ──
+  document.querySelectorAll('.perm-tristate .pts-opt').forEach(function(btn) {
+    btn.style.pointerEvents = '';
+    btn.style.opacity = '';
+    btn.style.cursor  = '';
+  });
+  if (msg) {
+    msg.style.background = '';
+    msg.style.borderColor = '';
+    msg.style.color = '';
+  }
+
+  var userAcces = USER_ACCES[slot] || {};
+  ALL_MODULES.forEach(function(mod) {
+    var raw = userAcces[mod] || 'ecriture';
+    // rétrocompat : 'oui' → 'ecriture'
+    if (raw === 'oui') raw = 'ecriture';
+    setPtsValue(mod, raw);
+  });
+
+  if (panel)  panel.style.display  = '';
+  if (footer) footer.style.display = '';
+
+  if (msg) {
+    var opt = sel.options[sel.selectedIndex];
+    msg.innerHTML = '✏️ Vous modifiez les accès de : <strong>' + opt.text + '</strong>';
+    msg.style.display = 'block';
+  }
+}
+
+/* ── Sélecteur 3 états ── */
+function setPts(el, val, fieldName) {
+  var container = el.closest('.perm-tristate');
+  if (!container) return;
+  container.querySelectorAll('.pts-opt').forEach(function(o) { o.classList.remove('pts-sel'); });
+  el.classList.add('pts-sel');
+  var hid = document.getElementById('hid_' + fieldName);
+  if (hid) hid.value = val;
+}
+
+function setPtsValue(fieldName, val) {
+  var container = document.querySelector('.perm-tristate[data-field="' + fieldName + '"]');
+  if (!container) return;
+  container.querySelectorAll('.pts-opt').forEach(function(o) { o.classList.remove('pts-sel'); });
+  var map = { 'non':'pts-none', 'lecture':'pts-read', 'ecriture':'pts-write' };
+  var cls = map[val] || 'pts-write';
+  var target = container.querySelector('.' + cls);
+  if (target) target.classList.add('pts-sel');
+  var hid = document.getElementById('hid_' + fieldName);
+  if (hid) hid.value = val;
+}
+
+/* ── Navigation onglets principaux ── */
+function switchPTab(name, btn) {
+  document.querySelectorAll('.ptab-panel').forEach(function(p) { p.classList.remove('active'); });
+  document.getElementById('ppanel-' + name).classList.add('active');
+  document.querySelectorAll('.ptab').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  var url = new URL(window.location.href);
+  url.searchParams.set('tab', name);
+  history.replaceState(null, '', url.toString());
+}
+
+/* ── Bouton Sauvegarder global (haut à droite) ── */
+function sauvegarderOngletActif(btn) {
+  var panel = document.querySelector('.ptab-panel.active');
+  if (!panel) { return; }
+  /* Cas onglet Accès : prioriser le sous-onglet actif */
+  var form = null;
+  var sub = panel.querySelector('.acces-subpanel.active');
+  if (sub) {
+    form = sub.querySelector('form');
+  }
+  if (!form) {
+    form = panel.querySelector('form');
+  }
+  if (!form) { return; }
+  /* Feedback visuel */
+  btn.disabled = true;
+  btn.innerHTML = '<span style="font-size:16px;">⏳</span> Enregistrement…';
+  btn.style.opacity = '.75';
+  /* Déclencher la soumission (laisse le submit handler existant s'exécuter) */
+  form.requestSubmit ? form.requestSubmit() : form.submit();
+}
+
+
+function switchAccessTab(name, btn) {
+  document.querySelectorAll('.acces-subpanel').forEach(function(p) { p.classList.remove('active'); });
+  document.getElementById('sub-' + name).classList.add('active');
+  document.querySelectorAll('.acces-stab').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+}
+
+/* ── Modale utilisateur ── */
+/* ── Chips rôle : fonctions ── */
+function toggleRoleDrop() {
+  var trigger = document.querySelector('#uRoleDrop .role-trigger');
+  var menu    = document.getElementById('uRoleMenu');
+  var isOpen  = menu.classList.contains('open');
+  menu.classList.toggle('open', !isOpen);
+  trigger.classList.toggle('open', !isOpen);
+}
+
+function onRoleChange() {
+  var checks = document.querySelectorAll('#uRoleMenu input[type=checkbox]:checked');
+  var vals   = Array.from(checks).map(function(c){ return c.value; });
+  document.getElementById('u_role').value = vals.join(',');
+  var lbl = document.getElementById('uRoleLabel');
+  lbl.textContent = vals.length ? vals.join(', ') : 'Sélectionner…';
+  lbl.style.color = vals.length ? 'var(--texte)' : 'var(--gris3)';
+  document.querySelectorAll('#uRoleMenu .role-menu-item').forEach(function(item){
+    item.classList.toggle('checked', item.querySelector('input').checked);
+  });
+}
+
+function setRoleChecks(roleStr) {
+  var roles = (roleStr || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+  document.querySelectorAll('#uRoleMenu input[type=checkbox]').forEach(function(cb){
+    cb.checked = roles.indexOf(cb.value) !== -1;
+  });
+  onRoleChange();
+}
+
+// Fermer dropdown rôle si clic dehors
+document.addEventListener('click', function(e){
+  if (!e.target.closest('#uRoleDrop')) {
+    var m = document.getElementById('uRoleMenu');
+    var t = document.querySelector('#uRoleDrop .role-trigger');
+    if (m) m.classList.remove('open');
+    if (t) t.classList.remove('open');
+  }
+});
+
+function openUserModal(slot) {
+  var overlay   = document.getElementById('userModalOverlay');
+  var title     = document.getElementById('modalTitle');
+  var action    = document.getElementById('modalUserAction');
+  var slotIn    = document.getElementById('modalUserSlot');
+  var submitBtn = document.getElementById('modalSubmitBtn');
+
+  /* Helper : lit une valeur depuis l'objet config exposé en JS */
+  function _cfg(k) {
+    return (window.__PARAM_CFG__ && window.__PARAM_CFG__[k]) || '';
+  }
+
+  if (slot && slot !== 'admin') {
+    /* ── Mode édition utilisateur ── */
+    title.textContent     = '✏️ Modifier l\'utilisateur';
+    action.value          = 'edit';
+    slotIn.value          = slot;
+    submitBtn.textContent = '💾 Enregistrer';
+    document.getElementById('u_nom').value      = _cfg(slot + '_nom');
+    document.getElementById('u_login').value    = _cfg(slot + '_login');
+    document.getElementById('u_email').value    = _cfg(slot + '_email');
+    document.getElementById('u_password').value = '';
+    document.getElementById('u_password').placeholder = '(laisser vide pour ne pas changer)';
+    setRoleChecks(_cfg(slot + '_role') || 'commercial');
+    document.getElementById('u_statut').value   = _cfg(slot + '_statut') || 'actif';
+  } else if (slot === 'admin') {
+    /* ── Mode édition admin ── */
+    title.textContent     = '✏️ Modifier l\'administrateur';
+    action.value          = 'edit_admin';
+    slotIn.value          = 'admin';
+    submitBtn.textContent = '💾 Enregistrer';
+    document.getElementById('u_nom').value      = _cfg('admin_nom') || 'Administrateur';
+    document.getElementById('u_login').value    = _cfg('admin_username') || 'admin';
+    document.getElementById('u_email').value    = _cfg('admin_email');
+    document.getElementById('u_password').value = '';
+    document.getElementById('u_password').placeholder = '(laisser vide pour ne pas changer)';
+    setRoleChecks('commercial');
+    document.getElementById('u_statut').value   = 'actif';
+  } else {
+    /* ── Mode création ── */
+    title.textContent     = '➕ Ajouter un utilisateur';
+    action.value          = 'add';
+    slotIn.value          = '';
+    submitBtn.textContent = '➕ Ajouter';
+    ['u_nom','u_login','u_email','u_password'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    document.getElementById('u_password').placeholder = 'Mot de passe';
+    setRoleChecks('');
+    var statutEl = document.getElementById('u_statut');
+    if (statutEl) statutEl.value = 'actif';
+  }
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeUserModal() {
+  document.getElementById('userModalOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function confirmDeleteUser(slot) {
+  if (confirm('Supprimer cet utilisateur ? Cette action est irréversible.')) {
+    var f = document.createElement('form');
+    f.method = 'POST';
+    f.action = window.location.pathname;
+    [['onglet','acces'],['sub_onglet','compte'],['user_action','delete'],['user_slot',slot]].forEach(function(p) {
+      var inp = document.createElement('input');
+      inp.type = 'hidden'; inp.name = p[0]; inp.value = p[1];
+      f.appendChild(inp);
+    });
+    document.body.appendChild(f);
+    f.submit();
+  }
+}
+
+/* Fermer modale au clic extérieur */
+document.addEventListener('click', function(e) {
+  var overlay = document.getElementById('userModalOverlay');
+  if (overlay && e.target === overlay) closeUserModal();
+});
+
+/* ── Vérification correspondance mots de passe ── */
+function checkPwdMatch() {
+  var p1  = document.getElementById('pwd_field');
+  var p2  = document.getElementById('pwd_confirm');
+  var msg = document.getElementById('pwd_match_msg');
+  if (!p1 || !p2 || !msg) return;
+  if (!p1.value && !p2.value) { msg.textContent = ''; return; }
+  if (p1.value === p2.value) {
+    msg.textContent = '✅ Les mots de passe correspondent';
+    msg.style.color = 'var(--vert, #16a34a)';
+  } else {
+    msg.textContent = '❌ Les mots de passe ne correspondent pas';
+    msg.style.color = 'var(--rouge, #dc2626)';
+  }
+}
+
+function togglePwd(fieldId) {
+  fieldId = fieldId || 'pwd_field';
+  var f = document.getElementById(fieldId);
+  var b = document.getElementById(fieldId + '_eye');
+  if (!f) return;
+  var shown = f.type === 'text';
+  f.type = shown ? 'password' : 'text';
+  if (b) {
+    b.classList.toggle('is-shown', !shown);
+    b.setAttribute('aria-label', !shown ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+  }
+}
+
+/* ── Tester la connexion serveur ── */
+function testerServeur() {
+  var btn  = event.target;
+  var host = (document.querySelector('input[name="server_host"]') || {}).value || '';
+  var port = (document.querySelector('input[name="server_port"]') || {}).value || '';
+
+  host = host.trim();
+  port = port.trim();
+
+  /* Récupère ou crée la zone de message */
+  var msgEl = document.getElementById('test-reseau-msg');
+  if (!msgEl) {
+    msgEl = document.createElement('div');
+    msgEl.id = 'test-reseau-msg';
+    msgEl.style.cssText = 'margin-top:12px;padding:12px 16px;border-radius:8px;'
+      + 'font-size:12px;font-weight:600;line-height:2;white-space:pre-line;display:none;';
+    btn.parentNode.appendChild(msgEl);
+  }
+
+  if (!host || !port) {
+    msgEl.textContent = '⚠️ Veuillez renseigner l\'hôte et le port avant de tester.';
+    msgEl.style.background = '#fef9c3';
+    msgEl.style.color      = '#92400e';
+    msgEl.style.border     = '1px solid #fde047';
+    msgEl.style.display    = 'block';
+    return;
+  }
+
+  btn.innerHTML  = '⏳ Test en cours…';
+  btn.disabled   = true;
+  msgEl.style.display = 'none';
+
+  fetch('/parametres/test-reseau', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ host: host, port: parseInt(port) })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    btn.innerHTML = data.ok ? '✅ Serveur joignable' : '❌ Échec du test';
+    btn.style.background = data.ok ? '#16a34a' : '#dc2626';
+    btn.style.color = 'white';
+    msgEl.textContent   = data.message || '';
+    msgEl.style.background = data.ok ? '#f0fdf4' : '#fef2f2';
+    msgEl.style.color      = data.ok ? '#15803d' : '#b91c1c';
+    msgEl.style.border     = data.ok ? '1px solid #86efac' : '1px solid #fca5a5';
+    msgEl.style.display    = 'block';
+  })
+  .catch(function() {
+    btn.innerHTML = '❌ Erreur réseau';
+    btn.style.background = '#dc2626';
+    btn.style.color = 'white';
+    msgEl.textContent   = '❌ Impossible de joindre le serveur DISTRIGEST (fetch échoué).';
+    msgEl.style.background = '#fef2f2';
+    msgEl.style.color      = '#b91c1c';
+    msgEl.style.border     = '1px solid #fca5a5';
+    msgEl.style.display    = 'block';
+  })
+  .finally(function() {
+    setTimeout(function() {
+      btn.innerHTML    = '🔍 Tester la connexion';
+      btn.style.background = '';
+      btn.style.color      = '';
+      btn.disabled         = false;
+    }, 8000);
+  });
+}
+
+/* ══ Sauvegarde → rechargement sur le bon onglet ══ */
+document.addEventListener('DOMContentLoaded', function() {
+
+  /* Vérification mots de passe */
+  var pf = document.getElementById('pwd_field');
+  var pc = document.getElementById('pwd_confirm');
+  if (pf) pf.addEventListener('input', checkPwdMatch);
+  if (pc) pc.addEventListener('input', checkPwdMatch);
+
+  /* Restaurer l'onglet depuis sessionStorage */
+  var savedTab = sessionStorage.getItem('ph_save_tab');
+  if (savedTab) {
+    sessionStorage.removeItem('ph_save_tab');
+    var tabBtn = document.querySelector('.ptab-' + savedTab);
+    if (tabBtn) switchPTab(savedTab, tabBtn);
+  }
+
+  /* URL param ?tab= */
+  var urlParams = new URLSearchParams(window.location.search);
+  var tabParam = urlParams.get('tab');
+  if (tabParam) {
+    var tabBtn2 = document.querySelector('.ptab-' + tabParam);
+    if (tabBtn2) switchPTab(tabParam, tabBtn2);
+  }
+
+  /* Intercepter formulaires */
+  document.querySelectorAll('.ptab-panel form').forEach(function(form) {
+    form.addEventListener('submit', function(e) {
+      var panel   = form.closest('.ptab-panel');
+      var tabName = panel ? panel.id.replace('ppanel-', '') : 'infos';
+      sessionStorage.setItem('ph_save_tab', tabName);
+      var base = form.action.split('?')[0];
+      form.action = base + '?tab=' + tabName;
+      /* Feedback visuel sur le bouton global en priorité, sinon le premier submit visible */
+      var globalBtn = document.getElementById('btn-save-global');
+      var submitBtn = form.querySelector('button[type="submit"]:not([hidden])');
+      var feedbackBtn = globalBtn || submitBtn;
+      if (feedbackBtn) {
+        feedbackBtn.disabled = true;
+        feedbackBtn.innerHTML = '<span style="font-size:16px;">⏳</span> Enregistrement…';
+        feedbackBtn.style.opacity = '.75';
+      }
+      form.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+        if (!cb.checked) {
+          var h = document.createElement('input');
+          h.type = 'hidden'; h.name = cb.name; h.value = 'non';
+          form.appendChild(h);
+        }
+      });
+    });
+  });
+
+  /* Auto-sélectionner utilisateur si ?slot= dans URL */
+  var slotParam = urlParams.get('slot');
+  var subParam  = urlParams.get('sub');
+  if (slotParam) {
+    var userSel = document.getElementById('user_target_selector');
+    if (userSel) {
+      userSel.value = slotParam;
+      chargerAccesUtilisateur(userSel);
+    }
+  }
+  if (subParam === 'fonctions') {
+    var stab = document.getElementById('stab-fonctions');
+    if (stab) stab.click();
+  }
+});
+/* ══ LOGO UPLOAD — Prévisualisation & Drag-and-drop ══ */
+function logoPreview(input, previewId) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  var maxMo = input.name === 'logo_app' ? 1 : 2;
+  if (file.size > maxMo * 1024 * 1024) {
+    showToast('danger', '❌ Fichier trop lourd — max ' + maxMo + ' Mo');
+    input.value = '';
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var prev = document.getElementById(previewId);
+    if (prev) {
+      var isApp = (previewId === 'previewLogoApp');
+      prev.innerHTML = '<img src="' + e.target.result + '" alt="Logo"'
+        + ' style="max-height:64px;max-width:' + (isApp ? '64px' : '160px') + ';'
+        + 'object-fit:contain;border-radius:' + (isApp ? '10px' : '6px') + ';'
+        + 'box-shadow:0 2px 8px rgba(0,0,0,.12);transition:opacity .3s;" />';
+      prev.querySelector('img').style.opacity = '0';
+      setTimeout(function() {
+        var img = prev.querySelector('img');
+        if (img) img.style.opacity = '1';
+      }, 30);
+    }
+    showToast('success', '✅ Logo prêt — sauvegardez pour l\'appliquer');
+  };
+  reader.readAsDataURL(file);
+}
+
+function logoSupprimer(fieldName, previewId) {
+  if (!confirm('Supprimer ce logo ?')) return;
+  /* Créer un champ caché pour signaler la suppression */
+  var existing = document.querySelector('input[name="' + fieldName + '_supprimer"]');
+  if (!existing) {
+    var h = document.createElement('input');
+    h.type = 'hidden'; h.name = fieldName + '_supprimer'; h.value = '1';
+    var form = document.querySelector('#ppanel-infos form');
+    if (form) form.appendChild(h);
+  }
+  /* Réinitialiser la prévisualisation */
+  var isApp = (previewId === 'previewLogoApp');
+  var prev = document.getElementById(previewId);
+  if (prev) {
+    prev.innerHTML = isApp
+      ? '<div style="width:64px;height:64px;border-radius:10px;background:linear-gradient(135deg,var(--bleu),var(--bleu2));display:flex;align-items:center;justify-content:center;font-size:26px;">🍺</div>'
+      : '<div style="width:64px;height:64px;border-radius:10px;background:linear-gradient(135deg,#dbeafe,#bfdbfe);display:flex;align-items:center;justify-content:center;font-size:26px;">🏢</div>';
+  }
+  /* Vider l'input file */
+  var inp = document.getElementById(fieldName + '_input');
+  if (inp) inp.value = '';
+  showToast('warning', '🗑 Logo supprimé — sauvegardez pour confirmer');
+}
+
+/* Drag and drop */
+function logoDragOver(e, zoneId) {
+  e.preventDefault();
+  var z = document.getElementById(zoneId);
+  if (z) { z.style.borderColor = 'var(--bleu2)'; z.style.background = '#eff6ff'; }
+}
+function logoDragLeave(zoneId) {
+  var z = document.getElementById(zoneId);
+  if (z) { z.style.borderColor = ''; z.style.background = ''; }
+}
+function logoDrop(e, previewId, fieldName) {
+  e.preventDefault();
+  logoDragLeave(e.currentTarget.id);
+  var file = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!file || !file.type.startsWith('image/')) {
+    showToast('danger', '❌ Fichier invalide — image uniquement');
+    return;
+  }
+  var inp = document.getElementById(fieldName + '_input');
+  if (inp) {
+    /* Créer un DataTransfer pour assigner le fichier à l'input */
+    try {
+      var dt = new DataTransfer();
+      dt.items.add(file);
+      inp.files = dt.files;
+      logoPreview(inp, previewId);
+    } catch(ex) {
+      showToast('warning', '⚠️ Glisser-déposer non supporté sur ce navigateur — utilisez le bouton');
+    }
+  }
+}
+/* ── LOGO REÇU — Prévisualisation & Drag-and-drop ── */
+function logoPreviewRecu(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  if (file.size > 500 * 1024 * 1024) {
+    showToast('danger', '❌ Fichier trop lourd — max 500 Mo');
+    input.value = '';
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    /* Stocker la data URL dans le champ caché */
+    var hidden = document.getElementById('logo_recu_data');
+    if (hidden) hidden.value = e.target.result;
+    /* Mettre à jour la prévisualisation */
+    var prev = document.getElementById('previewLogoRecu');
+    if (prev) {
+      prev.innerHTML = '<img src="' + e.target.result + '" alt="Logo reçu"'
+        + ' style="max-height:76px;max-width:116px;object-fit:contain;border-radius:8px;'
+        + 'box-shadow:0 2px 8px rgba(0,0,0,.12);transition:opacity .3s;" />';
+      var img = prev.querySelector('img');
+      if (img) { img.style.opacity='0'; setTimeout(function(){ img.style.opacity='1'; }, 30); }
+    }
+    showToast('success', '✅ Logo prêt — sauvegardez pour l\'appliquer');
+  };
+  reader.readAsDataURL(file);
+}
+
+function logoSupprimerRecu() {
+  if (!confirm('Supprimer le logo des reçus ?')) return;
+  /* Marquer la suppression */
+  var hidden = document.getElementById('logo_recu_data');
+  if (hidden) hidden.value = '__supprimer__';
+  /* Reset prévisualisation */
+  var prev = document.getElementById('previewLogoRecu');
+  if (prev) prev.innerHTML = '<span style="font-size:28px;opacity:.4;">🏢</span>';
+  var inp = document.getElementById('logo_recu_input');
+  if (inp) inp.value = '';
+  showToast('warning', '🗑 Logo supprimé — sauvegardez pour confirmer');
+}
+
+/* Override logoDrop pour logo_recu (réutilise la même zone) */
+(function() {
+  var _origDrop = logoDrop;
+  logoDrop = function(e, previewId, fieldName) {
+    if (fieldName === 'logo_recu') {
+      e.preventDefault();
+      logoDragLeave(e.currentTarget.id);
+      var file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!file || !file.type.startsWith('image/')) {
+        showToast('danger', '❌ Fichier invalide — image uniquement');
+        return;
+      }
+      var inp = document.getElementById('logo_recu_input');
+      if (inp) {
+        try {
+          var dt = new DataTransfer();
+          dt.items.add(file);
+          inp.files = dt.files;
+          logoPreviewRecu(inp);
+        } catch(ex) {
+          showToast('warning', '⚠️ Glisser-déposer non supporté — utilisez le bouton');
+        }
+      }
+    } else {
+      _origDrop(e, previewId, fieldName);
+    }
+  };
+})();
+// ── Toggle module optionnel : AJAX immédiat ──
+function detecterImprimantes() {
+  var liste = document.getElementById('imprimantes-liste');
+  liste.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:#64748b;">⏳ Détection en cours…</div>';
+  liste.style.display = 'block';
+
+  fetch('/parametres/imprimantes')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.imprimantes || !data.imprimantes.length) {
+        liste.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:#b45309;">⚠️ Aucune imprimante détectée.</div>';
+        return;
+      }
+      liste.innerHTML = '';
+      data.imprimantes.forEach(function(imp) {
+        var isDefault = imp.defaut ? ' 🟢' : '';
+        var row = document.createElement('div');
+        row.setAttribute('data-nom', imp.nom);
+        row.style.cssText = 'padding:9px 14px;font-size:12.5px;cursor:pointer;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;transition:background .12s;';
+        row.onmouseover = function(){ this.style.background='#f0f9ff'; };
+        row.onmouseout  = function(){ this.style.background=''; };
+        row.onclick     = function(){ choisirImprimante(this); };
+        row.innerHTML   = '<span style="font-weight:600;">' + imp.nom + isDefault + '</span>'
+                        + '<span style="font-size:10px;color:#94a3b8;">' + (imp.etat || '') + '</span>';
+        liste.appendChild(row);
+      });
+    })
+    .catch(function() {
+      liste.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:#dc2626;">❌ Impossible de contacter le serveur.</div>';
+    });
+}
+function choisirImprimante(el) {
+  var nom = el.getAttribute('data-nom');
+  document.getElementById('imprimante_nom').value = nom;
+  document.getElementById('imprimantes-liste').style.display = 'none';
+  showToast('success', '🖨️ Imprimante sélectionnée : ' + nom);
+}
+
+function testerImprimante() {
+  var btn = document.getElementById('btn-tester-imprimante');
+  var res = document.getElementById('test-imprimante-result');
+  var nom = document.getElementById('imprimante_nom').value.trim();
+  var fmt = (document.getElementById('format_doc') || {}).value || 'a4';
+
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Test…';
+  res.style.display = 'none';
+
+  fetch('/parametres/tester-imprimante', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({imprimante_nom: nom, format_doc: fmt})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    btn.disabled = false;
+    btn.innerHTML = '🖨️ Tester';
+    res.style.display = 'block';
+    if (data.ok) {
+      res.style.background = '#d1fae5';
+      res.style.color = '#065f46';
+      res.style.border = '1px solid #6ee7b7';
+      res.innerHTML = '✅ ' + (data.message || 'Page de test envoyée.');
+    } else {
+      res.style.background = '#fee2e2';
+      res.style.color = '#991b1b';
+      res.style.border = '1px solid #fca5a5';
+      res.innerHTML = '❌ ' + (data.message || 'Échec de l\'impression.');
+    }
+  })
+  .catch(function(err){
+    btn.disabled = false;
+    btn.innerHTML = '🖨️ Tester';
+    res.style.display = 'block';
+    res.style.background = '#fee2e2';
+    res.style.color = '#991b1b';
+    res.style.border = '1px solid #fca5a5';
+    res.innerHTML = '❌ Erreur réseau : ' + err;
+  });
+}
+function testerTiroir() {
+  var btn = document.getElementById('btn-tester-tiroir');
+  var res = document.getElementById('test-tiroir-result');
+  if (!btn || !res) return;
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Ouverture…';
+  res.style.display = 'none';
+
+  fetch('/parametres/tester-tiroir', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'}
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    btn.disabled = false;
+    btn.innerHTML = '🗄️ Tester l\'ouverture du tiroir';
+    res.style.display = 'block';
+    if (data.ok) {
+      res.style.background = '#d1fae5';
+      res.style.color = '#065f46';
+      res.style.border = '1px solid #6ee7b7';
+      res.innerHTML = '✅ ' + (data.message || 'Impulsion envoyée.');
+    } else {
+      res.style.background = '#fee2e2';
+      res.style.color = '#991b1b';
+      res.style.border = '1px solid #fca5a5';
+      res.innerHTML = '❌ ' + (data.message || 'Ouverture impossible.');
+    }
+  })
+  .catch(function(err){
+    btn.disabled = false;
+    btn.innerHTML = '🗄️ Tester l\'ouverture du tiroir';
+    res.style.display = 'block';
+    res.style.background = '#fee2e2';
+    res.style.color = '#991b1b';
+    res.style.border = '1px solid #fca5a5';
+    res.innerHTML = '❌ Erreur réseau : ' + err;
+  });
+}
+function toggleModule(cb, cle, sidebarId) {
+  var val = cb.checked ? 'oui' : 'non';
+
+  /* IDs réels des liens épinglés */
+  var realId = sidebarId;
+  if (cle === 'module_emballages') realId = 'sidebar-link-emballages';
+  if (cle === 'module_caisse')     realId = 'sidebar-link-caisse';
+
+  var el = document.getElementById(realId);
+  if (el) { el.style.display = cb.checked ? '' : 'none'; }
+
+  /* Afficher/masquer le bloc parent "Accès rapide" selon l'état des deux modules */
+  var pinnedCE = document.getElementById('sidebar-pinned-ce');
+  if (pinnedCE) {
+    var caisseLnk = document.getElementById('sidebar-link-caisse');
+    var embLnk    = document.getElementById('sidebar-link-emballages');
+    var caissVis  = caisseLnk  && caisseLnk.style.display  !== 'none';
+    var embVis    = embLnk     && embLnk.style.display      !== 'none';
+    pinnedCE.style.display = (caissVis || embVis) ? '' : 'none';
+  }
+
+  fetch('/parametres/module/toggle', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
+    body: JSON.stringify({cle: cle, valeur: val})
+  }).catch(function() {});
+}
+
+/* ═══ Notifications / relances automatiques ═══ */
+function notifTest(canal) {
+  var map = {
+    gmail:    { res: 'notif-test-gmail', tel: null },
+    whatsapp: { res: 'notif-test-wa',    tel: 'wa-tel-test'  },
+    sms:      { res: 'notif-test-sms',   tel: 'sms-tel-test' }
+  };
+  var conf  = map[canal] || map.gmail;
+  var cible = document.getElementById(conf.res);
+  cible.textContent = '⏳ Envoi en cours…';
+  cible.style.color = '#64748b';
+
+  var data = new FormData();
+  data.append('canal', canal);
+  if (conf.tel) {
+    var tel = (document.getElementById(conf.tel) || {}).value || '';
+    if (!tel.trim()) {
+      cible.textContent = '⚠️ Saisissez un numéro de test.';
+      cible.style.color = '#b45309';
+      return;
+    }
+    data.append('tel_test', tel.trim());
+  }
+
+  fetch('/parametres/notifications/test', { method: 'POST', body: data })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      cible.textContent = (res.ok ? '✅ ' : '❌ ') + (res.msg || '');
+      cible.style.color = res.ok ? '#15803d' : '#dc2626';
+    })
+    .catch(function() {
+      cible.textContent = '❌ Erreur réseau.';
+      cible.style.color = '#dc2626';
+    });
+}
+
+function notifChargerHistorique() {
+  var box = document.getElementById('notif-historique');
+  box.innerHTML = '<div style="color:#64748b;padding:14px;text-align:center;">⏳ Chargement…</div>';
+  fetch('/parametres/notifications/historique')
+    .then(function(r) { return r.json(); })
+    .then(function(rows) {
+      if (!rows.length) {
+        box.innerHTML = '<div style="color:#94a3b8;padding:14px;text-align:center;">Aucun envoi enregistré pour le moment.</div>';
+        return;
+      }
+      var canaux = { gmail: '📧 Email', whatsapp: '📱 WhatsApp', sms: '✉️ SMS' };
+      var html = '<table style="width:100%;border-collapse:collapse;font-size:11.5px;">'
+        + '<thead><tr style="text-align:left;color:#64748b;border-bottom:1.5px solid #e2e8f0;">'
+        + '<th style="padding:7px 8px;">Date</th><th style="padding:7px 8px;">Client</th>'
+        + '<th style="padding:7px 8px;">Canal</th><th style="padding:7px 8px;">Montant</th>'
+        + '<th style="padding:7px 8px;">Statut</th></tr></thead><tbody>';
+      rows.forEach(function(h) {
+        var ok = h.statut === 'ok';
+        var badge = ok
+          ? '<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:10px;font-weight:700;">✅ Envoyé</span>'
+          : '<span style="background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:10px;font-weight:700;" title="' + (h.erreur || '') + '">❌ Erreur</span>';
+        var mt = h.montant_du ? Math.round(h.montant_du).toLocaleString('fr-FR') + ' FCFA' : '—';
+        html += '<tr style="border-bottom:1px solid #f1f5f9;">'
+          + '<td style="padding:6px 8px;color:#64748b;white-space:nowrap;">' + (h.date_envoi || '—').replace('T', ' ').slice(0, 16) + '</td>'
+          + '<td style="padding:6px 8px;font-weight:600;">' + (h.client_nom || '—') + '</td>'
+          + '<td style="padding:6px 8px;">' + (canaux[h.canal] || h.canal) + '</td>'
+          + '<td style="padding:6px 8px;font-weight:700;color:#dc2626;">' + mt + '</td>'
+          + '<td style="padding:6px 8px;">' + badge + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      box.innerHTML = html;
+    })
+    .catch(function() {
+      box.innerHTML = '<div style="color:#dc2626;padding:14px;text-align:center;">❌ Impossible de charger l\'historique.</div>';
+    });
+}
+</script>
+
+
+{# ── Patch thème sombre — parametres ── #}
+<style>
+/* ── Onglets pill-bar ── */
+[data-theme="dark"] .ptab-bar       { background:rgba(30,40,60,.8) !important; border-color:rgba(255,255,255,.08) !important; }
+[data-theme="dark"] .ptab           { color:#8b949e !important; }
+[data-theme="dark"] .ptab:hover     { background:rgba(255,255,255,.06) !important; color:var(--texte) !important; }
+[data-theme="dark"] .ptab.active    { background:var(--bg-card) !important; color:var(--texte) !important; }
+
+/* ── Cards paramètres ── */
+[data-theme="dark"] .pcart          { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .pcart-head     { background:var(--bg-thead) !important; border-bottom-color:var(--border) !important; color:var(--texte) !important; }
+[data-theme="dark"] .pcart-body     { background:var(--bg-card) !important; }
+
+/* ── Sous-onglets accès ── */
+[data-theme="dark"] .acces-subtab-bar { background:rgba(30,20,60,.8) !important; border-color:rgba(255,255,255,.08) !important; }
+[data-theme="dark"] .acces-stab       { color:#8b949e !important; }
+[data-theme="dark"] .acces-stab.active { background:var(--bg-card) !important; color:var(--texte) !important; }
+
+/* ── Boutons action utilisateur ── */
+[data-theme="dark"] .action-btn     { background:var(--bg-input) !important; }
+[data-theme="dark"] .action-btn.edit { color:#60a5fa !important; border-color:#1d3461 !important; }
+[data-theme="dark"] .action-btn.del  { color:#fca5a5 !important; border-color:#7f1d1d !important; }
+
+/* ── Modale utilisateur interne ── */
+[data-theme="dark"] .user-modal     { background:var(--modal-bg) !important; }
+[data-theme="dark"] .user-table th  { background:var(--bg-thead) !important; color:var(--gris3) !important; }
+[data-theme="dark"] .user-table td  { border-bottom-color:var(--border) !important; }
+
+/* ── Permissions tristate ── */
+[data-theme="dark"] .perm-tristate label { background:var(--bg-input) !important; border-color:var(--border) !important; color:var(--gris3) !important; }
+[data-theme="dark"] .pts-opt        { background:var(--bg-input) !important; border-right-color:var(--border) !important; color:var(--gris3) !important; }
+
+/* ── Rôle dropdown ── */
+[data-theme="dark"] .role-trigger   { background:var(--bg-input) !important; border-color:var(--border) !important; color:var(--texte) !important; }
+[data-theme="dark"] .role-menu      { background:var(--bg-card) !important; }
+[data-theme="dark"] .role-menu-item { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .role-menu-item:hover { background:var(--row-hover) !important; }
+[data-theme="dark"] .role-chip      { background:var(--bg-input) !important; border-color:var(--border) !important; color:var(--gris3) !important; }
+[data-theme="dark"] .role-chip.selected { background:#1d3461 !important; border-color:var(--bleu2) !important; color:#93c5fd !important; }
+
+/* ── Infos système ── */
+[data-theme="dark"] .sysrow         { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .sysrow .sk     { color:var(--gris3) !important; }
+
+/* ── Toggle rows ── */
+[data-theme="dark"] .toggle-row     { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .toggle-info .tlabel { color:var(--texte) !important; }
+[data-theme="dark"] .toggle-info .tdesc  { color:var(--gris3) !important; }
+
+/* ── Sections réseau ── */
+[data-theme="dark"] .net-node .node-icon { background:var(--bg-input) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .net-badge { }
+
+/* ── Inputs / selects ── */
+[data-theme="dark"] input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=range]),
+[data-theme="dark"] select,
+[data-theme="dark"] textarea        { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+
+/* ── Modales ── */
+[data-theme="dark"] .modal          { background:var(--modal-bg) !important; }
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer   { border-color:var(--border) !important; }
+[data-theme="dark"] .btn-sec        { background:#1c2128 !important; color:#8b949e !important; border-color:var(--border) !important; }
+
+/* ── Zones logo drag & drop ── */
+[data-theme="dark"] #logo_recu_zone,
+[data-theme="dark"] #previewLogoRecu,
+[data-theme="dark"] [id*="logo"][id*="zone"],
+[data-theme="dark"] [id*="preview"] { background:var(--bg-input) !important; border-color:var(--border) !important; }
+
+/* ── Badges inline ── */
+[data-theme="dark"] .badge-info    { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] .badge-success { background:#052e16 !important; color:#4ade80 !important; }
+[data-theme="dark"] .badge-warning { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] .badge-danger  { background:#3d0f0f !important; color:#fca5a5 !important; }
+[data-theme="dark"] .badge-sec     { background:#1c2128 !important; color:#8b949e !important; }
+[data-theme="dark"] [style*="background:#fef3c7"],
+[data-theme="dark"] [style*="background:#fee2e2"],
+[data-theme="dark"] [style*="background:#fef9c3"] { opacity:.9; }
+
+@media (prefers-color-scheme:dark) {
+  [data-theme="system"] .ptab-bar   { background:rgba(30,40,60,.8) !important; border-color:rgba(255,255,255,.08) !important; }
+  [data-theme="system"] .ptab.active { background:var(--bg-card) !important; color:var(--texte) !important; }
+  [data-theme="system"] .pcart      { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .pcart-head { background:var(--bg-thead) !important; border-bottom-color:var(--border) !important; }
+  [data-theme="system"] .acces-subtab-bar { background:rgba(30,20,60,.8) !important; }
+  [data-theme="system"] .acces-stab.active { background:var(--bg-card) !important; color:var(--texte) !important; }
+  [data-theme="system"] .action-btn { background:var(--bg-input) !important; }
+  [data-theme="system"] .user-modal { background:var(--modal-bg) !important; }
+  [data-theme="system"] .perm-tristate label { background:var(--bg-input) !important; border-color:var(--border) !important; color:var(--gris3) !important; }
+  [data-theme="system"] .pts-opt    { background:var(--bg-input) !important; border-right-color:var(--border) !important; color:var(--gris3) !important; }
+  [data-theme="system"] .role-trigger { background:var(--bg-input) !important; border-color:var(--border) !important; color:var(--texte) !important; }
+  [data-theme="system"] .role-menu  { background:var(--bg-card) !important; }
+  [data-theme="system"] .role-chip  { background:var(--bg-input) !important; border-color:var(--border) !important; color:var(--gris3) !important; }
+  [data-theme="system"] .role-chip.selected { background:#1d3461 !important; color:#93c5fd !important; }
+  [data-theme="system"] .toggle-row { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=range]),
+  [data-theme="system"] select, [data-theme="system"] textarea {
+    background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+  }
+  [data-theme="system"] .modal      { background:var(--modal-bg) !important; }
+  [data-theme="system"] .btn-sec    { background:#1c2128 !important; color:#8b949e !important; }
+  [data-theme="system"] .badge-info { background:#1d3461 !important; color:#93c5fd !important; }
+}
+</style>
+{% endblock %}

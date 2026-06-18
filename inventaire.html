@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+{% block title %}Inventaire — DISTRIGEST{% endblock %}
+{% block topbar_title %}📋 Inventaire physique{% endblock %}
+{% block content %}
+
+<style>
+.hist-action-btn {
+  display:inline-flex;align-items:center;gap:4px;
+  padding:5px 10px;border-radius:7px;
+  font-size:11px;font-weight:700;font-family:inherit;
+  border:1.5px solid transparent;cursor:pointer;
+  transition:all .15s;white-space:nowrap;line-height:1;
+  text-decoration:none;
+}
+.hist-action-btn:hover { background:#2563eb !important;color:white !important;border-color:#2563eb !important;box-shadow:0 2px 8px rgba(37,99,235,.25); }
+
+/* ══ BOUTON RETOUR AU STOCK — bleu acier ═══════════════════════ */
+.btn-action-retour-stock {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255,255,255,.12);
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  background: linear-gradient(135deg, #1e40af, #3b82f6);
+  color: white;
+  box-shadow: 0 3px 12px rgba(59,130,246,.35), inset 0 1px 0 rgba(255,255,255,.15);
+  transition: background .18s, box-shadow .18s, transform .18s;
+  letter-spacing: .1px;
+}
+.btn-action-retour-stock:hover {
+  background: linear-gradient(135deg, #1d4ed8, #60a5fa);
+  box-shadow: 0 6px 20px rgba(59,130,246,.5);
+  transform: translateY(-2px);
+}
+.btn-action-retour-stock:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(59,130,246,.3);
+}
+.btn-action-retour-stock .btn-icon {
+  font-size: 15px;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.2));
+}
+</style>
+<style>
+/* ── Couleurs écarts d'inventaire ── */
+.diff-ok  { color: var(--vert);   font-weight: 800; font-size: 13px; }
+.diff-pos { color: var(--or);     font-weight: 800; font-size: 13px; }
+.diff-neg { color: var(--rouge);  font-weight: 800; font-size: 13px; }
+
+/* Lignes mises en évidence */
+.inv-row-ok  td { background: #f0fdf4; }
+.inv-row-pos td { background: #fffbeb; }
+.inv-row-neg td { background: #fef2f2; }
+</style>
+
+<div class="page-header">
+  <div>
+    <h1>📋 Inventaire physique</h1>
+    <div class="sub">Comptage des stocks et correction automatique des écarts</div>
+  </div>
+  <a href="{{ url_for('stock_list') }}" class="btn-action-retour-stock">
+    <span class="btn-icon">←</span> Retour au stock
+  </a>
+</div>
+
+<!-- Filtres + actions -->
+<div class="table-card" style="margin-bottom:14px;">
+  <form method="GET" action="{{ url_for('inventaire_list') }}">
+    <div style="padding:10px 16px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+      <div>
+        <label style="font-size:10px;font-weight:700;color:var(--gris3);text-transform:uppercase;display:block;margin-bottom:3px;">Dépôt</label>
+        <select name="depot" style="height:32px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+          <option value="">Tous les dépôts</option>
+          {% for d in depots_all %}
+          <option value="{{ d.id }}" {% if depot_id|string == d.id|string %}selected{% endif %}>{{ d.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label style="font-size:10px;font-weight:700;color:var(--gris3);text-transform:uppercase;display:block;margin-bottom:3px;">Recherche</label>
+        <input type="text" name="q" value="{{ q }}" placeholder="Désignation, référence…"
+          style="height:32px;padding:0 10px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;width:220px;">
+      </div>
+      <button type="submit" class="btn btn-sm btn-primary">🔍 Filtrer</button>
+      <a href="{{ url_for('inventaire_list') }}" class="btn btn-sec btn-sm">✕</a>
+
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <span style="font-size:12px;color:var(--gris3);font-weight:600;">{{ stocks|length }} ligne(s)</span>
+        <button type="button" class="btn btn-sec btn-sm" onclick="invReset()">🔄 Réinitialiser</button>
+        <button type="button" class="btn btn-primary" onclick="openModal('modalConfirmInv')" id="btnValiderInv" disabled>
+          ✅ Valider l'inventaire
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- KPIs écart -->
+<div class="kpi-grid" style="margin-bottom:14px;">
+  <div class="kpi-card vert">
+    <div class="label">Conformes</div>
+    <div class="value" style="color:var(--vert);" id="invNbOk">—</div>
+    <div class="sub">Qté exactes</div><div class="icon-bg">✅</div>
+  </div>
+  <div class="kpi-card or">
+    <div class="label">Excédents</div>
+    <div class="value" style="color:var(--or);" id="invNbPos">—</div>
+    <div class="sub">Stock > Système</div><div class="icon-bg">📈</div>
+  </div>
+  <div class="kpi-card rouge">
+    <div class="label">Manquants</div>
+    <div class="value" style="color:var(--rouge);" id="invNbNeg">—</div>
+    <div class="sub">Stock < Système</div><div class="icon-bg">📉</div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Écart valeur</div>
+    <div class="value" id="invValeurEcart" style="font-size:14px;">—</div>
+    <div class="sub">Impact financier</div><div class="icon-bg">💰</div>
+  </div>
+</div>
+
+<!-- Tableau de saisie -->
+<form method="POST" action="{{ url_for('stock_inventaire') }}" id="formInventaire">
+  <input type="hidden" name="lignes_json" id="invLignesJson">
+  <div class="table-card">
+    <div class="thead"><h3>📋 Saisie des quantités physiques</h3></div>
+    <table>
+      <thead>
+        <tr>
+          <th>Réf</th><th>Article</th><th>Dépôt</th>
+          <th>Stock système</th><th>Qté physique constatée</th>
+          <th>Différence</th><th>Valeur écart</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in stocks %}
+        <tr id="invRow{{ s.article_id }}_{{ s.depot_id }}">
+          <td><code style="font-size:10px;color:var(--bleu2);">{{ s.reference }}</code></td>
+          <td style="font-weight:600;font-size:12px;">{{ s.designation or '—' }}</td>
+          <td><span class="badge badge-sec" style="font-size:10px;">{{ s.depot_code }}</span></td>
+          <td style="font-weight:700;color:var(--bleu);text-align:center;">
+            {{ s.quantite_unite | int }}
+          </td>
+          <td style="padding:4px 8px;">
+            <input type="number" min="0" step="1" placeholder="—"
+              class="inv-input"
+              style="width:80px;height:28px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;text-align:center;font-family:inherit;"
+              data-sys="{{ s.quantite_unite | int }}"
+              data-art="{{ s.article_id }}" data-dep="{{ s.depot_id }}"
+              data-prix="{{ s.prix_achat_ht or 0 }}"
+              oninput="invCalcRow(this)">
+          </td>
+          <td id="diff_{{ s.article_id }}_{{ s.depot_id }}" style="text-align:center;">
+            <span style="color:var(--gris3);font-size:11px;">—</span>
+          </td>
+          <td id="val_{{ s.article_id }}_{{ s.depot_id }}" style="text-align:center;">
+            <span style="color:var(--gris3);font-size:11px;">—</span>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" style="text-align:center;padding:48px;color:var(--gris3);">
+          <div style="font-size:36px;margin-bottom:10px;">📋</div>
+          Aucun stock à inventorier
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</form>
+
+<!-- MODAL : Confirmer inventaire -->
+<div id="modalConfirmInv" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>✅ Valider l'inventaire</h3>
+      <button class="modal-close" onclick="closeModal('modalConfirmInv')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="padding:12px 16px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:8px;margin-bottom:14px;">
+        <div style="font-weight:700;color:var(--orange);margin-bottom:4px;">⚠️ Action irréversible</div>
+        <div style="font-size:12px;color:var(--gris3);">La validation corrigera les quantités en stock selon les écarts constatés. Des mouvements d'ajustement seront générés automatiquement.</div>
+      </div>
+      <div id="invSummary" style="font-size:12px;line-height:2;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" onclick="closeModal('modalConfirmInv')" class="btn btn-sec">Annuler</button>
+      <button type="button" onclick="submitInventaire()" class="btn btn-primary" style="background:var(--vert);">✅ Valider et corriger les stocks</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══ INVENTAIRE ══════════════════════════════════════════════ */
+var invData = {};
+
+function invCalcRow(inp) {
+  var art = inp.dataset.art, dep = inp.dataset.dep;
+  var sys = parseInt(inp.dataset.sys)||0;
+  var prix = parseFloat(inp.dataset.prix)||0;
+  var phys = inp.value === '' ? null : parseInt(inp.value);
+  var key = art+'_'+dep;
+  var dCell = document.getElementById('diff_'+art+'_'+dep);
+  var vCell = document.getElementById('val_'+art+'_'+dep);
+  var row = inp.closest('tr');
+
+  if(phys === null) {
+    delete invData[key];
+    dCell.innerHTML = '<span style="color:var(--gris3);font-size:11px;">—</span>';
+    vCell.innerHTML = '<span style="color:var(--gris3);font-size:11px;">—</span>';
+    row.className = '';
+  } else {
+    var diff = phys - sys;
+    var val = diff * prix;
+    invData[key] = {art:art, dep:dep, sys:sys, phys:phys, diff:diff, val:val};
+    var bc, rc;
+    if(diff===0){ bc='diff-ok'; rc='inv-row-ok'; }
+    else if(diff>0){ bc='diff-pos'; rc='inv-row-pos'; }
+    else{ bc='diff-neg'; rc='inv-row-neg'; }
+    row.className = rc;
+    dCell.innerHTML = '<span class="'+bc+'">'+(diff>0?'+':'')+diff+'</span>';
+    vCell.innerHTML = '<span style="font-weight:700;color:'+(diff===0?'var(--gris3)':diff>0?'var(--or)':'var(--rouge)')+';">'
+      +(val>=0?'+':'')+Math.round(val).toLocaleString('fr-FR')+' FCFA</span>';
+  }
+  invStats();
+  document.getElementById('btnValiderInv').disabled = !Object.keys(invData).length;
+}
+
+function invStats() {
+  var vals = Object.values(invData);
+  var ok=0,pos=0,neg=0,tot=0;
+  vals.forEach(function(d){ if(d.diff===0)ok++; else if(d.diff>0)pos++; else neg++; tot+=d.val; });
+  var n = vals.length;
+  document.getElementById('invNbOk').textContent  = n?ok:'—';
+  document.getElementById('invNbPos').textContent = n?pos:'—';
+  document.getElementById('invNbNeg').textContent = n?neg:'—';
+  document.getElementById('invValeurEcart').textContent = n
+    ? (tot>=0?'+':'')+Math.round(tot).toLocaleString('fr-FR')+' FCFA' : '—';
+  document.getElementById('invValeurEcart').style.color = n?(tot>=0?'var(--or)':'var(--rouge)'):'';
+}
+
+function invReset() {
+  document.querySelectorAll('.inv-input').forEach(function(i){
+    i.value=''; i.closest('tr').className='';
+    var a=i.dataset.art,d=i.dataset.dep;
+    document.getElementById('diff_'+a+'_'+d).innerHTML='<span style="color:var(--gris3);font-size:11px;">—</span>';
+    document.getElementById('val_'+a+'_'+d).innerHTML='<span style="color:var(--gris3);font-size:11px;">—</span>';
+  });
+  invData={};
+  invStats();
+  document.getElementById('btnValiderInv').disabled=true;
+}
+
+function submitInventaire() {
+  document.getElementById('invLignesJson').value = JSON.stringify(Object.values(invData));
+  closeModal('modalConfirmInv');
+  document.getElementById('formInventaire').submit();
+}
+
+/* Injecter résumé dans la modale de confirmation */
+var origOpen = window.openModal;
+window.openModal = function(id) {
+  if(id==='modalConfirmInv') {
+    var vals = Object.values(invData);
+    var ok=vals.filter(function(d){return d.diff===0;}).length;
+    var pos=vals.filter(function(d){return d.diff>0;}).length;
+    var neg=vals.filter(function(d){return d.diff<0;}).length;
+    var tot=vals.reduce(function(s,d){return s+d.val;},0);
+    var el=document.getElementById('invSummary');
+    if(el) el.innerHTML =
+      '<div>📊 Lignes saisies : <strong>'+vals.length+'</strong></div>'
+      +'<div>✅ Conformes : <strong style="color:var(--vert);">'+ok+'</strong></div>'
+      +'<div>📈 Excédents : <strong style="color:var(--or);">'+pos+'</strong></div>'
+      +'<div>📉 Manquants : <strong style="color:var(--rouge);">'+neg+'</strong></div>'
+      +'<div>💰 Impact : <strong style="color:'+(tot>=0?'var(--or)':'var(--rouge)')+';">'
+      +(tot>=0?'+':'')+Math.round(tot).toLocaleString('fr-FR')+' FCFA</strong></div>';
+  }
+  if(origOpen) origOpen(id);
+  else {
+    var el=document.getElementById(id);
+    if(el){ el.style.display='flex'; }
+  }
+};
+</script>
+
+{% endblock %}

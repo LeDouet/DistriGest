@@ -1,0 +1,3475 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <!-- ── Anti-flash thème : appliqué AVANT tout rendu CSS ── -->
+  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('dg-theme')||'light');</script>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='distrigest.ico') }}">
+  <link rel="shortcut icon" href="{{ url_for('static', filename='distrigest.ico') }}">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DISTRIGEST">
+<meta name="theme-color" content="#0f2347">
+<meta name="application-name" content="DISTRIGEST">
+<title>{% block title %}DISTRIGEST{% endblock %}</title>
+<!-- Police système locale — pas de requête réseau -->
+<style>
+/* ══════════════════════════════════════════════════════════════
+   DISTRIGEST — Base CSS
+   Compatible : Desktop · Tablette · Mobile Android / iOS
+══════════════════════════════════════════════════════════════ */
+:root {
+  --bleu:       #1a3a6c;
+  --bleu2:      #2563eb;
+  --bleu3:      #dbeafe;
+  --or:         #d4a017;
+  --or2:        #fef3c7;
+  --rouge:      #dc2626;
+  --vert:       #16a34a;
+  --orange:     #ea580c;
+  --violet:     #2563eb;
+  --sidebar-bg: #0f2347;
+  --sidebar-w:  240px;
+  --gris:       #f1f5f9;
+  --gris2:      #e2e8f0;
+  --gris3:      #64748b;
+  --texte:      #0f172a;
+  --blanc:      #ffffff;
+  --ombre:      0 1px 3px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.08);
+  --ombre2:     0 4px 16px rgba(26,58,108,.15);
+  /* ── Tokens thème (surchargés en mode sombre) ── */
+  --bg-page:    #f0f4f8;
+  --bg-card:    #ffffff;
+  --bg-input:   #ffffff;
+  --bg-thead:   #f1f5f9;
+  --border:     #e2e8f0;
+  --topbar-bg:  #ffffff;
+  --modal-bg:   #ffffff;
+  --modal-body-bg: #ffffff;
+  --row-hover:  #fafbfc;
+  --toast-bg:   #ffffff;
+  --dropdown-bg:#ffffff;
+}
+
+/* ══════════════════════════════════════════
+   THÈME SOMBRE — appliqué sur [data-theme="dark"]
+   ou automatiquement via prefers-color-scheme
+   quand [data-theme="system"]
+══════════════════════════════════════════ */
+[data-theme="dark"],
+[data-theme="system"] {
+  color-scheme: dark;
+}
+[data-theme="dark"] {
+  --bg-page:    #0d1117;
+  --bg-card:    #161b22;
+  --bg-input:   #1c2128;
+  --bg-thead:   #1c2128;
+  --border:     #30363d;
+  --topbar-bg:  #161b22;
+  --modal-bg:   #1c2128;
+  --modal-body-bg: #1c2128;
+  --row-hover:  #1c2128;
+  --toast-bg:   #1c2128;
+  --dropdown-bg:#1c2128;
+  --gris:       #1c2128;
+  --gris2:      #30363d;
+  --gris3:      #8b949e;
+  --texte:      #e6edf3;
+  --blanc:      #1c2128;
+  --bleu3:      #1d3461;
+  --or2:        #3d2e00;
+  --sidebar-bg: #010409;
+  --ombre:      0 1px 3px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.3);
+  --ombre2:     0 4px 16px rgba(0,0,0,.4);
+}
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] {
+    --bg-page:    #0d1117;
+    --bg-card:    #161b22;
+    --bg-input:   #1c2128;
+    --bg-thead:   #1c2128;
+    --border:     #30363d;
+    --topbar-bg:  #161b22;
+    --modal-bg:   #1c2128;
+    --modal-body-bg: #1c2128;
+    --row-hover:  #1c2128;
+    --toast-bg:   #1c2128;
+    --dropdown-bg:#1c2128;
+    --gris:       #1c2128;
+    --gris2:      #30363d;
+    --gris3:      #8b949e;
+    --texte:      #e6edf3;
+    --blanc:      #1c2128;
+    --bleu3:      #1d3461;
+    --or2:        #3d2e00;
+    --sidebar-bg: #010409;
+    --ombre:      0 1px 3px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.3);
+    --ombre2:     0 4px 16px rgba(0,0,0,.4);
+  }
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
+  background: var(--bg-page); color: var(--texte);
+  display: flex; min-height: 100vh;
+  transition: background .25s, color .25s;
+}
+
+/* ══════════════════════════════════════════
+   SIDEBAR
+══════════════════════════════════════════ */
+.sidebar {
+  width: var(--sidebar-w);
+  background: var(--sidebar-bg);
+  display: flex; flex-direction: column;
+  position: fixed; top: 0; left: 0; height: 100vh;
+  z-index: 100; overflow: hidden;
+}
+
+.sidebar-logo {
+  padding: 18px 16px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0;
+}
+.sidebar-logo .logo-icon {
+  width: 38px; height: 38px;
+  background: linear-gradient(135deg, #1a3a6c, #2563eb);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(37,99,235,.55);
+}
+.sidebar-logo .logo-text { color: white; min-width: 0; }
+.sidebar-logo .logo-text .name {
+  font-size: 12px; font-weight: 800; line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 158px;
+}
+.sidebar-logo .logo-text .sub {
+  font-size: 10px; color: rgba(255,255,255,.45); margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.sidebar-section { padding: 14px 10px 4px; }
+.sidebar-section-label {
+  font-size: 9px; text-transform: uppercase; letter-spacing: 1.2px;
+  color: rgba(255,255,255,.28); padding: 0 8px; margin-bottom: 5px;
+  font-weight: 700;
+}
+.sidebar a {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 7px;
+  color: rgba(255,255,255,.62); text-decoration: none;
+  font-size: 12.5px; transition: all .15s; margin-bottom: 1px;
+  font-weight: 500; position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+.sidebar a:hover { background: rgba(255,255,255,.09); color: white; }
+.sidebar a.active {
+  background: var(--bleu2); color: white;
+  box-shadow: 0 2px 8px rgba(37,99,235,.35);
+}
+.sidebar a .icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+
+/* Badge compteur dans sidebar */
+.sidebar a .s-count {
+  margin-left: auto; font-size: 10px; font-weight: 700;
+  background: rgba(255,255,255,.15); color: rgba(255,255,255,.85);
+  padding: 1px 6px; border-radius: 20px; line-height: 1.5;
+}
+.sidebar a.active .s-count { background: rgba(255,255,255,.25); }
+
+/* Module verrouillé */
+.sidebar a.mod-locked {
+  opacity: .35; cursor: not-allowed;
+  color: rgba(255,255,255,.35) !important;
+}
+.sidebar a.mod-locked:hover {
+  background: transparent !important;
+  color: rgba(255,255,255,.35) !important;
+}
+
+.sidebar-nav {
+  flex: 1 1 0; overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.1) transparent;
+}
+.sidebar-nav::-webkit-scrollbar { width: 4px; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 2px; }
+
+.sidebar-pinned-top {
+  padding: 10px 10px 4px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+.sidebar-pinned-bottom {
+  padding: 4px 10px 8px;
+  flex-shrink: 0;
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+.sidebar-pinned-top .sidebar-section-label,
+.sidebar-pinned-bottom .sidebar-section-label {
+  font-size: 9px; text-transform: uppercase; letter-spacing: 1.2px;
+  color: rgba(255,255,255,.28); font-weight: 700;
+}
+.sidebar-footer {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255,255,255,.07);
+  font-size: 10px; color: rgba(255,255,255,.25);
+  flex-shrink: 0; line-height: 1.6;
+}
+
+/* ══════════════════════════════════════════
+   TOPBAR
+══════════════════════════════════════════ */
+.main {
+  margin-left: var(--sidebar-w);
+  margin-top: 56px;
+  flex: 1; display: flex; flex-direction: column;
+  min-width: 0; width: calc(100% - var(--sidebar-w));
+}
+.topbar {
+  background: var(--topbar-bg); padding: 0 20px; height: 56px;
+  display: flex; flex-direction: row; align-items: center; gap: 10px;
+  border-bottom: 1px solid var(--gris2);
+  position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+  box-shadow: var(--ombre);
+  padding-left: calc(var(--sidebar-w) + 20px);
+}
+.topbar-title {
+  font-size: 15px; font-weight: 700; color: var(--bleu);
+  white-space: nowrap; flex-shrink: 0;
+}
+.topbar-center {
+  flex: 1 1 auto; min-width: 0; max-width: 380px;
+  display: flex; align-items: center; position: relative;
+}
+.topbar-right {
+  flex-shrink: 0; display: flex; align-items: center; gap: 8px;
+  margin-left: auto;
+}
+
+/* ── Barre de recherche globale ── */
+.global-search-form { width: 100%; display: block; }
+.global-search-wrap {
+  display: flex; align-items: stretch; height: 36px; width: 100%;
+  background: var(--bg-input);
+  border: 2px solid #7c9cc0;
+  border-radius: 18px; overflow: hidden;
+}
+.global-search-wrap:focus-within {
+  border-color: var(--bleu2); background: var(--bg-input);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.15);
+}
+.search-icon {
+  display: flex; align-items: center; padding: 0 8px 0 12px;
+  font-size: 13px; color: var(--gris3); flex-shrink: 0;
+}
+.global-search-input {
+  flex: 1 1 auto; min-width: 0; border: none; background: transparent;
+  padding: 0 6px; font-size: 13px;
+  font-family: system-ui,-apple-system,'Segoe UI',Arial,sans-serif; color: var(--texte); outline: none; height: 100%;
+}
+.global-search-input::placeholder { color: #7c9cc0; }
+.global-search-btn {
+  flex-shrink: 0; height: 100%; padding: 0 16px;
+  background: var(--bleu2); color: white; border: none;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  font-family: system-ui,-apple-system,'Segoe UI',Arial,sans-serif; white-space: nowrap;
+}
+.global-search-btn:hover { background: #1d4ed8; }
+
+/* ── Horloge ── */
+#clock { font-size: 11px; color: var(--gris3); white-space: nowrap; }
+
+/* ── Bouton recherche mobile ── */
+.mob-search-btn {
+  display: none; width: 38px; height: 38px; border-radius: 9px;
+  border: 1.5px solid var(--gris2); background: var(--gris);
+  font-size: 17px; cursor: pointer; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: background .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.mob-search-btn:hover { background: var(--gris2); }
+
+/* ── Barre de recherche mobile plein écran ── */
+.mob-search-bar {
+  display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  background: white; padding: 10px 14px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.15);
+  gap: 10px; align-items: center;
+  animation: slideDown .2s ease;
+}
+.mob-search-bar.open { display: flex; }
+@keyframes slideDown {
+  from { transform: translateY(-100%); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+.mob-search-bar input {
+  flex: 1; padding: 10px 14px;
+  border: 1.5px solid var(--bleu2); border-radius: 9px;
+  font-size: 16px; font-family: system-ui,-apple-system,'Segoe UI',Arial,sans-serif; outline: none;
+}
+.mob-search-bar .mob-search-close {
+  width: 36px; height: 36px; border-radius: 8px;
+  border: none; background: var(--gris2); cursor: pointer; font-size: 18px;
+}
+
+/* ══════════════════════════════════════════
+   MENU UTILISATEUR (topbar droite)
+══════════════════════════════════════════ */
+.user-menu-wrap { position: relative; }
+.user-avatar-btn {
+  display: flex; align-items: center; gap: 7px;
+  background: var(--gris); border: 1.5px solid var(--gris2);
+  border-radius: 20px; padding: 4px 10px 4px 4px;
+  cursor: pointer; font-family: system-ui,-apple-system,'Segoe UI',Arial,sans-serif;
+  transition: all .15s; border: none;
+}
+.user-avatar-btn:hover { background: var(--bleu3); border-color: var(--bleu2); }
+.user-avatar-circle {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--bleu2), var(--bleu));
+  color: white; font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.user-name-label {
+  font-size: 12px; font-weight: 600; color: var(--texte);
+  max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.user-dropdown {
+  display: none; position: absolute; right: 0; top: calc(100% + 8px);
+  background: var(--dropdown-bg); border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.15);
+  border: 1px solid var(--gris2); min-width: 200px; z-index: 200; overflow: hidden;
+}
+.user-dropdown.open { display: block; }
+.user-dropdown-header {
+  display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+  background: var(--gris);
+}
+.user-dropdown-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--bleu2), var(--bleu));
+  color: white; font-size: 14px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.user-dropdown-sep { height: 1px; background: var(--gris2); }
+.user-dropdown-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 10px 16px; font-size: 13px; color: var(--texte);
+  text-decoration: none; transition: background .12s;
+}
+.user-dropdown-item:hover { background: var(--gris); }
+.user-dropdown-logout { color: var(--rouge) !important; }
+.user-dropdown-logout:hover { background: #fee2e2 !important; }
+
+/* ══════════════════════════════════════════
+   CLOCHE DE NOTIFICATIONS (topbar)
+══════════════════════════════════════════ */
+.notif-wrap { position: relative; }
+.notif-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; border-radius: 9px;
+  border: 1.5px solid var(--gris2); background: var(--gris);
+  cursor: pointer; font-size: 18px; position: relative;
+  transition: all .15s; flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.notif-btn:hover { background: var(--bleu3); border-color: var(--bleu2); }
+.notif-badge {
+  position: absolute; top: -4px; right: -4px;
+  min-width: 17px; height: 17px; padding: 0 4px;
+  background: var(--rouge); color: white;
+  font-size: 9px; font-weight: 700; border-radius: 20px;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid white; line-height: 1;
+  animation: notifPop .3s cubic-bezier(.34,1.6,.64,1);
+}
+.notif-badge.hidden { display: none; }
+@keyframes notifPop {
+  from { transform: scale(0); } to { transform: scale(1); }
+}
+
+/* Panneau déroulant */
+.notif-panel {
+  display: none; position: absolute; right: 0; top: calc(100% + 10px);
+  width: 340px; background: var(--dropdown-bg); border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(15,23,42,.18);
+  border: 1px solid var(--gris2); z-index: 300; overflow: hidden;
+  animation: notifSlideIn .18s ease;
+}
+.notif-panel.open { display: block; }
+@keyframes notifSlideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.notif-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 11px;
+  border-bottom: 1px solid var(--gris2);
+}
+.notif-panel-header .notif-title {
+  font-size: 13px; font-weight: 700; color: var(--bleu);
+}
+.notif-mark-all {
+  font-size: 11px; color: var(--bleu2); cursor: pointer;
+  background: none; border: none; font-family: system-ui,-apple-system,'Segoe UI',Arial,sans-serif;
+  font-weight: 600; padding: 0;
+}
+.notif-mark-all:hover { text-decoration: underline; }
+.notif-list {
+  max-height: 360px; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: var(--gris2) transparent;
+}
+.notif-list::-webkit-scrollbar { width: 4px; }
+.notif-list::-webkit-scrollbar-thumb { background: var(--gris2); border-radius: 2px; }
+.notif-item {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 12px 16px; border-bottom: 1px solid var(--gris2);
+  transition: background .12s; cursor: pointer;
+  position: relative;
+}
+.notif-item:last-child { border-bottom: none; }
+.notif-item:hover { background: var(--gris); }
+.notif-item.unread { background: #eff6ff; }
+.notif-item.unread:hover { background: #dbeafe; }
+.notif-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--bleu2); flex-shrink: 0; margin-top: 5px;
+}
+.notif-item:not(.unread) .notif-dot { background: transparent; }
+.notif-item-icon {
+  font-size: 20px; flex-shrink: 0; width: 26px; text-align: center;
+}
+.notif-item-body { flex: 1; min-width: 0; }
+.notif-item-msg {
+  font-size: 12.5px; color: var(--texte); line-height: 1.45;
+  word-break: break-word;
+}
+.notif-item-msg strong { color: var(--bleu); }
+.notif-item-time {
+  font-size: 10.5px; color: var(--gris3); margin-top: 3px; font-weight: 500;
+}
+.notif-empty {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 32px 16px; color: var(--gris3);
+}
+.notif-empty .notif-empty-icon { font-size: 32px; margin-bottom: 8px; opacity: .5; }
+.notif-empty p { font-size: 12px; }
+/* Catégories couleurs */
+.notif-item.cat-warning  { border-left: 3px solid var(--or); }
+.notif-item.cat-danger   { border-left: 3px solid var(--rouge); }
+.notif-item.cat-success  { border-left: 3px solid var(--vert); }
+.notif-item.cat-info     { border-left: 3px solid var(--bleu2); }
+
+/* ══════════════════════════════════════════
+   HAMBURGER BUTTON
+══════════════════════════════════════════ */
+.hamburger-btn {
+  display: none; flex-shrink: 0;
+  width: 40px; height: 40px;
+  border: none; background: var(--gris);
+  border-radius: 9px; cursor: pointer;
+  flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  transition: background .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.hamburger-btn:hover { background: var(--gris2); }
+.hamburger-btn span {
+  display: block; width: 18px; height: 2px;
+  background: var(--texte); border-radius: 2px;
+  transition: transform .25s, opacity .2s;
+}
+.hamburger-btn.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.hamburger-btn.open span:nth-child(2) { opacity: 0; }
+.hamburger-btn.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* ── Overlay sidebar mobile ── */
+.sidebar-overlay {
+  display: none; position: fixed; inset: 0; z-index: 99;
+  background: rgba(0,0,0,.45);
+  -webkit-tap-highlight-color: transparent;
+}
+.sidebar-overlay.open { display: block; }
+body.sidebar-open { overflow: hidden; }
+
+/* Croix de fermeture du tiroir : visible dès que le tiroir est ouvert,
+   à toutes les tailles d'écran (indispensable en mode moderne). */
+.sidebar.mob-open #sidebarCloseBtn { display: flex !important; }
+
+/* ══════════════════════════════════════════
+   NAVIGATION BAS — Mobile
+══════════════════════════════════════════ */
+.bottom-nav {
+  display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 98;
+  background: var(--sidebar-bg);
+  border-top: 1px solid rgba(255,255,255,.10);
+  padding: env(safe-area-inset-bottom, 0) 0 0;
+  box-shadow: 0 -4px 20px rgba(0,0,0,.25);
+}
+.bottom-nav-inner { display: flex; align-items: stretch; height: 58px; padding: 0 4px; }
+.bnav-item {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px;
+  text-decoration: none; color: rgba(255,255,255,.5);
+  font-size: 10px; font-weight: 600; border-radius: 8px;
+  margin: 4px 2px; transition: all .15s;
+  min-width: 0; padding: 0 2px;
+  -webkit-tap-highlight-color: transparent;
+}
+.bnav-item .bnav-icon { font-size: 20px; line-height: 1; }
+.bnav-item.active { background: rgba(255,255,255,.1); color: white; }
+.bnav-item:hover  { background: rgba(255,255,255,.07); color: rgba(255,255,255,.9); }
+.bnav-item span   { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+/* ══════════════════════════════════════════
+   CONTENU PRINCIPAL
+══════════════════════════════════════════ */
+.content { padding: 24px 28px; }
+
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 22px;
+}
+.page-header h1 { font-size: 20px; font-weight: 700; color: var(--bleu); }
+.page-header .sub { font-size: 12px; color: var(--gris3); margin-top: 2px; }
+
+/* ══════════════════════════════════════════
+   KPI CARDS
+══════════════════════════════════════════ */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 22px; }
+.kpi-card {
+  background: var(--bg-card); border-radius: 10px; padding: 18px 20px;
+  box-shadow: 0 2px 8px rgba(26,58,108,.10), 0 1px 3px rgba(0,0,0,.08);
+  border-top: 3px solid var(--bleu2);
+  position: relative; overflow: hidden;
+  transition: transform .18s ease, box-shadow .18s ease;
+  cursor: default;
+}
+.kpi-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(26,58,108,.18), 0 4px 12px rgba(0,0,0,.10);
+}
+.kpi-card.or     { border-top-color: var(--or); }
+.kpi-card.vert   { border-top-color: var(--vert); }
+.kpi-card.rouge  { border-top-color: var(--rouge); }
+.kpi-card.orange { border-top-color: var(--orange); }
+.kpi-card.violet { border-top-color: var(--violet); }
+.kpi-card .label { font-size: 11px; color: var(--gris3); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+.kpi-card .value { font-size: 26px; font-weight: 700; color: var(--bleu); margin: 6px 0 2px; line-height: 1; }
+.kpi-card .sub   { font-size: 11px; color: var(--gris3); }
+.kpi-card .icon-bg {
+  position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+  font-size: 36px; opacity: 1;
+}
+
+/* ══════════════════════════════════════════
+   TABLES
+══════════════════════════════════════════ */
+.table-card { background: var(--bg-card); border-radius: 10px; box-shadow: var(--ombre); overflow: hidden; }
+.table-card .thead {
+  padding: 14px 20px; border-bottom: 1px solid var(--gris2);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.table-card .thead h3 { font-size: 13px; font-weight: 700; color: var(--bleu); }
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  background: var(--bg-thead); padding: 10px 14px; text-align: left;
+  font-size: 11px; font-weight: 700; color: var(--gris3);
+  text-transform: uppercase; letter-spacing: .5px;
+  border-bottom: 1px solid var(--gris2);
+}
+tbody td { padding: 11px 14px; font-size: 13px; border-bottom: 1px solid var(--gris2); }
+tbody tr:hover { background: var(--row-hover); }
+tbody tr:last-child td { border-bottom: none; }
+
+/* ══════════════════════════════════════════
+   BUTTONS
+══════════════════════════════════════════ */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
+  border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer;
+  border: none; text-decoration: none; transition: all .15s;
+  font-family: system-ui,-apple-system,'Segoe UI',Arial,sans-serif;
+}
+.btn-primary { background: var(--bleu2); color: white; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-success { background: var(--vert); color: white; }
+.btn-success:hover { background: #15803d; }
+.btn-warning { background: var(--or); color: white; }
+.btn-warning:hover { background: #b8860b; }
+.btn-danger  { background: var(--rouge); color: white; }
+.btn-danger:hover { background: #b91c1c; }
+.btn-sec     { background: var(--gris); color: var(--gris3); }
+.btn-sec:hover { background: var(--gris2); }
+.btn-outline { background: transparent; border: 1.5px solid var(--bleu2); color: var(--bleu2); }
+.btn-outline:hover { background: var(--bleu3); }
+.btn-violet { background: var(--violet); color: white; }
+.btn-violet:hover { background: #1d4ed8; }
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+
+/* ══════════════════════════════════════════
+   BADGES
+══════════════════════════════════════════ */
+.badge {
+  display: inline-flex; align-items: center; padding: 3px 10px;
+  border-radius: 100px; font-size: 11px; font-weight: 600;
+}
+.badge-success { background: #dcfce7; color: #15803d; }
+.badge-warning { background: #fef9c3; color: #a16207; }
+.badge-danger  { background: #fee2e2; color: #b91c1c; }
+.badge-info    { background: #dbeafe; color: #1d4ed8; }
+.badge-sec     { background: #f1f5f9; color: #475569; }
+
+/* ── Ticket status badge ── */
+.tkt-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 20px;
+  font-size: 11px; font-weight: 700;
+}
+
+/* ══════════════════════════════════════════
+   FORMS
+══════════════════════════════════════════ */
+.form-card { background: var(--bg-card); border-radius: 10px; box-shadow: var(--ombre); padding: 24px; max-width: 700px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group label {
+  font-size: 11px; font-weight: 700; color: var(--gris3);
+  text-transform: uppercase; letter-spacing: .4px;
+}
+.form-group input, .form-group select, .form-group textarea {
+  padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 7px;
+  font-size: 13px; font-family: system-ui,-apple-system,'Segoe UI',Arial,sans-serif;
+  transition: border-color .15s; background: var(--bg-input); color: var(--texte);
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  outline: none; border-color: var(--bleu2);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+}
+.form-group.full { grid-column: 1 / -1; }
+.form-actions { display: flex; gap: 10px; margin-top: 20px; }
+
+/* ══════════════════════════════════════════
+   MODAL / DIALOG — Responsive mobile-first
+══════════════════════════════════════════ */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 999;
+  background: rgba(15,35,71,.52);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  /* flex-start + padding centré = scroll possible sur Chrome Windows */
+  align-items: flex-start; justify-content: center;
+  padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  animation: overlayIn .2s ease;
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.modal-overlay.open { display: flex; }
+@keyframes overlayIn {
+  from { opacity: 0; } to { opacity: 1; }
+}
+.modal {
+  background: var(--modal-bg); border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(15,35,71,.30), 0 4px 16px rgba(15,35,71,.12);
+  width: 100%; max-width: 580px;
+  /* S'adapte au contenu mais jamais > 92% de la fenêtre */
+  max-height: min(92vh, 92dvh);
+  display: flex; flex-direction: column;
+  animation: modalIn .22s cubic-bezier(.34,1.4,.64,1);
+  position: relative;
+  /* margin: auto centre horizontalement + pousse vers le haut si contenu court */
+  margin: auto;
+  /* Empêche le modal lui-même de grandir au-delà de max-height */
+  overflow: hidden;
+}
+.modal.modal-lg { max-width: 780px; }
+.modal.modal-sm { max-width: 420px; }
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(.94) translateY(14px); }
+  to   { opacity: 1; transform: scale(1)  translateY(0); }
+}
+
+/* Header : hauteur fixe, jamais compressé */
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 22px 15px; border-bottom: 1px solid var(--gris2);
+  flex-shrink: 0;
+}
+.modal-header h3 { font-size: 16px; font-weight: 700; color: var(--bleu); margin: 0; }
+
+/* Bouton fermeture : zone tactile agrandie */
+.modal-close {
+  width: 36px; height: 36px; border-radius: 8px; border: none;
+  background: var(--gris); cursor: pointer; font-size: 18px; color: var(--gris3);
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.modal-close:hover { background: var(--gris2); color: var(--texte); }
+
+/* La form wrappant body+footer doit hériter du flex */
+.modal > form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Body : scrollable, prend l'espace disponible */
+.modal-body {
+  padding: 18px 22px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Footer : fixé en bas, jamais compressé */
+.modal-footer {
+  padding: 14px 22px 18px; border-top: 1px solid var(--gris2);
+  display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+  flex-shrink: 0; flex-wrap: wrap;
+  /* Safe area Android/iPhone */
+  padding-bottom: max(18px, env(safe-area-inset-bottom, 18px));
+}
+
+
+/* Textarea dans modal : resize limité pour éviter de casser le layout */
+.modal-body textarea {
+  resize: vertical;
+  max-height: 120px;
+}
+/* Drag handle visible sur mobile */
+.modal-drag-handle {
+  display: none;
+  width: 40px; height: 4px; border-radius: 2px;
+  background: var(--gris2); margin: 8px auto 0; flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════
+   ALERTS
+══════════════════════════════════════════ */
+.alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; align-items: center; gap: 8px; }
+.alert-success { background: #dcfce7; color: #15803d; border-left: 4px solid var(--vert); }
+.alert-danger  { background: #fee2e2; color: #b91c1c; border-left: 4px solid var(--rouge); }
+.alert-warning { background: #fef9c3; color: #a16207; border-left: 4px solid var(--or); }
+
+/* ══════════════════════════════════════════
+   TOAST NOTIFICATIONS
+══════════════════════════════════════════ */
+#toast-container {
+  position: fixed; bottom: 24px; right: 20px; z-index: 9999;
+  display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+}
+.toast {
+  pointer-events: all; min-width: 290px; max-width: 390px;
+  background: var(--toast-bg); border-radius: 11px;
+  box-shadow: 0 10px 32px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.10);
+  overflow: hidden; display: flex; flex-direction: column;
+  transform: translateX(calc(100% + 40px)); opacity: 0;
+  transition: transform .40s cubic-bezier(.34,1.56,.64,1), opacity .28s ease;
+}
+.toast.toast-in  { transform: translateX(0); opacity: 1; }
+.toast.toast-out {
+  transform: translateX(calc(100% + 40px)); opacity: 0;
+  transition: transform .30s ease-in, opacity .22s ease-in;
+}
+.toast-body { display: flex; align-items: flex-start; gap: 10px; padding: 13px 14px 10px; }
+.toast-icon  { font-size: 19px; flex-shrink: 0; line-height: 1.3; margin-top: 1px; }
+.toast-text  { flex: 1; min-width: 0; }
+.toast-title { font-size: 13px; font-weight: 700; color: var(--texte); line-height: 1.45; }
+.toast-sub   { font-size: 11px; color: var(--gris3); margin-top: 2px; }
+.toast-close {
+  background: none; border: none; cursor: pointer; font-size: 13px;
+  color: var(--gris3); padding: 0 2px; flex-shrink: 0;
+  line-height: 1; align-self: flex-start; transition: color .15s; margin-top: 1px;
+}
+.toast-close:hover { color: var(--texte); }
+.toast-progress {
+  height: 3px; width: 100%; border-radius: 0 0 11px 11px;
+  transform-origin: left;
+  animation: toastProgress var(--toast-dur, 4.5s) linear forwards;
+}
+@keyframes toastProgress { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.toast.toast-success { border-left: 4px solid #16a34a; }
+.toast.toast-success .toast-progress { background: #16a34a; }
+.toast.toast-danger  { border-left: 4px solid #dc2626; }
+.toast.toast-danger  .toast-progress { background: #dc2626; }
+.toast.toast-warning { border-left: 4px solid #d4a017; }
+.toast.toast-warning .toast-progress { background: #d4a017; }
+.toast.toast-info    { border-left: 4px solid #2563eb; }
+.toast.toast-info    .toast-progress { background: #2563eb; }
+
+/* ══════════════════════════════════════════
+   ERROR MODAL — Accès / Permissions
+══════════════════════════════════════════ */
+#errModal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 10500;
+  background: rgba(15,35,71,.55);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  align-items: center; justify-content: center;
+  animation: overlayIn .18s ease;
+}
+#errModal-overlay.open { display: flex; }
+#errModal-box {
+  background: var(--modal-bg); border-radius: 18px;
+  box-shadow: 0 32px 80px rgba(15,35,71,.28), 0 4px 20px rgba(15,35,71,.14);
+  width: calc(100% - 32px); max-width: 400px;
+  overflow: hidden;
+  animation: errModalIn .26s cubic-bezier(.34,1.4,.64,1);
+  position: relative;
+}
+@keyframes errModalIn {
+  from { opacity:0; transform: scale(.88) translateY(18px); }
+  to   { opacity:1; transform: scale(1)   translateY(0); }
+}
+#errModal-header {
+  padding: 24px 22px 20px;
+  display: flex; align-items: flex-start; gap: 14px;
+  position: relative;
+  background: linear-gradient(135deg,#dc2626 0%,#991b1b 100%);
+}
+#errModal-icon-wrap {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: rgba(255,255,255,.20); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+}
+#errModal-header-text { flex:1; min-width:0; padding-top:3px; }
+#errModal-title {
+  font-size: 15px; font-weight: 800; color: #fff;
+  letter-spacing: .01em; margin: 0 0 4px;
+}
+#errModal-subtitle {
+  font-size: 11px; color: rgba(255,255,255,.72);
+  font-weight: 500; text-transform: uppercase; letter-spacing: .06em;
+}
+#errModal-close-x {
+  position: absolute; top: 12px; right: 14px;
+  background: rgba(255,255,255,.18); border: none; border-radius: 8px;
+  width: 30px; height: 30px; cursor: pointer; color: #fff; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+#errModal-close-x:hover { background: rgba(255,255,255,.32); }
+#errModal-body { padding: 20px 22px 8px; background: var(--modal-body-bg); }
+#errModal-msg {
+  font-size: 13.5px; color: #1f2937; line-height: 1.65; font-weight: 500;
+  background: #fef2f2; border: 1px solid #fecaca;
+  border-radius: 10px; padding: 14px 16px;
+  word-break: break-word;
+}
+#errModal-hint {
+  margin-top: 10px; font-size: 12px; color: var(--gris3);
+  display: flex; align-items: flex-start; gap: 6px; line-height: 1.5;
+}
+#errModal-footer {
+  padding: 14px 22px 22px;
+  display: flex; justify-content: flex-end;
+  background: var(--modal-body-bg);
+}
+#errModal-btn-ok {
+  padding: 10px 32px; border-radius: 9px; border: none;
+  background: var(--rouge); color: #fff;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: background .15s, transform .10s;
+  box-shadow: 0 4px 14px rgba(220,38,38,.28);
+}
+#errModal-btn-ok:hover  { background: #b91c1c; }
+#errModal-btn-ok:active { transform: scale(.97); }
+@media (max-width: 900px) {
+  #errModal-overlay { align-items: flex-end; }
+  #errModal-box {
+    position: fixed; bottom:0; left:0; right:0;
+    max-width:100%; border-radius:20px 20px 0 0;
+    animation: errModalMobIn .28s cubic-bezier(.34,1.15,.64,1);
+  }
+  @keyframes errModalMobIn {
+    from { transform: translateY(100%); opacity:.7; }
+    to   { transform: translateY(0);    opacity:1; }
+  }
+}
+
+/* ══════════════════════════════════════════
+   CONFIRM MODAL — window.confirm stylisé
+══════════════════════════════════════════ */
+#cfmModal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 10600;
+  background: rgba(15,35,71,.52);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  align-items: center; justify-content: center;
+  animation: overlayIn .18s ease;
+}
+#cfmModal-overlay.open { display: flex; }
+#cfmModal-box {
+  background: var(--modal-bg); border-radius: 18px;
+  box-shadow: 0 32px 80px rgba(15,35,71,.28), 0 4px 20px rgba(15,35,71,.14);
+  width: calc(100% - 32px); max-width: 400px;
+  overflow: hidden;
+  animation: errModalIn .26s cubic-bezier(.34,1.4,.64,1);
+  position: relative;
+}
+#cfmModal-header {
+  background: linear-gradient(135deg,#1a3a6c 0%,#2563eb 100%);
+  padding: 22px 22px 18px;
+  display: flex; align-items: flex-start; gap: 14px;
+  position: relative;
+}
+#cfmModal-icon-wrap {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: rgba(255,255,255,.18); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+}
+#cfmModal-header-text { flex:1; min-width:0; padding-top:3px; }
+#cfmModal-title {
+  font-size: 15px; font-weight: 800; color: #fff;
+  letter-spacing: .01em; margin: 0 0 4px;
+}
+#cfmModal-subtitle {
+  font-size: 11px; color: rgba(255,255,255,.70);
+  font-weight: 500; text-transform: uppercase; letter-spacing: .06em;
+}
+#cfmModal-close-x {
+  position: absolute; top: 12px; right: 14px;
+  background: rgba(255,255,255,.18); border: none; border-radius: 8px;
+  width: 30px; height: 30px; cursor: pointer; color: #fff; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+#cfmModal-close-x:hover { background: rgba(255,255,255,.32); }
+#cfmModal-body { padding: 20px 22px 10px; background: var(--modal-body-bg); }
+#cfmModal-msg {
+  font-size: 14px; color: var(--texte); line-height: 1.65; font-weight: 500;
+  word-break: break-word;
+}
+#cfmModal-warn {
+  margin-top: 12px; font-size: 12px; color: #b45309;
+  background: #fef3c7; border: 1px solid #fde68a;
+  border-radius: 8px; padding: 9px 12px;
+  display: flex; align-items: center; gap: 6px;
+}
+#cfmModal-footer {
+  padding: 14px 22px 22px;
+  display: flex; justify-content: flex-end; gap: 10px;
+  background: var(--modal-body-bg);
+}
+#cfmModal-btn-cancel {
+  padding: 10px 20px; border-radius: 9px;
+  border: 1.5px solid var(--border); background: var(--modal-body-bg);
+  font-size: 13px; font-weight: 600; color: var(--gris3);
+  cursor: pointer; transition: border-color .15s, color .15s;
+}
+#cfmModal-btn-cancel:hover { border-color: var(--bleu2); color: var(--bleu2); }
+#cfmModal-btn-ok {
+  padding: 10px 26px; border-radius: 9px; border: none;
+  background: var(--rouge); color: #fff;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: background .15s, transform .10s;
+  box-shadow: 0 4px 14px rgba(220,38,38,.28);
+}
+#cfmModal-btn-ok:hover  { background: #b91c1c; }
+#cfmModal-btn-ok:active { transform: scale(.97); }
+@media (max-width: 900px) {
+  #cfmModal-overlay { align-items: flex-end; }
+  #cfmModal-box {
+    position: fixed; bottom:0; left:0; right:0;
+    max-width:100%; border-radius:20px 20px 0 0;
+    animation: errModalMobIn .28s cubic-bezier(.34,1.15,.64,1);
+  }
+}
+
+/* ══════════════════════════════════════════
+   ALERT MODAL — window.alert stylisé
+══════════════════════════════════════════ */
+#altModal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 10700;
+  background: rgba(15,35,71,.52);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  align-items: center; justify-content: center;
+  animation: overlayIn .18s ease;
+}
+#altModal-overlay.open { display: flex; }
+#altModal-box {
+  background: var(--modal-bg); border-radius: 18px;
+  box-shadow: 0 32px 80px rgba(15,35,71,.28), 0 4px 20px rgba(15,35,71,.14);
+  width: calc(100% - 32px); max-width: 400px;
+  overflow: hidden;
+  animation: errModalIn .26s cubic-bezier(.34,1.4,.64,1);
+  position: relative;
+}
+#altModal-header {
+  background: linear-gradient(135deg,#1a3a6c 0%,#2563eb 100%);
+  padding: 22px 22px 18px;
+  display: flex; align-items: flex-start; gap: 14px;
+  position: relative;
+}
+#altModal-icon-wrap {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: rgba(255,255,255,.18); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+}
+#altModal-header-text { flex:1; min-width:0; padding-top:3px; }
+#altModal-title {
+  font-size: 15px; font-weight: 800; color: #fff;
+  letter-spacing: .01em; margin: 0 0 4px;
+}
+#altModal-subtitle {
+  font-size: 11px; color: rgba(255,255,255,.70);
+  font-weight: 500; text-transform: uppercase; letter-spacing: .06em;
+}
+#altModal-close-x {
+  position: absolute; top: 12px; right: 14px;
+  background: rgba(255,255,255,.18); border: none; border-radius: 8px;
+  width: 30px; height: 30px; cursor: pointer; color: #fff; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+#altModal-close-x:hover { background: rgba(255,255,255,.32); }
+#altModal-body { padding: 20px 22px 10px; background: var(--modal-body-bg); }
+#altModal-msg {
+  font-size: 14px; color: var(--texte); line-height: 1.65; font-weight: 500;
+  word-break: break-word;
+}
+#altModal-footer {
+  padding: 14px 22px 22px;
+  display: flex; justify-content: flex-end;
+  background: var(--modal-body-bg);
+}
+#altModal-btn-ok {
+  padding: 10px 32px; border-radius: 9px; border: none;
+  background: var(--bleu2); color: #fff;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: background .15s, transform .10s;
+  box-shadow: 0 4px 14px rgba(37,99,235,.28);
+}
+#altModal-btn-ok:hover  { background: #1d4ed8; }
+#altModal-btn-ok:active { transform: scale(.97); }
+@media (max-width: 900px) {
+  #altModal-overlay { align-items: flex-end; }
+  #altModal-box {
+    position: fixed; bottom:0; left:0; right:0;
+    max-width:100%; border-radius:20px 20px 0 0;
+    animation: errModalMobIn .28s cubic-bezier(.34,1.15,.64,1);
+  }
+}
+
+/* ══════════════════════════════════════════
+   DIVERS
+══════════════════════════════════════════ */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.mt-4 { margin-top: 16px; } .mb-4 { margin-bottom: 16px; }
+.flex { display: flex; } .items-center { align-items: center; }
+.gap-2 { gap: 8px; } .justify-between { justify-content: space-between; }
+.text-right { text-align: right; } .font-bold { font-weight: 700; }
+.text-muted { color: var(--gris3); font-size: 12px; }
+hr.sep { border: none; border-top: 1px solid var(--gris2); margin: 20px 0; }
+.search-bar { display: flex; gap: 8px; align-items: center; }
+.search-bar input { padding: 8px 14px; border: 1.5px solid var(--gris2); border-radius: 7px; font-size: 13px; width: 240px; }
+
+/* Bouton pile-de-stock Mouvement */
+.ch-summary-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 6px 14px; border-radius: 20px;
+  background: white; border: 1px solid var(--gris2);
+  box-shadow: var(--ombre); font-size: 12px;
+}
+
+/* ══════════════════════════════════════════════════
+   RESPONSIVE — Tablette (≤900px)
+══════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .kpi-grid { grid-template-columns: 1fr 1fr; }
+
+  /* Sidebar : slide depuis la gauche */
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
+    z-index: 100;
+  }
+  .sidebar.mob-open { transform: translateX(0); }
+  .main { margin-left: 0; }
+
+  /* Topbar */
+  .hamburger-btn { display: flex; }
+  .topbar-title  { display: none; }
+  .topbar { padding-left: 12px; gap: 8px; }
+  #clock { display: none; }
+  #topbarBtnNouveau { display: none; }
+
+  /* Barre de recherche desktop → icône mobile */
+  .topbar-center { display: none; }
+  .mob-search-btn { display: flex; }
+
+  /* Nom utilisateur masqué */
+  .user-name-label { display: none; }
+
+  /* Tables scrollables */
+  .table-card { overflow-x: auto; }
+  table { min-width: 600px; }
+
+  /* Modals : slide du bas sur mobile */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+    /* Overlay cliquable sur toute la zone sombre */
+  }
+  .modal {
+    max-width: 100%;
+    border-radius: 20px 20px 0 0;
+    max-height: min(94vh, 94dvh);
+    margin: 0;
+    /* Pas de border-radius en bas */
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    animation: modalMobileIn .30s cubic-bezier(.34,1.15,.64,1);
+  }
+  @keyframes modalMobileIn {
+    from { transform: translateY(100%); opacity: .6; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+  .modal.modal-lg, .modal.modal-sm { max-width: 100%; border-radius: 20px 20px 0 0; }
+  .modal > form { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+
+  
+/* Textarea dans modal : resize limité pour éviter de casser le layout */
+.modal-body textarea {
+  resize: vertical;
+  max-height: 120px;
+}
+/* Drag handle visible sur mobile */
+  .modal-drag-handle { display: block; }
+
+  /* Footer collé en bas avec safe area */
+  .modal-footer {
+    padding-bottom: max(20px, env(safe-area-inset-bottom, 20px));
+    position: sticky; bottom: 0;
+    background: white;
+  }
+
+  /* Formulaires 1 colonne */
+  .form-grid { grid-template-columns: 1fr; }
+  .form-group.full { grid-column: 1; }
+
+  /* Dans les modals, toujours 1 colonne sur mobile */
+  .modal .form-grid { grid-template-columns: 1fr !important; }
+  .modal .form-group.full { grid-column: 1 !important; }
+
+  /* Les labels dans les modals : plus lisibles */
+  .modal .form-group label { font-size: 12px; margin-bottom: 4px; }
+
+  /* Contenu + espace bottom-nav */
+  .content { padding: 16px 14px 80px; }
+
+  /* Page header empilé */
+  .page-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .page-header > *:last-child { align-self: flex-start; }
+
+  /* Inputs adaptés aux doigts */
+  .form-group input, .form-group select, .form-group textarea {
+    padding: 12px 14px; font-size: 16px; min-height: 46px;
+  }
+
+  /* ── Compatibilité mobile GLOBALE de TOUS les champs de saisie ──
+     S'applique à tous les modules, y compris les champs au style « inline »
+     (qui échappaient aux règles ci-dessus). !important nécessaire pour
+     surcharger les styles inline (width:240px, font-size:12px, height:36px…). */
+  input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=range]):not([type=file]):not([type=hidden]):not([type=submit]):not([type=button]):not([type=image]),
+  select,
+  textarea {
+    max-width: 100% !important;      /* empêche tout débordement horizontal */
+    font-size: 16px !important;       /* empêche le zoom automatique sur iOS */
+    box-sizing: border-box !important;
+  }
+  /* Confort tactile : hauteur minimale même si height inline plus petit */
+  input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=range]):not([type=file]):not([type=hidden]):not([type=submit]):not([type=button]):not([type=image]),
+  select {
+    min-height: 44px !important;
+  }
+  /* Les rangées de filtres (recherche, statut, dates…) passent à la ligne
+     au lieu de déborder : on cible les conteneurs flex contenant des champs. */
+  .table-card form > div { flex-wrap: wrap !important; }
+
+  .btn { min-height: 40px; padding: 10px 16px; }
+  .btn-sm { min-height: 36px; padding: 8px 12px; }
+
+  /* Toast en bas */
+  #toast-container { top: auto; bottom: 70px; right: 10px; left: 10px; }
+  .toast { min-width: auto; max-width: 100%; }
+
+  /* Bottom nav visible */
+  .bottom-nav { display: block; }
+
+  .main { margin-top: 56px; }
+}
+
+/* ── Mobile (≤600px) ── */
+@media (max-width: 600px) {
+  .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .kpi-card { padding: 14px 14px; }
+  .kpi-card .value { font-size: 20px; }
+  .table-card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 480px; font-size: 12px; }
+  thead th { padding: 8px 10px; font-size: 10px; }
+  tbody td  { padding: 9px 10px; font-size: 12px; }
+  .two-col  { grid-template-columns: 1fr; }
+  .modal-header { padding: 12px 16px 10px; }
+  .modal-header h3 { font-size: 14px; }
+  .modal-body   { padding: 12px 16px; }
+  .modal-footer { padding: 10px 16px; flex-wrap: wrap; gap: 8px; }
+  .modal-footer .btn { flex: 1; justify-content: center; min-width: 110px; font-size: 13px; }
+  .content { padding: 14px 10px 80px; }
+}
+
+/* ── Très petit (≤380px) ── */
+@media (max-width: 380px) {
+  .kpi-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .kpi-card .value { font-size: 17px; }
+  .kpi-card { padding: 10px; }
+  .kpi-card .label { font-size: 9px; }
+
+  /* Modals encore plus compactes */
+  .modal-header { padding: 10px 14px 8px; }
+  .modal-header h3 { font-size: 13px; }
+  .modal-body { padding: 10px 14px; }
+  .modal-footer { padding: 8px 14px; gap: 6px; }
+  .modal-footer .btn { font-size: 12px; padding: 9px 12px; }
+  .form-group input, .form-group select, .form-group textarea {
+    font-size: 15px; padding: 10px 12px; min-height: 44px;
+  }
+  .form-group label { font-size: 10px; }
+}
+
+/* ── Galaxy A / téléphones 360px ── */
+@media (max-width: 360px) {
+  .modal-header h3 { font-size: 12px; }
+  .modal-body { padding: 8px 12px; }
+  .modal-footer { padding: 6px 12px; gap: 5px; }
+  .modal-footer .btn { padding: 9px 10px; font-size: 11px; }
+  .form-group { gap: 3px; }
+  .form-group input, .form-group select, .form-group textarea {
+    padding: 9px 10px; font-size: 14px; min-height: 42px;
+  }
+}
+
+/* ── Thème sombre : ajustements complémentaires ── */
+[data-theme="dark"] .table-card .thead,
+[data-theme="dark"] .pcart-head { background: var(--bg-thead) !important; }
+
+[data-theme="dark"] .badge-sec     { background: #1c2128; color: #8b949e; }
+[data-theme="dark"] .badge-info    { background: #1d3461; color: #93c5fd; }
+[data-theme="dark"] .badge-success { background: #14290f; color: #4ade80; }
+[data-theme="dark"] .badge-warning { background: #3d2e00; color: #fbbf24; }
+[data-theme="dark"] .badge-danger  { background: #3d0f0f; color: #fca5a5; }
+
+[data-theme="dark"] .btn-sec  { background: #1c2128; color: #8b949e; }
+[data-theme="dark"] .btn-sec:hover { background: #30363d; }
+
+[data-theme="dark"] .modal-header { border-bottom-color: var(--border); }
+[data-theme="dark"] .modal-footer { border-top-color: var(--border); }
+[data-theme="dark"] .table-card .thead { border-bottom-color: var(--border); }
+[data-theme="dark"] tbody td { border-bottom-color: var(--border); }
+
+[data-theme="dark"] .topbar { border-bottom-color: var(--border); }
+[data-theme="dark"] .user-avatar-btn { background: var(--gris); border: none; }
+[data-theme="dark"] .notif-btn { background: var(--gris); border-color: var(--border); }
+[data-theme="dark"] .hamburger-btn { background: var(--gris); }
+[data-theme="dark"] .hamburger-btn span { background: var(--texte); }
+
+/* Mob search bar */
+[data-theme="dark"] .mob-search-bar { background: var(--bg-card); }
+[data-theme="dark"] .mob-search-bar input { background: var(--bg-input); color: var(--texte); border-color: var(--bleu2); }
+[data-theme="dark"] .mob-search-bar .mob-search-close { background: var(--gris); color: var(--texte); }
+
+/* gs dropdown */
+[data-theme="dark"] #gsDropdown { background: var(--dropdown-bg) !important; border-color: var(--border) !important; }
+
+/* notif panel intérieur */
+[data-theme="dark"] .notif-panel-header { border-bottom-color: var(--border); }
+[data-theme="dark"] .notif-item { border-bottom-color: var(--border); }
+[data-theme="dark"] .notif-item:hover { background: var(--gris); }
+[data-theme="dark"] .notif-item.unread { background: #0d1d38; }
+[data-theme="dark"] .notif-item.unread:hover { background: #1d3461; }
+[data-theme="dark"] .notif-item-msg { color: var(--texte); }
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] .table-card .thead,
+  [data-theme="system"] .pcart-head { background: var(--bg-thead) !important; }
+  [data-theme="system"] .badge-sec     { background: #1c2128; color: #8b949e; }
+  [data-theme="system"] .badge-info    { background: #1d3461; color: #93c5fd; }
+  [data-theme="system"] .badge-success { background: #14290f; color: #4ade80; }
+  [data-theme="system"] .badge-warning { background: #3d2e00; color: #fbbf24; }
+  [data-theme="system"] .badge-danger  { background: #3d0f0f; color: #fca5a5; }
+  [data-theme="system"] .btn-sec  { background: #1c2128; color: #8b949e; }
+  [data-theme="system"] .btn-sec:hover { background: #30363d; }
+  [data-theme="system"] .modal-header { border-bottom-color: var(--border); }
+  [data-theme="system"] .modal-footer { border-top-color: var(--border); }
+  [data-theme="system"] tbody td { border-bottom-color: var(--border); }
+  [data-theme="system"] .topbar { border-bottom-color: var(--border); }
+  [data-theme="system"] .user-avatar-btn { background: var(--gris); border: none; }
+  [data-theme="system"] .notif-btn { background: var(--gris); border-color: var(--border); }
+  [data-theme="system"] .hamburger-btn { background: var(--gris); }
+  [data-theme="system"] .hamburger-btn span { background: var(--texte); }
+  [data-theme="system"] .mob-search-bar { background: var(--bg-card); }
+  [data-theme="system"] .mob-search-bar input { background: var(--bg-input); color: var(--texte); border-color: var(--bleu2); }
+  [data-theme="system"] #gsDropdown { background: var(--dropdown-bg) !important; border-color: var(--border) !important; }
+  [data-theme="system"] .notif-panel-header { border-bottom-color: var(--border); }
+  [data-theme="system"] .notif-item { border-bottom-color: var(--border); }
+  [data-theme="system"] .notif-item:hover { background: var(--gris); }
+  [data-theme="system"] .notif-item.unread { background: #0d1d38; }
+}
+
+
+.sd-parent {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 7px;
+  color: rgba(255,255,255,.62); text-decoration: none;
+  font-size: 12.5px; transition: all .15s; margin-bottom: 1px;
+  font-weight: 600; cursor: pointer; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.sd-parent:hover { background: rgba(255,255,255,.09); color: white; }
+.sd-parent.open   { background: rgba(255,255,255,.07); color: white; }
+.sd-parent.has-active { color: white; }
+.sd-arrow {
+  margin-left: auto; font-size: 10px;
+  transition: transform .22s cubic-bezier(.4,0,.2,1);
+  opacity: .55; flex-shrink: 0;
+}
+.sd-parent.open .sd-arrow { transform: rotate(90deg); opacity: 1; }
+.sd-children {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height .25s cubic-bezier(.4,0,.2,1);
+}
+.sd-children.open { max-height: 400px; }
+.sd-children a {
+  padding: 7px 12px 7px 38px;
+  font-size: 12px;
+  color: rgba(255,255,255,.55);
+}
+.sd-children a:hover { color: white; }
+.sd-children a.active {
+  background: var(--bleu2); color: white;
+  box-shadow: 0 2px 8px rgba(37,99,235,.35);
+}
+.sd-children a .icon { font-size: 13px; }
+
+</style>
+
+  {% if request.args.get('bg') == '1' %}
+  <style>
+    .sidebar, .topbar { display: none !important; }
+    .main-content { margin-left: 0 !important; padding: 12px !important; }
+    body { background: #0f2347; overflow: hidden; }
+    .page-header, .btn-primary { display: none !important; }
+  </style>
+  {% endif %}
+
+  <!-- ════════════════════════════════════════════════════════════════
+       MODE MENU « MODERNE » (réglable dans Paramètres › Établissement)
+       N'agit que lorsque <body class="menu-moderne">. En mode classique
+       (par défaut) ce bloc reste totalement inactif et l'apparence
+       historique est conservée à l'identique.
+       ════════════════════════════════════════════════════════════════ -->
+  <style id="distrigest-skin-moderne">
+  /* 1 ─ Layout : plus de menu permanent, contenu pleine largeur */
+  body.menu-moderne .main{
+    margin-left:0 !important;
+    width:100% !important;
+  }
+  body.menu-moderne .topbar{
+    padding-left:16px !important;
+    background:rgba(255,255,255,.97);
+    -webkit-backdrop-filter:blur(18px);
+    backdrop-filter:blur(18px);
+  }
+  /* Le bouton ☰ reste visible même sur grand écran (il ouvre le tiroir) */
+  body.menu-moderne .hamburger-btn{ display:flex !important; }
+  /* On garde le titre de page visible sur grand écran */
+  body.menu-moderne .topbar-title{ display:block; }
+
+  /* 2 ─ La sidebar devient un TIROIR clair qui glisse, à toutes les tailles */
+  body.menu-moderne .sidebar{
+    transform:translateX(-100%);
+    transition:transform .3s cubic-bezier(.4,0,.2,1);
+    background:#ffffff !important;
+    border-right:1px solid #e2e8f0;
+    box-shadow:4px 0 24px rgba(0,0,0,.10);
+    width:264px;
+    z-index:300;
+  }
+  body.menu-moderne .sidebar.mob-open{ transform:translateX(0) !important; }
+  /* L'overlay passe au-dessus de la topbar mais sous le tiroir.
+     En mode moderne il devient un fond flouté (verre dépoli). */
+  body.menu-moderne .sidebar-overlay{
+    z-index:299;
+    background:rgba(15,23,42,.32);
+    -webkit-backdrop-filter:blur(8px) saturate(120%);
+    backdrop-filter:blur(8px) saturate(120%);
+  }
+  body.menu-moderne .sidebar-overlay.open{
+    animation:dg-overlay-fade .3s ease both;
+  }
+  @keyframes dg-overlay-fade{ from{ opacity:0; } to{ opacity:1; } }
+
+  /* 3 ─ En-tête du tiroir : bandeau bleu dégradé */
+  body.menu-moderne .sidebar-logo{
+    background:linear-gradient(135deg,#1e3a8a,#2563eb);
+    border-bottom:none;
+  }
+  body.menu-moderne .sidebar-logo .logo-text .name{ color:#fff; }
+  body.menu-moderne .sidebar-logo .logo-text .sub{ color:rgba(255,255,255,.72); }
+
+  /* 4 ─ Sections + liens : thème clair (texte foncé sur fond blanc) */
+  body.menu-moderne .sidebar-section-label{ color:#94a3b8 !important; }
+  body.menu-moderne .sidebar a,
+  body.menu-moderne .sd-parent{
+    color:#475569 !important;
+    border-radius:10px;
+  }
+  body.menu-moderne .sidebar a:hover,
+  body.menu-moderne .sd-parent:hover{
+    background:#f1f5f9 !important;
+    color:#1e293b !important;
+  }
+  body.menu-moderne .sidebar a.active{
+    background:linear-gradient(135deg,#eff6ff,#dbeafe) !important;
+    color:#2563eb !important;
+    box-shadow:none !important;
+    font-weight:700;
+  }
+  body.menu-moderne .sd-parent.open,
+  body.menu-moderne .sd-parent.has-active{
+    background:#f1f5f9 !important;
+    color:#1e293b !important;
+  }
+  body.menu-moderne .sd-children a{ color:#64748b !important; }
+  body.menu-moderne .sd-children a.active{
+    background:linear-gradient(135deg,#eff6ff,#dbeafe) !important;
+    color:#2563eb !important;
+  }
+  body.menu-moderne .sd-arrow{ color:#94a3b8; }
+
+  /* Badges compteurs lisibles sur fond clair */
+  body.menu-moderne .sidebar a .s-count{
+    background:#e2e8f0 !important;
+    color:#475569 !important;
+  }
+  body.menu-moderne .sidebar a.active .s-count{
+    background:#bfdbfe !important;
+    color:#1d4ed8 !important;
+  }
+
+  /* 5 ─ Blocs épinglés + pied du tiroir : bordures et texte clairs */
+  body.menu-moderne #sidebar-pinned-ce{ border-top-color:#e2e8f0 !important; }
+  body.menu-moderne .sidebar-footer{
+    color:#94a3b8 !important;
+    border-top:1px solid #e2e8f0;
+  }
+
+  /* 6 ─ On masque la barre du bas mobile : le tiroir la remplace */
+  body.menu-moderne .bottom-nav{ display:none !important; }
+  body.menu-moderne .content{ padding-bottom:24px; }
+
+  /* ══════════════════════════════════════════
+     THÈME SOMBRE — Mode menu moderne
+     Surcharge les couleurs claires du tiroir
+     en mode [data-theme="dark"] et "system"
+  ══════════════════════════════════════════ */
+  [data-theme="dark"] body.menu-moderne .sidebar,
+  [data-theme="dark"] body.menu-moderne .sidebar {
+    background: #161b22 !important;
+    border-right-color: #30363d !important;
+    box-shadow: 4px 0 24px rgba(0,0,0,.45) !important;
+  }
+
+  /* En-tête tiroir : dégradé conservé mais légèrement assombri */
+  [data-theme="dark"] body.menu-moderne .sidebar-logo {
+    background: linear-gradient(135deg,#0f2347,#1e40af) !important;
+  }
+
+  /* Labels de sections */
+  [data-theme="dark"] body.menu-moderne .sidebar-section-label {
+    color: #4b5563 !important;
+  }
+
+  /* Liens nav */
+  [data-theme="dark"] body.menu-moderne .sidebar a,
+  [data-theme="dark"] body.menu-moderne .sd-parent {
+    color: #8b949e !important;
+  }
+  [data-theme="dark"] body.menu-moderne .sidebar a:hover,
+  [data-theme="dark"] body.menu-moderne .sd-parent:hover {
+    background: #1c2128 !important;
+    color: #e6edf3 !important;
+  }
+
+  /* Lien actif */
+  [data-theme="dark"] body.menu-moderne .sidebar a.active {
+    background: linear-gradient(135deg,#0d1d38,#1d3461) !important;
+    color: #60a5fa !important;
+  }
+
+  /* Dropdown parents ouverts */
+  [data-theme="dark"] body.menu-moderne .sd-parent.open,
+  [data-theme="dark"] body.menu-moderne .sd-parent.has-active {
+    background: #1c2128 !important;
+    color: #e6edf3 !important;
+  }
+  [data-theme="dark"] body.menu-moderne .sd-children a {
+    color: #6e7681 !important;
+  }
+  [data-theme="dark"] body.menu-moderne .sd-children a.active {
+    background: linear-gradient(135deg,#0d1d38,#1d3461) !important;
+    color: #60a5fa !important;
+  }
+  [data-theme="dark"] body.menu-moderne .sd-arrow { color: #4b5563 !important; }
+
+  /* Badges compteurs */
+  [data-theme="dark"] body.menu-moderne .sidebar a .s-count {
+    background: #30363d !important;
+    color: #8b949e !important;
+  }
+  [data-theme="dark"] body.menu-moderne .sidebar a.active .s-count {
+    background: #1d3461 !important;
+    color: #60a5fa !important;
+  }
+
+  /* Séparateurs et pied */
+  [data-theme="dark"] body.menu-moderne #sidebar-pinned-ce {
+    border-top-color: #30363d !important;
+  }
+  [data-theme="dark"] body.menu-moderne .sidebar-pinned-top,
+  [data-theme="dark"] body.menu-moderne .sidebar-pinned-bottom {
+    border-bottom-color: #30363d !important;
+    border-top-color: #30363d !important;
+  }
+  [data-theme="dark"] body.menu-moderne .sidebar-footer {
+    color: #4b5563 !important;
+    border-top-color: #30363d !important;
+  }
+
+  /* Overlay fond du tiroir */
+  [data-theme="dark"] body.menu-moderne .sidebar-overlay {
+    background: rgba(0,0,0,.55) !important;
+  }
+
+  /* Topbar en mode moderne dark */
+  [data-theme="dark"] body.menu-moderne .topbar {
+    background: rgba(22,27,34,.97) !important;
+    border-bottom-color: #30363d !important;
+  }
+
+  /* Bouton fermeture tiroir */
+  [data-theme="dark"] body.menu-moderne #sidebarCloseBtn {
+    background: rgba(255,255,255,.08) !important;
+    color: #8b949e !important;
+  }
+  [data-theme="dark"] body.menu-moderne #sidebarCloseBtn:hover {
+    background: rgba(255,255,255,.16) !important;
+    color: #e6edf3 !important;
+  }
+
+  /* ── Miroir pour prefers-color-scheme (mode "system") ── */
+  @media (prefers-color-scheme: dark) {
+    [data-theme="system"] body.menu-moderne .sidebar {
+      background: #161b22 !important;
+      border-right-color: #30363d !important;
+      box-shadow: 4px 0 24px rgba(0,0,0,.45) !important;
+    }
+    [data-theme="system"] body.menu-moderne .sidebar-logo {
+      background: linear-gradient(135deg,#0f2347,#1e40af) !important;
+    }
+    [data-theme="system"] body.menu-moderne .sidebar-section-label { color: #4b5563 !important; }
+    [data-theme="system"] body.menu-moderne .sidebar a,
+    [data-theme="system"] body.menu-moderne .sd-parent { color: #8b949e !important; }
+    [data-theme="system"] body.menu-moderne .sidebar a:hover,
+    [data-theme="system"] body.menu-moderne .sd-parent:hover {
+      background: #1c2128 !important; color: #e6edf3 !important;
+    }
+    [data-theme="system"] body.menu-moderne .sidebar a.active {
+      background: linear-gradient(135deg,#0d1d38,#1d3461) !important;
+      color: #60a5fa !important;
+    }
+    [data-theme="system"] body.menu-moderne .sd-parent.open,
+    [data-theme="system"] body.menu-moderne .sd-parent.has-active {
+      background: #1c2128 !important; color: #e6edf3 !important;
+    }
+    [data-theme="system"] body.menu-moderne .sd-children a { color: #6e7681 !important; }
+    [data-theme="system"] body.menu-moderne .sd-children a.active {
+      background: linear-gradient(135deg,#0d1d38,#1d3461) !important;
+      color: #60a5fa !important;
+    }
+    [data-theme="system"] body.menu-moderne .sd-arrow { color: #4b5563 !important; }
+    [data-theme="system"] body.menu-moderne .sidebar a .s-count {
+      background: #30363d !important; color: #8b949e !important;
+    }
+    [data-theme="system"] body.menu-moderne .sidebar a.active .s-count {
+      background: #1d3461 !important; color: #60a5fa !important;
+    }
+    [data-theme="system"] body.menu-moderne #sidebar-pinned-ce { border-top-color: #30363d !important; }
+    [data-theme="system"] body.menu-moderne .sidebar-pinned-top,
+    [data-theme="system"] body.menu-moderne .sidebar-pinned-bottom {
+      border-bottom-color: #30363d !important; border-top-color: #30363d !important;
+    }
+    [data-theme="system"] body.menu-moderne .sidebar-footer {
+      color: #4b5563 !important; border-top-color: #30363d !important;
+    }
+    [data-theme="system"] body.menu-moderne .sidebar-overlay {
+      background: rgba(0,0,0,.55) !important;
+    }
+    [data-theme="system"] body.menu-moderne .topbar {
+      background: rgba(22,27,34,.97) !important;
+      border-bottom-color: #30363d !important;
+    }
+    [data-theme="system"] body.menu-moderne #sidebarCloseBtn {
+      background: rgba(255,255,255,.08) !important; color: #8b949e !important;
+    }
+    [data-theme="system"] body.menu-moderne #sidebarCloseBtn:hover {
+      background: rgba(255,255,255,.16) !important; color: #e6edf3 !important;
+    }
+  }
+  </style>
+</head>
+
+<body data-page="{{ request.endpoint }}" class="menu-{{ cfg.get('menu_mode','classique') }}">
+
+<!-- ═══ SIDEBAR ═══ -->
+<nav class="sidebar" id="sidebar">
+
+  <!-- Bouton fermeture mobile (croix) -->
+  <button id="sidebarCloseBtn" onclick="closeSidebar()"
+    style="display:none;position:absolute;top:12px;right:12px;z-index:10;
+           background:rgba(255,255,255,.12);border:none;border-radius:7px;
+           width:32px;height:32px;color:white;font-size:18px;cursor:pointer;
+           align-items:center;justify-content:center;">✕</button>
+
+  <!-- Logo — identique à la page login -->
+  <div class="sidebar-logo">
+    <div class="logo-icon">🛒</div>
+    <div class="logo-text">
+      <div class="name" title="{{ cfg.nom_depot if cfg and cfg.nom_depot else 'DISTRIGEST' }}">
+        {{ cfg.nom_depot if cfg and cfg.nom_depot else 'DISTRIGEST' }}
+      </div>
+      <div class="sub">Gestion Commerciale</div>
+    </div>
+  </div>
+
+  {%- set _ep = request.endpoint or '' -%}
+
+  {# ── Flags de visibilité des sections (basés sur can_read injecté par le context processor) ── #}
+  {% set show_ventes    = can_read('acces_devis') or can_read('acces_commandes') or can_read('acces_factures') or can_read('acces_avoirs') %}
+  {% set show_achats    = can_read('acces_achats') or can_read('acces_factures_fourn') %}
+  {% set show_caisse    = can_read('acces_caisse') %}
+  {% set show_commercial = show_caisse or show_ventes or show_achats %}
+  {% set show_tiers     = can_read('acces_clients') or can_read('acces_fournisseurs') or can_read('acces_relances') or can_read('acces_representants') %}
+  {% set show_finances  = can_read('acces_reglements') or can_read('acces_depenses') or can_read('acces_comptabilite') %}
+  {% set show_catalogue = can_read('acces_articles') or can_read('acces_familles') or can_read('acces_unites') or can_read('acces_depots') or can_read('acces_stock') %}
+  {% set show_rh        = can_read('acces_employes') or can_read('acces_paie') or can_read('acces_conges') %}
+  {% set show_atelier   = cfg.get('module_atelier') == 'oui' and (can_read('acces_atelier_equipements') or can_read('acces_atelier_tickets')) %}
+
+  <!-- ── Tableau de bord fixe (hors scroll) ── -->
+  <div class="sidebar-pinned-top">
+    <div class="sidebar-section-label" style="padding:0 8px;margin-bottom:5px;">Principal</div>
+    <a href="{{ url_for('dashboard') }}"
+       class="{% if _ep=='dashboard' %}active{% endif %}">
+      <span class="icon">📊</span> Tableau de bord
+    </a>
+  </div>
+
+  <!-- ── Caisse & Emballages épinglés (hors scroll) ── -->
+  {%- set _show_pinned_ce = (can_read('acces_caisse') and cfg.get('module_caisse') == 'oui')
+                         or (can_read('acces_emballages') and cfg.get('module_emballages') == 'oui') -%}
+  <div id="sidebar-pinned-ce"
+       class="sidebar-pinned-top"
+       style="{{ '' if _show_pinned_ce else 'display:none;' }}border-top:1px solid rgba(255,255,255,.07);padding-top:8px;">
+    <div class="sidebar-section-label" style="padding:0 8px;margin-bottom:5px;">Accès rapide</div>
+    {% if can_read('acces_caisse') %}
+    <a href="{{ url_for('caisse') }}"
+       id="sidebar-link-caisse"
+       class="{% if _ep=='caisse' %}active{% endif %}"
+       style="font-weight:700;{{ 'display:none;' if cfg.get('module_caisse') != 'oui' else '' }}">
+      <span class="icon">🛒</span> Caisse / POS
+    </a>
+    {% endif %}
+    {% if can_read('acces_emballages') %}
+    <a href="{{ url_for('emballages_list') }}"
+       id="sidebar-link-emballages"
+       class="{% if 'emballage' in (request.endpoint or '') %}active{% endif %}"
+       style="{{ 'display:none;' if cfg.get('module_emballages') != 'oui' else '' }}">
+      <span class="icon">🧴</span> Emballages
+    </a>
+    {% endif %}
+  </div>
+
+  <div class="sidebar-nav">
+  <!-- ── Commercial (Caisse + Ventes + Achats regroupés) ── -->
+  {% if show_commercial %}
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Commercial</div>
+
+    {# ── Ventes ── #}
+    {% if show_ventes %}
+    {%- set _v_active = _ep in ['devis_list','commandes_vente_list','factures_list','bons_livraison_list','avoirs_list','document_vente_add','bl_livrer','bl_facturer','commande_creer_bl','devis_convertir_commande','avoir_add','avoir_delete'] -%}
+    <div class="sd-parent {{ 'open has-active' if _v_active else '' }}"
+         onclick="sdToggle(this)" id="sdVentes">
+      <span class="icon">🧾</span> Ventes
+      <span class="sd-arrow">▶</span>
+    </div>
+    <div class="sd-children {{ 'open' if _v_active else '' }}">
+      {% if can_read('acces_devis') %}
+      <a href="{{ url_for('devis_list') }}"
+         class="{% if _ep=='devis_list' %}active{% endif %}">
+        <span class="icon">📋</span> Devis
+      </a>
+      {% endif %}
+      {% if can_read('acces_commandes') %}
+      <a href="{{ url_for('commandes_vente_list') }}"
+         class="{% if _ep in ['commandes_vente_list','commande_creer_bl','devis_convertir_commande'] %}active{% endif %}">
+        <span class="icon">🗂️</span> Commandes
+      </a>
+      {% endif %}
+      {% if can_read('acces_factures') %}
+      <a href="{{ url_for('bons_livraison_list') }}"
+         class="{% if _ep in ['bons_livraison_list','bl_livrer','bl_facturer'] %}active{% endif %}">
+        <span class="icon">🚚</span> Livraisons (BL)
+      </a>
+      <a href="{{ url_for('factures_list') }}"
+         class="{% if _ep=='factures_list' %}active{% endif %}">
+        <span class="icon">🧾</span> Factures
+      </a>
+      {% endif %}
+      {% if can_read('acces_avoirs') %}
+      <a href="{{ url_for('avoirs_list') }}"
+         class="{% if _ep in ['avoirs_list','avoir_add','avoir_delete'] %}active{% endif %}">
+        <span class="icon">↩️</span> Avoirs clients
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {# ── Achats ── #}
+    {% if show_achats %}
+    {%- set _a_active = 'achat' in (request.endpoint or '') or request.endpoint in ['avoirs_fournisseurs_list'] -%}
+    <div class="sd-parent {{ 'open has-active' if _a_active else '' }}"
+         onclick="sdToggle(this)" id="sdAchats">
+      <span class="icon">🛒</span> Achats
+      <span class="sd-arrow">▶</span>
+    </div>
+    <div class="sd-children {{ 'open' if _a_active else '' }}">
+      {% if can_read('acces_achats') %}
+      <a href="{{ url_for('achats_list') }}"
+         class="{% if request.endpoint=='achats_list' %}active{% endif %}">
+        <span class="icon">🗂️</span> Commandes
+      </a>
+      {% endif %}
+      {% if can_read('acces_factures_fourn') %}
+      <a href="{{ url_for('avoirs_fournisseurs_list') }}"
+         class="{% if request.endpoint=='avoirs_fournisseurs_list' %}active{% endif %}">
+        <span class="icon">↩️</span> Avoirs fourn.
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}{# /show_commercial #}
+
+  <!-- ── Tiers ── -->
+  {% if show_tiers %}
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Tiers</div>
+
+    {%- set _t_active = 'client' in (request.endpoint or '') or 'fournisseur' in (request.endpoint or '') -%}
+    <div class="sd-parent {{ 'open has-active' if _t_active else '' }}"
+         onclick="sdToggle(this)" id="sdTiers">
+      <span class="icon">🤝</span> Tiers
+      <span class="sd-arrow">▶</span>
+    </div>
+    <div class="sd-children {{ 'open' if _t_active else '' }}">
+      {% if can_read('acces_clients') %}
+      <a href="{{ url_for('clients_list') }}"
+         class="{% if request.endpoint in ['clients_list','fiche_client'] %}active{% endif %}">
+        <span class="icon">👥</span> Clients
+      </a>
+      {% endif %}
+      {% if can_read('acces_fournisseurs') %}
+      <a href="{{ url_for('fournisseurs_list') }}"
+         class="{% if request.endpoint in ['fournisseurs_list','fiche_fournisseur'] %}active{% endif %}">
+        <span class="icon">🏢</span> Fournisseurs
+      </a>
+      {% endif %}
+      {% if can_read('acces_relances') %}
+      <a href="{{ url_for('relances_list') }}"
+         class="{% if 'relance' in (request.endpoint or '') %}active{% endif %}">
+        <span class="icon">🔔</span> Relances
+      </a>
+      {% endif %}
+      {% if can_read('acces_representants') %}
+      <a href="{{ url_for('representants_list') }}"
+         class="{% if 'representant' in (request.endpoint or '') %}active{% endif %}">
+        <span class="icon">🤝</span> Représentants
+      </a>
+      {% endif %}
+    </div>
+
+  </div>
+  {% endif %}
+
+  <!-- ── Finances ── -->
+  {% if show_finances %}
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Finances</div>
+    {% if can_read('acces_reglements') %}
+    <a href="{{ url_for('reglements_list') }}"
+       class="{% if 'reglement' in (request.endpoint or '') %}active{% endif %}">
+      <span class="icon">💳</span> Règlements
+    </a>
+    {% endif %}
+    {% if can_read('acces_depenses') %}
+    <a href="{{ url_for('depenses_list') }}"
+       class="{% if 'depense' in (request.endpoint or '') %}active{% endif %}">
+      <span class="icon">💸</span> Dépenses
+    </a>
+    {% endif %}
+    {% if can_read('acces_comptabilite') %}
+    <a href="{{ url_for('comptabilite') }}"
+       class="{% if 'comptabilite' in (request.endpoint or '') %}active{% endif %}">
+      <span class="icon">📒</span> Comptabilité
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- ── Catalogue ── -->
+  {% if show_catalogue %}
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Catalogue</div>
+    {%- set _c_active = request.endpoint in ['articles_list','depots_list','stock_list','familles_list','unites_vente_list'] or 'article' in (request.endpoint or '') or 'depot' in (request.endpoint or '') or 'stock' in (request.endpoint or '') or 'famille' in (request.endpoint or '') or 'unite' in (request.endpoint or '') -%}
+    <div class="sd-parent {{ 'open has-active' if _c_active else '' }}"
+         onclick="sdToggle(this)" id="sdCatalogue">
+      <span class="icon">📦</span> Catalogue
+      <span class="sd-arrow">▶</span>
+    </div>
+    <div class="sd-children {{ 'open' if _c_active else '' }}">
+      {% if can_read('acces_articles') %}
+      <a href="{{ url_for('articles_list') }}"
+         class="{% if 'article' in (request.endpoint or '') %}active{% endif %}">
+        <span class="icon">📦</span> Articles
+      </a>
+      {% endif %}
+      {% if can_read('acces_familles') %}
+      <a href="{{ url_for('familles_list') }}"
+         class="{% if request.endpoint in ['familles_list','famille_add','famille_edit','famille_delete'] %}active{% endif %}">
+        <span class="icon">🏷️</span> Familles d'articles
+      </a>
+      {% endif %}
+      {% if can_read('acces_unites') %}
+      <a href="{{ url_for('unites_vente_list') }}"
+         class="{% if request.endpoint in ['unites_vente_list','unite_add','unite_edit','unite_delete'] %}active{% endif %}">
+        <span class="icon">📏</span> Unités de vente
+      </a>
+      {% endif %}
+      {% if can_read('acces_depots') %}
+      <a href="{{ url_for('depots_list') }}"
+         class="{% if 'depot' in (request.endpoint or '') %}active{% endif %}">
+        <span class="icon">🏭</span> Dépôts
+      </a>
+      {% endif %}
+      {% if can_read('acces_stock') %}
+      <a href="{{ url_for('stock_list') }}"
+         class="{% if 'stock' in (request.endpoint or '') %}active{% endif %}">
+        <span class="icon">📦</span> Stock
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── RH ── -->
+  {% if show_rh %}
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Ressources Humaines</div>
+    {%- set _rh_active = 'employe' in (request.endpoint or '') or 'paie' in (request.endpoint or '') or 'conge' in (request.endpoint or '') -%}
+    <div class="sd-parent {{ 'open has-active' if _rh_active else '' }}"
+         onclick="sdToggle(this)" id="sdRH">
+      <span class="icon">👥</span> Personnel
+      <span class="sd-arrow">▶</span>
+    </div>
+    <div class="sd-children {{ 'open' if _rh_active else '' }}">
+      {% if can_read('acces_employes') %}
+      <a href="{{ url_for('employes_list') }}"
+         class="{% if 'employe' in (request.endpoint or '') %}active{% endif %}">
+        <span class="icon">👷</span> Employés
+      </a>
+      {% endif %}
+      {% if can_read('acces_paie') %}
+      <a href="{{ url_for('paie_list') }}"
+         class="{% if 'paie' in (request.endpoint or '') %}active{% endif %}">
+        <span class="icon">💰</span> Paie
+      </a>
+      {% endif %}
+      {% if can_read('acces_conges') %}
+      <a href="{{ url_for('conges_list') }}"
+         class="{% if 'conge' in (request.endpoint or '') %}active{% endif %}">
+        <span class="icon">🏖️</span> Congés
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  </div><!-- /sidebar-nav -->
+
+  <!-- ── Atelier (épinglé avant paramètres si actif) ── -->
+  {% if show_atelier %}
+  <div class="sidebar-section" id="sidebar-section-atelier">
+    <div class="sidebar-section-label">⚙️ Atelier</div>
+    {% if can_read('acces_atelier_equipements') %}
+    <a href="{{ url_for('equipements_list') }}"
+       class="{% if 'equipement' in (request.endpoint or '') %}active{% endif %}">
+      <span class="icon">💻</span> Équipements
+    </a>
+    {% endif %}
+    {% if can_read('acces_atelier_tickets') %}
+    <a href="{{ url_for('tickets_list') }}"
+       class="{% if 'ticket' in (request.endpoint or '') %}active{% endif %}">
+      <span class="icon">🎫</span> Tickets réparation
+    </a>
+    {% endif %}
+    {% if is_admin %}
+    <a href="{{ url_for('atelier_convertir') }}"
+       class="{% if request.endpoint == 'atelier_convertir' %}active{% endif %}">
+      <span class="icon">🔄</span> Convertir GESTIT
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- ── Paramètres fixe (hors scroll) ── -->
+  {% if is_admin %}
+  <div class="sidebar-pinned-bottom">
+    <div class="sidebar-section-label" style="padding:0 8px;margin-bottom:5px;">Système</div>
+    <a href="{{ url_for('parametres') }}"
+       class="{% if request.endpoint=='parametres' %}active{% endif %}">
+      <span class="icon">⚙️</span> Paramètres
+    </a>
+  </div>
+  {% endif %}
+
+  <div class="sidebar-footer">
+    DISTRIGEST · STiNAUG TECH<br>
+    <span style="font-size:9px;opacity:.7;">Abidjan, Côte d'Ivoire</span>
+  </div>
+</nav>
+
+<!-- Overlay fond sidebar mobile -->
+<!-- ═══ CONTENU PRINCIPAL ═══ -->
+<div class="main">
+
+  <!-- Topbar fixe -->
+  <div class="topbar">
+    <!-- Hamburger (mobile) -->
+    <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+
+    <div class="topbar-title">{% block topbar_title %}{% endblock %}</div>
+
+    <!-- Recherche globale live (desktop) -->
+    <div class="topbar-center">
+      <div class="global-search-wrap" id="gsWrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="globalSearch" autocomplete="off"
+               placeholder="Article, client, référence, produit…"
+               class="global-search-input"
+               oninput="gsLive(this.value)"
+               onfocus="if(this.value.length>=2)gsLive(this.value)"
+               onkeydown="gsKey(event)">
+        <button type="button" id="gsClear" onclick="gsClear()"
+          style="display:none;height:100%;padding:0 10px;background:none;border:none;cursor:pointer;color:var(--gris3);font-size:16px;">✕</button>
+      </div>
+      <!-- Dropdown résultats -->
+      <div id="gsDropdown" style="
+        display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);
+        background:white;border:1px solid var(--gris2);border-radius:12px;
+        box-shadow:0 8px 32px rgba(15,23,42,.18);max-height:420px;overflow-y:auto;
+        z-index:9999;
+      "></div>
+    </div>
+
+    <div class="topbar-right">
+      <!-- Horloge (desktop) -->
+      <span id="clock"></span>
+
+      <!-- Actions contextuelles par page -->
+      {% block topbar_actions %}{% endblock %}
+
+      <!-- Raccourci Nouveau ticket -->
+      {% if can_write('acces_factures') %}
+      <button type="button" class="btn btn-primary btn-sm" id="topbarBtnNouveau"
+              onclick="topbarNouvelleFact()">
+        ➕ Facture
+      </button>
+      {% endif %}
+
+      <!-- ── Cloche de notifications ── -->
+      <div class="notif-wrap" id="notifWrap">
+        <button class="notif-btn" id="notifBtn" onclick="toggleNotifPanel()" aria-label="Notifications">
+          🔔
+          <span class="notif-badge hidden" id="notifBadge">0</span>
+        </button>
+        <div class="notif-panel" id="notifPanel">
+          <div class="notif-panel-header">
+            <span class="notif-title">🔔 Alertes &amp; Notifications</span>
+            <button class="notif-mark-all" onclick="notifMarkAll()">Tout lu</button>
+          </div>
+          <div class="notif-list" id="notifList">
+            <!-- Rempli dynamiquement par JS -->
+            <div class="notif-empty" id="notifEmpty">
+              <div class="notif-empty-icon">🔕</div>
+              <p>Aucune notification</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Menu utilisateur -->
+      <div class="user-menu-wrap" id="userMenuWrap">
+        <button class="user-avatar-btn" id="userMenuBtn" onclick="toggleUserMenu()">
+          <span class="user-avatar-circle">
+            {{ session.get('user_nom','?')[0].upper() }}
+          </span>
+          <span class="user-name-label">{{ session.get('user_nom','Utilisateur') }}</span>
+          <span style="font-size:10px;color:var(--gris3);margin-left:2px;">▾</span>
+        </button>
+        <div class="user-dropdown" id="userDropdown">
+          <div class="user-dropdown-header">
+            <div class="user-dropdown-avatar">
+              {{ session.get('user_nom','?')[0].upper() }}
+            </div>
+            <div>
+              <div style="font-weight:700;font-size:13px;color:var(--bleu);">
+                {{ session.get('user_nom','Utilisateur') }}
+              </div>
+              <div style="font-size:11px;color:var(--gris3);">
+                {{ session.get('user_role','technicien')|capitalize }}
+              </div>
+            </div>
+          </div>
+          <div class="user-dropdown-sep"></div>
+          {% if is_admin %}
+          <a href="{{ url_for('parametres') }}" class="user-dropdown-item">
+            <span>⚙️</span> Paramètres
+          </a>
+          <div class="user-dropdown-sep"></div>
+          {% endif %}
+          <!-- ── Toggle thème ── -->
+          <div style="padding:10px 16px;">
+            <button id="themToggleBtn" onclick="toggleTheme()"
+              style="width:100%;padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);
+                     font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;
+                     background:var(--bg-input);color:var(--texte);transition:all .2s;
+                     display:flex;align-items:center;justify-content:center;gap:8px;">
+              <span id="themeToggleIcon">🌙</span>
+              <span id="themeToggleLabel">Thème sombre</span>
+            </button>
+          </div>
+          <div class="user-dropdown-sep"></div>
+          <a href="{{ url_for('logout') }}" class="user-dropdown-item user-dropdown-logout">
+            <span>🚪</span> Déconnexion
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Zone de contenu -->
+  <div class="content">
+    <div id="toast-container"></div>
+
+    <!-- ══ POP-UP ERREUR GLOBALE (400/403/404/500) ══ -->
+    <div id="error-overlay" style="display:none;position:fixed;inset:0;z-index:99999;
+         background:rgba(15,23,42,.55);backdrop-filter:blur(4px);
+         align-items:center;justify-content:center;padding:20px;">
+      <div id="error-card" style="background:var(--modal-bg);border-radius:18px;
+           box-shadow:0 20px 60px rgba(0,0,0,.22);max-width:480px;width:100%;
+           animation:errCardIn .28s cubic-bezier(.34,1.4,.64,1);overflow:hidden;">
+        <!-- Barre colorée top -->
+        <div id="error-topbar" style="height:5px;background:linear-gradient(90deg,#dc2626,#f97316);"></div>
+        <div style="padding:32px 36px 28px;text-align:center;">
+          <div id="error-icon" style="font-size:48px;margin-bottom:12px;line-height:1;">🔥</div>
+          <div id="error-code" style="font-size:58px;font-weight:800;line-height:1;
+               background:linear-gradient(135deg,#dc2626,#f97316);
+               -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+               margin-bottom:6px;">500</div>
+          <div id="error-titre" style="font-size:17px;font-weight:700;color:#1e293b;
+               margin-bottom:8px;">Erreur interne</div>
+          <div id="error-msg" style="font-size:13px;color:#64748b;line-height:1.6;
+               margin-bottom:6px;"></div>
+          <div id="error-desc" style="font-size:11.5px;color:#94a3b8;font-style:italic;
+               margin-bottom:20px;min-height:0;"></div>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+            <button onclick="closeErrorPopup()"
+              style="padding:10px 20px;border-radius:9px;border:none;cursor:pointer;
+                     background:#f1f5f9;color:#475569;font-size:13px;font-weight:600;">
+              ✕ Fermer
+            </button>
+            <button onclick="history.back();closeErrorPopup()"
+              style="padding:10px 20px;border-radius:9px;border:none;cursor:pointer;
+                     background:#e2e8f0;color:#334155;font-size:13px;font-weight:600;">
+              ← Retour
+            </button>
+            <a href="/" onclick="closeErrorPopup()"
+              style="padding:10px 20px;border-radius:9px;cursor:pointer;text-decoration:none;
+                     background:#2563eb;color:#fff;font-size:13px;font-weight:600;">
+              🏠 Accueil
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <style>
+      @keyframes errCardIn {
+        from { opacity:0; transform:scale(.88) translateY(20px); }
+        to   { opacity:1; transform:scale(1) translateY(0); }
+      }
+      #error-overlay.open { display:flex !important; }
+    </style>
+
+    {# ── Flash messages → toasts ── #}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <script>
+    (function(){
+      var _pending = [
+        {% for cat, msg in messages %}
+        { cat: "{{ cat }}", msg: {{ msg | tojson }} }{% if not loop.last %},{% endif %}
+        {% endfor %}
+      ];
+      function _launch() {
+        _pending.forEach(function(m, i) {
+          setTimeout(function(){ showToast(m.cat, m.msg); }, i * 220);
+        });
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _launch);
+      else _launch();
+    })();
+    </script>
+    {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+</div>
+
+<!-- ═══ NAVIGATION BAS — Mobile ═══ -->
+<nav class="bottom-nav" id="bottomNav">
+  <div class="bottom-nav-inner">
+    <a href="{{ url_for('dashboard') }}"
+       class="bnav-item {% if request.endpoint=='dashboard' %}active{% endif %}">
+      <span class="bnav-icon">📊</span><span>Accueil</span>
+    </a>
+    {% if can_read('acces_articles') %}
+    <a href="{{ url_for('articles_list') }}"
+       class="bnav-item {% if 'article' in (request.endpoint or '') %}active{% endif %}">
+      <span class="bnav-icon">📦</span><span>Articles</span>
+    </a>
+    {% endif %}
+    {% if can_read('acces_clients') %}
+    <a href="{{ url_for('clients_list') }}"
+       class="bnav-item {% if 'client' in (request.endpoint or '') %}active{% endif %}">
+      <span class="bnav-icon">👥</span><span>Clients</span>
+    </a>
+    {% endif %}
+    {% if can_read('acces_stock') %}
+    <a href="{{ url_for('stock_list') }}"
+       class="bnav-item {% if 'stock' in (request.endpoint or '') %}active{% endif %}">
+      <span class="bnav-icon">📦</span><span>Stock</span>
+    </a>
+    {% endif %}
+    {% if can_read('acces_factures') %}
+    <a href="{{ url_for('factures_list') }}"
+       class="bnav-item {% if 'facture' in (request.endpoint or '') %}active{% endif %}">
+      <span class="bnav-icon">🧾</span><span>Factures</span>
+    </a>
+    {% endif %}
+  </div>
+</nav>
+
+<!-- ═══ SCRIPTS ═══ -->
+<script>
+/* ── Sidebar dropdowns ── */
+function sdToggle(el) {
+  var isOpen = el.classList.contains('open');
+  var children = el.nextElementSibling;
+  if (!children || !children.classList.contains('sd-children')) return;
+  if (isOpen) {
+    el.classList.remove('open');
+    children.classList.remove('open');
+    try { localStorage.removeItem('sd_open_' + el.id); } catch(e){}
+  } else {
+    el.classList.add('open');
+    children.classList.add('open');
+    try { localStorage.setItem('sd_open_' + el.id, '1'); } catch(e){}
+  }
+}
+
+/* ── Persistance état sidebar : dropdowns ouverts + lien actif ── */
+(function(){
+  var currentPath = location.pathname + location.search;
+  var _sideNav = document.querySelector('.sidebar-nav');
+
+  /* 0. Restaurer le scroll de la sidebar-nav */
+  /* Double RAF : attend que le navigateur ait calculé la hauteur scrollable */
+  if (_sideNav) {
+    try {
+      var _savedScroll = localStorage.getItem('sd_nav_scroll');
+      if (_savedScroll) {
+        var _scrollVal = parseInt(_savedScroll, 10);
+        requestAnimationFrame(function() {
+          requestAnimationFrame(function() {
+            _sideNav.scrollTop = _scrollVal;
+          });
+        });
+      }
+    } catch(e){}
+  }
+
+  /* 1. Sauvegarder le lien cliqué avant navigation */
+  document.querySelectorAll('.sidebar a').forEach(function(a) {
+    a.addEventListener('click', function() {
+      try { localStorage.setItem('sd_active_href', a.getAttribute('href')); } catch(e){}
+      /* Sauvegarder la position scroll au moment du clic */
+      if (_sideNav) {
+        try { localStorage.setItem('sd_nav_scroll', _sideNav.scrollTop); } catch(e){}
+      }
+    });
+  });
+
+  /* 2. Restaurer l'état ouvert des dropdowns */
+  document.querySelectorAll('.sd-parent[id]').forEach(function(el) {
+    var children = el.nextElementSibling;
+    if (!children || !children.classList.contains('sd-children')) return;
+    /* Si Jinja a déjà mis open (page active), on persiste */
+    if (el.classList.contains('open')) {
+      try { localStorage.setItem('sd_open_' + el.id, '1'); } catch(e){}
+    } else {
+      try {
+        if (localStorage.getItem('sd_open_' + el.id) === '1') {
+          el.classList.add('open');
+          children.classList.add('open');
+        }
+      } catch(e){}
+    }
+  });
+
+  /* 3. Forcer le lien actif sur le href sauvegardé si Jinja ne l'a pas détecté */
+  try {
+    var savedHref = localStorage.getItem('sd_active_href');
+    if (savedHref) {
+      /* Normaliser : retirer le host si présent */
+      var norm = savedHref.replace(/^https?:\/\/[^/]+/, '');
+      /* Vérifier si l'URL courante correspond */
+      if (currentPath === norm || currentPath.startsWith(norm.split('?')[0])) {
+        /* S'assurer qu'un lien a bien la classe active */
+        var alreadyActive = document.querySelector('.sidebar a.active');
+        if (!alreadyActive) {
+          var target = document.querySelector('.sidebar a[href="' + norm + '"]')
+                    || document.querySelector('.sidebar a[href="' + savedHref + '"]');
+          if (target) {
+            target.classList.add('active');
+            /* Ouvrir le dropdown parent si besoin */
+            var par = target.closest('.sd-children');
+            if (par) {
+              var parentBtn = par.previousElementSibling;
+              if (parentBtn && parentBtn.classList.contains('sd-parent')) {
+                parentBtn.classList.add('open', 'has-active');
+                par.classList.add('open');
+                try { localStorage.setItem('sd_open_' + parentBtn.id, '1'); } catch(e){}
+              }
+            }
+          }
+        }
+      } else {
+        /* Nouvelle page différente : mettre à jour le lien sauvegardé */
+        var matched = document.querySelector('.sidebar a.active');
+        if (matched) {
+          try { localStorage.setItem('sd_active_href', matched.getAttribute('href')); } catch(e){}
+        }
+      }
+    }
+  } catch(e){}
+})();
+
+/* ── Bouton topbar Nouveau ticket ── */
+function topbarNouvelleFact(){
+  var modal = document.getElementById('modalAddTicket');
+  if(modal){
+    openModal('modalAddTicket');
+  } else {
+    window.location = '{{ url_for("factures_list") }}';
+  }
+}
+
+/* ══ RECHERCHE LIVE TOPBAR ══════════════════════════════════════════════ */
+var _gsTimer = null, _gsIdx = -1, _gsItems = [];
+
+function gsLive(val){
+  var clear = document.getElementById('gsClear');
+  if(clear) clear.style.display = val ? 'block' : 'none';
+  clearTimeout(_gsTimer);
+  if(val.length < 2){ gsClose(); return; }
+  _gsTimer = setTimeout(function(){ gsFetch(val); }, 180);
+}
+
+function gsFetch(q){
+  fetch('/api/search?q=' + encodeURIComponent(q))
+    .then(function(r){ return r.json(); })
+    .then(function(data){ gsRender(data.results, q); })
+    .catch(function(){ gsClose(); });
+}
+
+function gsRender(items, q){
+  var dd = document.getElementById('gsDropdown');
+  if(!dd) return;
+  _gsItems = items; _gsIdx = -1;
+  if(!items.length){
+    dd.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px;">Aucun résultat pour « '+esc(q)+' »</div>';
+    dd.style.display = 'block'; return;
+  }
+  var typeColors = {ticket:'#2563eb',client:'#059669',vente:'#2563eb',devis:'#2563eb',stock:'#d97706',commande:'#f59e0b'};
+  var typeLbls   = {article:'Article',client:'Client',facture:'Facture',devis:'Devis',stock:'Stock',commande:'Commande'};
+  var lastType = '';
+  var html = '';
+  items.forEach(function(it, i){
+    if(it.type !== lastType){
+      if(lastType) html += '<div style="height:1px;background:#f1f5f9;margin:0 12px;"></div>';
+      html += '<div style="padding:6px 14px 3px;font-size:9px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;">'+esc(typeLbls[it.type]||it.type)+'</div>';
+      lastType = it.type;
+    }
+    var col = typeColors[it.type] || '#2563eb';
+    html += '<a href="'+it.url+'" class="gs-item" id="gsi'+i+'" '
+      + 'style="display:flex;align-items:center;gap:10px;padding:9px 14px;text-decoration:none;cursor:pointer;transition:background .1s;" '
+      + 'onmouseover="gsHover(this,'+i+')" onmouseout="this.style.background=\'\'" onclick="gsClose()">'
+      + '<span style="font-size:16px;flex-shrink:0;">'+it.icon+'</span>'
+      + '<div style="min-width:0;flex:1;">'
+      + '<div style="font-size:12px;font-weight:700;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+gsHL(esc(it.label),q)+'</div>'
+      + (it.sub ? '<div style="font-size:11px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(it.sub)+'</div>' : '')
+      + '</div>'
+      + (it.statut ? '<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:'+col+'22;color:'+col+';flex-shrink:0;">'+esc(it.statut)+'</span>' : '')
+      + '</a>';
+  });
+  dd.innerHTML = html;
+  dd.style.display = 'block';
+}
+
+function gsHL(txt, q){
+  var re = new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+  return txt.replace(re,'<mark style="background:#fef9c3;border-radius:2px;font-weight:800;color:#1a3a6c;">$1</mark>');
+}
+function gsHover(el,i){ _gsIdx=i; document.querySelectorAll('.gs-item').forEach(function(e,j){e.style.background=j===i?'#f8fafc':(e.style.background||'');}); }
+function gsClose(){ var dd=document.getElementById('gsDropdown'); if(dd) dd.style.display='none'; _gsIdx=-1; }
+function gsClear(){ var inp=document.getElementById('globalSearch'); if(inp){inp.value='';inp.focus();} gsClose(); var c=document.getElementById('gsClear'); if(c) c.style.display='none'; }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function gsKey(e){
+  var dd = document.getElementById('gsDropdown');
+  if(!dd || dd.style.display==='none') return;
+  if(e.key==='ArrowDown'){e.preventDefault();_gsIdx=Math.min(_gsIdx+1,_gsItems.length-1);gsSetActive();}
+  else if(e.key==='ArrowUp'){e.preventDefault();_gsIdx=Math.max(_gsIdx-1,-1);gsSetActive();}
+  else if(e.key==='Enter' && _gsIdx>=0){e.preventDefault(); var a=document.getElementById('gsi'+_gsIdx); if(a){window.location=a.href;gsClose();}}
+  else if(e.key==='Escape'){gsClose();}
+}
+function gsSetActive(){
+  document.querySelectorAll('.gs-item').forEach(function(el,i){ el.style.background=i===_gsIdx?'#f0f4ff':''; });
+  if(_gsIdx>=0){ var el=document.getElementById('gsi'+_gsIdx); if(el) el.scrollIntoView({block:'nearest'}); }
+}
+document.addEventListener('click', function(e){
+  if(!e.target.closest('#gsWrap') && !e.target.closest('#gsDropdown')) gsClose();
+});
+
+/* ══ HIGHLIGHT UNIVERSEL — fonctionne sans data-id dans les templates ═══ */
+(function(){
+  var ref = new URLSearchParams(location.search).get('sel_ref');
+  if(!ref) return;
+
+  function highlight(el){
+    /* Si dans un onglet caché, basculer vers historique */
+    var tabS = el.closest('#tab-saisie');
+    if(tabS && typeof switchTab === 'function') switchTab('historique');
+
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+    var origBg  = el.style.background;
+    var origSh  = el.style.boxShadow;
+    var origTr  = el.style.transition;
+    var origBr  = el.style.borderRadius;
+    el.style.transition   = 'background .25s, box-shadow .25s';
+    el.style.background   = '#dbeafe';
+    el.style.boxShadow    = 'inset 0 0 0 2px #2563eb';
+    el.style.borderRadius = '4px';
+    setTimeout(function(){
+      el.style.transition   = 'background 1s, box-shadow 1s';
+      el.style.background   = origBg;
+      el.style.boxShadow    = origSh;
+      setTimeout(function(){
+        el.style.transition   = origTr;
+        el.style.borderRadius = origBr;
+      }, 1000);
+    }, 2000);
+  }
+
+  function findAndHighlight(){
+    var needle = ref.toLowerCase().trim();
+
+    /* 1. Chercher un élément avec data-id ou data-ref */
+    var byAttr = document.querySelector('[data-id][data-ref="'+CSS.escape(ref)+'"]')
+              || document.querySelector('[data-ref="'+CSS.escape(ref)+'"]');
+    if(byAttr){ highlight(byAttr); return true; }
+
+    /* 2. Scanner toutes les lignes <tr> et cartes : chercher le texte */
+    var candidates = Array.from(document.querySelectorAll(
+      'tbody tr, .tkt-card, .emp-card, .table-card tr'
+    ));
+    for(var i=0; i<candidates.length; i++){
+      var el = candidates[i];
+      if(el.textContent.toLowerCase().indexOf(needle) !== -1){
+        highlight(el);
+        return true;
+      }
+    }
+
+    /* 3. Chercher dans tout le document (fallback) */
+    var allEls = document.querySelectorAll('tr, [class*="card"]');
+    for(var j=0; j<allEls.length; j++){
+      var e = allEls[j];
+      if(e.textContent.replace(/\s+/g,' ').toLowerCase().indexOf(needle) !== -1
+         && e.offsetHeight > 0){  /* visible uniquement */
+        highlight(e);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /* Tenter immédiatement, puis après délais pour les rendus JS */
+  if(!findAndHighlight()){
+    setTimeout(function(){
+      if(!findAndHighlight()) setTimeout(findAndHighlight, 600);
+    }, 150);
+  }
+})();
+
+/* ── Horloge ── */
+function pad(n){return n<10?'0'+n:n;}
+function tick(){
+  var d=new Date();
+  var el=document.getElementById('clock');
+  if(!el)return;
+  el.textContent=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]+' '+
+    pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()+
+    ' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+}
+tick(); setInterval(tick,1000);
+
+/* ── Menu utilisateur ── */
+function toggleUserMenu(){
+  document.getElementById('userDropdown').classList.toggle('open');
+}
+document.addEventListener('click',function(e){
+  var wrap=document.getElementById('userMenuWrap');
+  if(wrap&&!wrap.contains(e.target)){
+    var dd=document.getElementById('userDropdown');
+    if(dd)dd.classList.remove('open');
+  }
+});
+
+/* ── Modals ── */
+function openModal(id){
+  var m=document.getElementById(id);
+  if(!m)return;
+  m.classList.add('open');
+  document.body.style.overflow='hidden';
+  /* Injecte le drag handle si absent (mobile) */
+  var modal=m.querySelector('.modal');
+  if(modal && !modal.querySelector('.modal-drag-handle')){
+    var dh=document.createElement('div');
+    dh.className='modal-drag-handle';
+    modal.insertBefore(dh,modal.firstChild);
+  }
+}
+function closeModal(id){
+  var m=document.getElementById(id);
+  if(m){m.classList.remove('open');document.body.style.overflow='';}
+}
+document.addEventListener('click',function(e){
+  if(e.target.classList.contains('modal-overlay')){
+    e.target.classList.remove('open');
+    document.body.style.overflow='';
+  }
+});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){
+    /* 1. Fermer les modals ouverts en priorité */
+    var openModals=document.querySelectorAll('.modal-overlay.open');
+    if(openModals.length){
+      openModals.forEach(function(m){ m.classList.remove('open'); });
+      document.body.style.overflow='';
+      closeMobSearch();
+      closeSidebar();
+      return; /* ne pas naviguer si un modal était ouvert */
+    }
+    closeMobSearch();
+    closeSidebar();
+    /* 2. Aucun modal ouvert → retour page précédente */
+    history.back();
+  }
+});
+
+/* ── Swipe vers le bas pour fermer les modals (mobile) ── */
+(function(){
+  var startY=0, startScroll=0, activeOverlay=null, activeModal=null;
+  document.addEventListener('touchstart',function(e){
+    var overlay=e.target.closest('.modal-overlay.open');
+    if(!overlay)return;
+    var modal=overlay.querySelector('.modal');
+    var handle=modal&&modal.querySelector('.modal-drag-handle');
+    var body=modal&&modal.querySelector('.modal-body');
+    /* Swipe depuis le handle ou le header uniquement */
+    var fromHandle=handle&&handle.contains(e.target);
+    var fromHeader=modal&&modal.querySelector('.modal-header')&&modal.querySelector('.modal-header').contains(e.target);
+    if(!fromHandle&&!fromHeader)return;
+    startY=e.touches[0].clientY;
+    startScroll=body?body.scrollTop:0;
+    activeOverlay=overlay; activeModal=modal;
+  },{passive:true});
+  document.addEventListener('touchmove',function(e){
+    if(!activeModal)return;
+    var dy=e.touches[0].clientY-startY;
+    if(dy>0){
+      activeModal.style.transform='translateY('+dy+'px)';
+      activeModal.style.transition='none';
+    }
+  },{passive:true});
+  document.addEventListener('touchend',function(e){
+    if(!activeModal)return;
+    var dy=e.changedTouches[0].clientY-startY;
+    activeModal.style.transition='';
+    if(dy>80){
+      activeModal.style.transform='';
+      /* Trouve l'id du modal-overlay */
+      var id=activeOverlay&&activeOverlay.id;
+      if(id)closeModal(id);
+    } else {
+      activeModal.style.transform='';
+    }
+    activeModal=null; activeOverlay=null;
+  },{passive:true});
+})();
+</script>
+
+<!-- ═══ MODAL ACCÈS REFUSÉ ═══ -->
+<div id="errModal-overlay" role="alertdialog" aria-modal="true" aria-labelledby="errModal-title">
+  <div id="errModal-box">
+    <div id="errModal-header">
+      <div id="errModal-icon-wrap">🚫</div>
+      <div id="errModal-header-text">
+        <div id="errModal-title">Accès refusé</div>
+        <div id="errModal-subtitle">STiNAUG TECHNOLOGIE · DISTRIGEST</div>
+      </div>
+      <button id="errModal-close-x" onclick="closeErrModal()" aria-label="Fermer">✕</button>
+    </div>
+    <div id="errModal-body">
+      <div id="errModal-msg">Vous n'avez pas accès à ce métier.</div>
+      <div id="errModal-hint">💡 Contactez votre administrateur pour obtenir les droits nécessaires.</div>
+    </div>
+    <div id="errModal-footer">
+      <button id="errModal-btn-ok" onclick="closeErrModal()">OK, compris</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CONFIRM MODAL ═══ -->
+<div id="cfmModal-overlay" role="alertdialog" aria-modal="true" aria-labelledby="cfmModal-title">
+  <div id="cfmModal-box">
+    <div id="cfmModal-header">
+      <div id="cfmModal-icon-wrap">❓</div>
+      <div id="cfmModal-header-text">
+        <div id="cfmModal-title">Confirmation</div>
+        <div id="cfmModal-subtitle">STiNAUG TECHNOLOGIE · DISTRIGEST</div>
+      </div>
+      <button id="cfmModal-close-x" aria-label="Annuler">✕</button>
+    </div>
+    <div id="cfmModal-body">
+      <div id="cfmModal-msg"></div>
+      <div id="cfmModal-warn">⚠️ Cette action est irréversible.</div>
+    </div>
+    <div id="cfmModal-footer">
+      <button id="cfmModal-btn-cancel">Annuler</button>
+      <button id="cfmModal-btn-ok">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ALERT MODAL — window.alert stylisé ═══ -->
+<div id="altModal-overlay" role="alertdialog" aria-modal="true" aria-labelledby="altModal-title">
+  <div id="altModal-box">
+    <div id="altModal-header">
+      <div id="altModal-icon-wrap">ℹ️</div>
+      <div id="altModal-header-text">
+        <div id="altModal-title">Information</div>
+        <div id="altModal-subtitle">STiNAUG TECHNOLOGIE · DISTRIGEST</div>
+      </div>
+      <button id="altModal-close-x" aria-label="Fermer">✕</button>
+    </div>
+    <div id="altModal-body">
+      <div id="altModal-msg"></div>
+    </div>
+    <div id="altModal-footer">
+      <button id="altModal-btn-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TOAST ENGINE ═══ -->
+<script>
+var _TOAST_ICONS={success:'✅',danger:'❌',error:'❌',warning:'⚠️',info:'ℹ️'};
+
+function showToast(cat,msg,duration){
+  duration=duration||4500;
+  var normCat=(cat==='error')?'danger':cat;
+  var container=document.getElementById('toast-container');
+  if(!container)return;
+  var toast=document.createElement('div');
+  toast.className='toast toast-'+normCat;
+  toast.style.setProperty('--toast-dur',(duration/1000)+'s');
+  toast.innerHTML=
+    '<div class="toast-body">'+
+      '<span class="toast-icon">'+(_TOAST_ICONS[cat]||'ℹ️')+'</span>'+
+      '<span class="toast-text"><div class="toast-title">'+msg+'</div></span>'+
+      '<button class="toast-close" onclick="dismissToast(this.closest(\'.toast\'))">✕</button>'+
+    '</div>'+
+    '<div class="toast-progress"></div>';
+  container.appendChild(toast);
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){ toast.classList.add('toast-in'); });
+  });
+  toast._timer=setTimeout(function(){dismissToast(toast);},duration);
+  return toast;
+}
+
+function dismissToast(toast){
+  if(!toast||toast._dismissed)return;
+  toast._dismissed=true;
+  clearTimeout(toast._timer);
+  toast.classList.remove('toast-in');
+  toast.classList.add('toast-out');
+  setTimeout(function(){if(toast.parentNode)toast.parentNode.removeChild(toast);},380);
+}
+
+/* Toast module verrouillé */
+function showLockedToast(moduleName,reason){
+  var msg;
+  if(reason==='role'){
+    msg='🔒 <strong>'+moduleName+'</strong> — Accès non autorisé pour votre rôle.';
+  } else {
+    msg='🔒 <strong>'+moduleName+'</strong> est désactivé pour votre compte. '+
+        'Contactez l\'administrateur.';
+  }
+  showToast('warning',msg,5500);
+}
+
+/* Flash messages → Toasts OU Modal permission */
+document.addEventListener('DOMContentLoaded',function(){
+  var _catMap={'alert-success':'success','alert-danger':'danger','alert-warning':'warning','alert-info':'info','alert-error':'danger'};
+  /* Mots-clés indiquant un refus de permission dans le message flash */
+  var _permRegex = /n'avez pas acc[èe]s|accès.*module|lecture seule|non autoris[ée]|permission|métier/i;
+
+  document.querySelectorAll('.content .alert, .ptab-panel .alert').forEach(function(el,i){
+    var cat='info';
+    Object.keys(_catMap).forEach(function(cls){ if(el.classList.contains(cls))cat=_catMap[cls]; });
+    var msg = el.innerHTML.trim();
+    /* Texte brut pour tester les mots-clés */
+    var tmp = document.createElement('div'); tmp.innerHTML = msg;
+    var plain = (tmp.textContent||tmp.innerText||'').trim();
+    el.parentNode && el.parentNode.removeChild(el);
+
+    if(_permRegex.test(plain)){
+      /* Refus de permission → modal stylisé */
+      setTimeout(function(){
+        showErrorModal(plain);
+      }, i * 120);
+    } else {
+      setTimeout(function(){ showToast(cat,msg,6500); },i*250);
+    }
+  });
+});
+
+/* ══════════════════════════════════════════════════════
+   MODAL ACCÈS REFUSÉ — API globale
+══════════════════════════════════════════════════════ */
+window.showErrorModal = function(message){
+  var overlay = document.getElementById('errModal-overlay');
+  var msgEl   = document.getElementById('errModal-msg');
+  if(!overlay || !msgEl){ window._nativeAlert && window._nativeAlert(message); return; }
+  msgEl.textContent = message || "Vous n'avez pas accès à ce métier.";
+  overlay.classList.add('open');
+  setTimeout(function(){
+    var btn = document.getElementById('errModal-btn-ok');
+    if(btn) btn.focus();
+  }, 80);
+};
+
+window.closeErrModal = function(){
+  var o = document.getElementById('errModal-overlay');
+  if(o) o.classList.remove('open');
+};
+
+/* Fermer clic fond + Escape */
+document.addEventListener('DOMContentLoaded', function(){
+  var o = document.getElementById('errModal-overlay');
+  if(o) o.addEventListener('click', function(e){ if(e.target===o) closeErrModal(); });
+});
+document.addEventListener('keydown', function(e){
+  if(e.key==='Escape'||e.key==='Esc'){
+    var o=document.getElementById('errModal-overlay');
+    if(o && o.classList.contains('open')) closeErrModal();
+  }
+});
+
+/* ── Intercepteur fetch global : 403 permission_refusee → modal ── */
+(function(){
+  var _orig = window.fetch;
+  window.fetch = function(){
+    return _orig.apply(this, arguments).then(function(resp){
+      if(resp.status === 403){
+        resp.clone().json().then(function(d){
+          var msg = (d && d.message) ? d.message : "Accès refusé (403).";
+          /* Toutes erreurs 403 (permission + licence) → modal */
+          showErrorModal(msg);
+        }).catch(function(){
+          showErrorModal("Accès refusé (403).");
+        });
+      }
+      return resp;
+    });
+  };
+})();
+
+/* ════════════════════════════════════════════════════════════════════
+   CONFIRM MODAL — Override universel window.confirm
+   Technique : pending-queue + re-trigger click
+   Couvre :
+     • onclick="if(confirm(\'...\')){ action() }"
+     • onclick="fn(id)"  → fn() appelle confirm() en interne
+     • Tout code JS quelconque (AJAX, modules, fonctions globales)
+   Sans modifier aucun template.
+════════════════════════════════════════════════════════════════════ */
+(function(){
+  window._nativeConfirm = window.confirm;
+
+  /* ── État interne ───────────────────────────────────────────────── */
+  var _pending     = null;   /* { msg, resolve } courant */
+  var _confirmed   = false;  /* flag : prochain confirm() retourne true */
+  var _lastTarget  = null;   /* dernier élément clické */
+
+  /* ── Tracker du dernier élément clické ────────────────────────────── */
+  document.addEventListener('click', function(e){
+    if(!e._cfmRetrigger) _lastTarget = e.target;
+  }, true);
+
+  /* ── Ouvrir le modal confirm ───────────────────────────────────── */
+  function _openModal(message, resolve){
+    var overlay  = document.getElementById('cfmModal-overlay');
+    var msgEl    = document.getElementById('cfmModal-msg');
+    var titleEl  = document.getElementById('cfmModal-title');
+    var warnEl   = document.getElementById('cfmModal-warn');
+    var btnOk    = document.getElementById('cfmModal-btn-ok');
+    var btnCancel= document.getElementById('cfmModal-btn-cancel');
+    var btnClose = document.getElementById('cfmModal-close-x');
+    if(!overlay){ resolve(window._nativeConfirm(message)); return; }
+
+    if(titleEl) titleEl.textContent = 'Confirmation';
+    if(msgEl)   msgEl.textContent   = message || '';
+
+    var isDestructive = /supprimer|effacer|annuler|vider|réinitialiser|irréversible|définitivement|delete|remove|clôtur/i.test(message);
+    if(warnEl){
+      warnEl.style.display = isDestructive ? 'flex' : 'none';
+      warnEl.innerHTML     = isDestructive ? '⚠️ Cette action est irréversible.' : '';
+    }
+    if(btnOk){
+      btnOk.textContent      = 'Confirmer';
+      btnOk.style.background = isDestructive ? 'var(--rouge)' : 'var(--bleu2)';
+      btnOk.style.boxShadow  = isDestructive
+        ? '0 4px 14px rgba(220,38,38,.28)'
+        : '0 4px 14px rgba(37,99,235,.28)';
+    }
+
+    overlay.classList.add('open');
+    setTimeout(function(){ if(btnCancel) btnCancel.focus(); }, 80);
+
+    function _ok()    { _close(true);  }
+    function _cancel(){ _close(false); }
+    function _key(e){
+      if(e.key==='Enter')                  { e.preventDefault(); _close(true);  }
+      if(e.key==='Escape'||e.key==='Esc') { _close(false); }
+    }
+    function _bg(e){ if(e.target===overlay) _close(false); }
+    function _close(result){
+      overlay.classList.remove('open');
+      btnOk    .removeEventListener('click',   _ok);
+      btnCancel.removeEventListener('click',   _cancel);
+      if(btnClose) btnClose.removeEventListener('click', _cancel);
+      document .removeEventListener('keydown', _key);
+      overlay  .removeEventListener('click',   _bg);
+      resolve(result);
+    }
+    btnOk    .addEventListener('click',   _ok);
+    btnCancel.addEventListener('click',   _cancel);
+    if(btnClose) btnClose.addEventListener('click', _cancel);
+    document .addEventListener('keydown', _key);
+    overlay  .addEventListener('click',   _bg);
+  }
+
+  /* ── showConfirmModal() — API publique (Promise) ────────────────────── */
+  window.showConfirmModal = function(message){
+    return new Promise(function(resolve){ _openModal(message, resolve); });
+  };
+
+  /* ── confirmThen() — helper callback ───────────────────────────────── */
+  window.confirmThen = function(message, onOk, title, okLabel){
+    window.showConfirmModal(message).then(function(ok){
+      if(ok && typeof onOk === 'function') onOk();
+    });
+  };
+
+  /* ── Override window.confirm (appels synchrones depuis fonctions JS) ── */
+  window.confirm = function(message){
+    /* Passage 2 : flag actif → l'action peut s'exécuter */
+    if(_confirmed){
+      _confirmed = false;
+      return true;
+    }
+    /* Passage 1 : afficher le modal, bloquer l'exécution (retourne false) */
+    var target = _lastTarget;
+    _openModal(message, function(ok){
+      _pending = null;
+      if(!ok) return;
+
+      /* Chercher le lien <a> ou le bouton dans la chaîne parent */
+      var anchor = null, btn = null, el = target;
+      while(el && el !== document.body){
+        if(el.tagName === 'A' && el.href){ anchor = el; break; }
+        if(el.tagName === 'BUTTON' || el.tagName === 'INPUT'){ btn = el; break; }
+        el = el.parentElement;
+      }
+
+      if(anchor){
+        /* Lien <a href="/depots/delete/1"> → navigation directe */
+        window.location.href = anchor.href;
+      } else if(btn && btn.closest('form')){
+        /* Bouton submit dans un form → soumettre le form */
+        btn.closest('form').submit();
+      } else {
+        /* Cas général (onclick="fn(id)") → re-dispatch avec flag */
+        _confirmed = true;
+        if(target){
+          var evt = new MouseEvent('click', { bubbles:true, cancelable:true });
+          evt._cfmRetrigger = true;
+          target.dispatchEvent(evt);
+        }
+      }
+    });
+    return false; /* annule l'action initiale */
+  };
+
+  /* ── Patch supplémentaire : éléments onclick inline avec data-confirm ── */
+  function _patchDataConfirm(el){
+    var dc = el.getAttribute('data-confirm');
+    if(dc && !el._cfmPatched){
+      el._cfmPatched = true;
+      el.addEventListener('click', function(e){
+        if(e._cfmRetrigger) return;
+        e.preventDefault(); e.stopPropagation();
+        var href = el.href || el.getAttribute('data-href');
+        var form = el.closest('form');
+        window.showConfirmModal(dc).then(function(ok){
+          if(!ok) return;
+          if(href)      window.location.href = href;
+          else if(form) form.submit();
+        });
+      });
+    }
+  }
+
+  function _patchAll(root){
+    (root||document).querySelectorAll('[data-confirm]').forEach(_patchDataConfirm);
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    _patchAll(document);
+    var obs = new MutationObserver(function(muts){
+      muts.forEach(function(m){
+        m.addedNodes.forEach(function(n){
+          if(n.nodeType!==1) return;
+          _patchDataConfirm(n);
+          n.querySelectorAll && n.querySelectorAll('[data-confirm]').forEach(_patchDataConfirm);
+        });
+      });
+    });
+    obs.observe(document.body,{childList:true,subtree:true});
+  });
+
+  window.cfmPatchAll = _patchAll;
+
+})();
+
+/* ── Override window.alert : tous les messages → modal stylisé ── */
+(function(){
+  window._nativeAlert = window.alert;
+
+  function _openAlertModal(msg, type){
+    var overlay = document.getElementById('altModal-overlay');
+    if(!overlay){ window._nativeAlert(msg); return; }
+
+    var msgEl    = document.getElementById('altModal-msg');
+    var titleEl  = document.getElementById('altModal-title');
+    var iconEl   = document.getElementById('altModal-icon-wrap');
+    var btnOk    = document.getElementById('altModal-btn-ok');
+    var btnClose = document.getElementById('altModal-close-x');
+    var header   = document.getElementById('altModal-header');
+
+    var s = String(msg || '');
+
+    var isError   = type==='error'   || /erreur|error|interdit|impossible|échec|failed|invalid/i.test(s);
+    var isWarning = type==='warning' || /attention|avertissement|warning|incomplet|manquant|obligatoire|au moins/i.test(s);
+    var isSuccess = type==='success' || /succès|success|enregistré|sauvegardé|créé|ajouté|supprimé|mis à jour/i.test(s);
+
+    var icon, title, gradient, btnColor, shadow;
+    if(isError){
+      icon='❌'; title='Erreur';
+      gradient='linear-gradient(135deg,#7f1d1d 0%,#dc2626 100%)';
+      btnColor='var(--rouge)'; shadow='rgba(220,38,38,.28)';
+    } else if(isWarning){
+      icon='⚠️'; title='Attention';
+      gradient='linear-gradient(135deg,#1a3a6c 0%,#2563eb 100%)';
+      btnColor='var(--bleu2)'; shadow='rgba(37,99,235,.28)';
+    } else if(isSuccess){
+      icon='✅'; title='Succès';
+      gradient='linear-gradient(135deg,#14532d 0%,#16a34a 100%)';
+      btnColor='var(--vert)'; shadow='rgba(22,163,74,.28)';
+    } else {
+      icon='ℹ️'; title='Information';
+      gradient='linear-gradient(135deg,#1a3a6c 0%,#2563eb 100%)';
+      btnColor='var(--bleu2)'; shadow='rgba(37,99,235,.28)';
+    }
+
+    if(iconEl)  iconEl.textContent      = icon;
+    if(titleEl) titleEl.textContent     = title;
+    if(msgEl)   msgEl.textContent       = s;
+    if(header)  header.style.background = gradient;
+    if(btnOk){
+      btnOk.style.background = btnColor;
+      btnOk.style.boxShadow  = '0 4px 14px ' + shadow;
+    }
+
+    overlay.classList.add('open');
+    setTimeout(function(){ if(btnOk) btnOk.focus(); }, 80);
+
+    function _close(){
+      overlay.classList.remove('open');
+      btnOk.removeEventListener('click', _close);
+      if(btnClose) btnClose.removeEventListener('click', _close);
+      document.removeEventListener('keydown', _key);
+      overlay .removeEventListener('click',   _bg);
+    }
+    function _key(e){
+      if(e.key==='Enter'||e.key==='Escape'||e.key==='Esc'){ e.preventDefault(); _close(); }
+    }
+    function _bg(e){ if(e.target===overlay) _close(); }
+
+    btnOk.addEventListener('click', _close);
+    if(btnClose) btnClose.addEventListener('click', _close);
+    document.addEventListener('keydown', _key);
+    overlay .addEventListener('click',   _bg);
+  }
+
+  /* API publique */
+  window.showAlertModal = function(msg, type){ _openAlertModal(msg, type); };
+
+  /* Override total : jamais le natif sauf si le DOM n'est pas prêt */
+  window.alert = function(msg){
+    var s = String(msg || '');
+    if(/JSON|token|DOCTYPE|SyntaxError|<!|Unexpected|réseau|network/i.test(s)){
+      /* Afficher le vrai message technique au lieu du message d'accès refusé */
+      _openAlertModal("Erreur technique : " + s, 'error');
+    } else {
+      _openAlertModal(s);
+    }
+  };
+})();
+</script>
+
+<!-- ═══ SIDEBAR MOBILE + SWIPE + RECHERCHE ═══ -->
+<script>
+(function(){
+  var sidebar  =document.getElementById('sidebar');
+  var overlay  =document.getElementById('sidebarOverlay');
+  var hamburger=document.getElementById('hamburgerBtn');
+  var closeBtn =document.getElementById('sidebarCloseBtn');
+
+  function openSidebar(){
+    sidebar.classList.add('mob-open');
+    overlay.classList.add('open');
+    if(hamburger)hamburger.classList.add('open');
+    document.body.classList.add('sidebar-open');
+    if(closeBtn)closeBtn.style.display='flex';
+  }
+  window.closeSidebar=function(){
+    sidebar.classList.remove('mob-open');
+    overlay.classList.remove('open');
+    if(hamburger)hamburger.classList.remove('open');
+    document.body.classList.remove('sidebar-open');
+    if(closeBtn)closeBtn.style.display='none';
+  };
+  window.toggleSidebar=function(){
+    if(sidebar.classList.contains('mob-open'))closeSidebar();
+    else openSidebar();
+  };
+
+  function checkMobile(){
+    var modern=document.body.classList.contains('menu-moderne');
+    var isMob=window.innerWidth<=900;
+    var open=sidebar.classList.contains('mob-open');
+    /* En mode moderne le tiroir vaut pour toutes les tailles :
+       on ne referme pas automatiquement sur grand écran. */
+    if(!modern && !isMob)closeSidebar();
+    if(closeBtn)closeBtn.style.display=open?'flex':'none';
+  }
+  window.addEventListener('resize',checkMobile);
+
+  /* Swipe gauche pour fermer */
+  var touchStartX=0;
+  sidebar.addEventListener('touchstart',function(e){ touchStartX=e.touches[0].clientX; },{passive:true});
+  sidebar.addEventListener('touchend',function(e){
+    if(e.changedTouches[0].clientX-touchStartX<-60)closeSidebar();
+  },{passive:true});
+
+  /* Swipe droit depuis le bord pour ouvrir */
+  document.addEventListener('touchstart',function(e){
+    touchStartX=e.touches[0].clientX<20?e.touches[0].clientX:-999;
+  },{passive:true});
+  document.addEventListener('touchend',function(e){
+    if(touchStartX>=0&&e.changedTouches[0].clientX-touchStartX>60&&!sidebar.classList.contains('mob-open'))
+      openSidebar();
+  },{passive:true});
+
+  /* Fermer sidebar au clic d'un lien (mobile) */
+  if(sidebar){
+    sidebar.querySelectorAll('a').forEach(function(link){
+      link.addEventListener('click',function(){
+        if(window.innerWidth<=900)closeSidebar();
+      });
+    });
+  }
+
+  /* Recherche mobile */
+  var mobBar  =document.getElementById('mobSearchBar');
+  var mobInput=document.getElementById('mobSearchInput');
+  window.openMobSearch=function(){
+    mobBar.classList.add('open');
+    document.body.style.overflow='hidden';
+    setTimeout(function(){if(mobInput)mobInput.focus();},60);
+  };
+  window.closeMobSearch=function(){
+    mobBar.classList.remove('open');
+    document.body.style.overflow='';
+  };
+
+  /* Éviter le zoom automatique Android sur les inputs */
+  function fixInputZoom(){
+    if(window.innerWidth>900)return;
+    document.querySelectorAll('input,select,textarea').forEach(function(el){
+      if(parseFloat(window.getComputedStyle(el).fontSize)<16)el.style.fontSize='16px';
+    });
+  }
+  new MutationObserver(fixInputZoom).observe(document.body,{childList:true,subtree:true});
+  fixInputZoom();
+
+  document.body.style.overscrollBehaviorY='contain';
+})();
+</script>
+
+{% block scripts %}{% endblock %}
+
+<!-- ═══ MOTEUR DE NOTIFICATIONS ═══ -->
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   SYSTÈME DE NOTIFICATIONS — DISTRIGEST
+   Sources :
+     • /api/alertes  → alertes base de données (stock, factures,
+                        échéances, relances, congés, emballages…)
+     • showToast()   → chaque flash Flask intercepté et copié ici
+   API publique :
+     addNotif(msg, cat, icon)  → ajoute une alerte manuelle
+     notifMarkAll()            → marque tout comme lu
+     clearNotifs()             → vide tout
+     notifRefresh()            → force un rechargement depuis l'API
+═══════════════════════════════════════════════════════════════════ */
+(function(){
+
+  /* ── État en mémoire ────────────────────────────────────────────── */
+  var _dbAlertes  = [];          // alertes venant de /api/alertes
+  var _manualList = [];          // notifications ajoutées par addNotif / toasts
+  var _readIds    = {};          // {id: true} → alertes déjà lues
+  var _manUid     = 0;
+  var _pollTimer  = null;
+  var _POLL_DELAY = 5 * 60 * 1000;   // rechargement auto toutes les 5 min
+
+  var _catIcons = { warning:'⚠️', danger:'🚨', success:'✅', info:'ℹ️' };
+
+  /* ── Persistance légère des IDs lus ────────────────────────────── */
+  function _saveRead(){
+    try { sessionStorage.setItem('pp_read_ids', JSON.stringify(_readIds)); } catch(e){}
+  }
+  function _loadRead(){
+    try {
+      var d = sessionStorage.getItem('pp_read_ids');
+      if(d) _readIds = JSON.parse(d);
+    } catch(e){}
+  }
+
+  /* ── Rendu du panneau ───────────────────────────────────────────── */
+  function _render(){
+    var list  = document.getElementById('notifList');
+    var empty = document.getElementById('notifEmpty');
+    var badge = document.getElementById('notifBadge');
+    if(!list) return;
+
+    /* Fusionner les deux sources : alertes DB + manuelles */
+    var all = [];
+
+    /* Alertes DB */
+    _dbAlertes.forEach(function(a){
+      all.push({
+        id   : 'db_' + a.id,
+        cat  : a.cat,
+        icon : a.icon,
+        msg  : a.msg,
+        url  : a.url,
+        ts   : a.ts,
+        read : !!_readIds['db_' + a.id],
+        isDB : true,
+      });
+    });
+
+    /* Notifications manuelles (flash toasts) */
+    _manualList.slice().reverse().forEach(function(n){
+      all.push({
+        id   : 'man_' + n.id,
+        cat  : n.cat,
+        icon : n.icon,
+        msg  : n.msg,
+        url  : null,
+        ts   : null,
+        read : !!_readIds['man_' + n.id],
+        isDB : false,
+      });
+    });
+
+    /* Vider les items affichés (garder #notifEmpty) */
+    Array.from(list.children).forEach(function(c){
+      if(c.id !== 'notifEmpty') list.removeChild(c);
+    });
+
+    if(!all.length){
+      if(empty) empty.style.display = 'flex';
+      if(badge){ badge.textContent='0'; badge.classList.add('hidden'); }
+      return;
+    }
+    if(empty) empty.style.display = 'none';
+
+    var unread = 0;
+    all.forEach(function(n){
+      if(!n.read) unread++;
+      var el = document.createElement('div');
+      el.className = 'notif-item cat-' + (n.cat||'info') + (n.read ? '' : ' unread');
+      var timeHtml = n.ts
+        ? '<div class="notif-item-time">📅 ' + n.ts + '</div>'
+        : '';
+      var linkOpen  = n.url ? '<a href="'+n.url+'" style="text-decoration:none;color:inherit;display:contents;">' : '';
+      var linkClose = n.url ? '</a>' : '';
+      el.innerHTML =
+        '<div class="notif-dot"></div>'+
+        '<div class="notif-item-icon">'+(n.icon||'ℹ️')+'</div>'+
+        '<div class="notif-item-body">'+
+          linkOpen+
+          '<div class="notif-item-msg">'+ n.msg +'</div>'+
+          timeHtml+
+          linkClose+
+        '</div>';
+      /* Marquer comme lu au clic */
+      el.addEventListener('click', function(){
+        _readIds[n.id] = true; _saveRead(); _render();
+      });
+      list.insertBefore(el, empty);
+    });
+
+    if(badge){
+      if(unread > 0){
+        badge.textContent = unread > 99 ? '99+' : unread;
+        badge.classList.remove('hidden');
+      } else {
+        badge.textContent = '0';
+        badge.classList.add('hidden');
+      }
+    }
+  }
+
+  /* ── Chargement /api/alertes ────────────────────────────────────── */
+  function _fetchAlertes(silent){
+    fetch('/api/alertes', { credentials: 'same-origin' })
+      .then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function(data){
+        _dbAlertes = data.alertes || [];
+
+        /* Notifier visuellement si nouvelles alertes non lues */
+        if(!silent){
+          var nouvellesDB = _dbAlertes.filter(function(a){
+            return !_readIds['db_' + a.id];
+          });
+          if(nouvellesDB.length){
+            try{ if(navigator.vibrate) navigator.vibrate([30,20,30]); }catch(e){}
+          }
+        }
+        _render();
+
+        /* Reprogrammer le prochain poll */
+        clearTimeout(_pollTimer);
+        _pollTimer = setTimeout(function(){ _fetchAlertes(true); }, _POLL_DELAY);
+      })
+      .catch(function(){
+        /* En cas d'erreur réseau, on réessaie dans 2 min */
+        clearTimeout(_pollTimer);
+        _pollTimer = setTimeout(function(){ _fetchAlertes(true); }, 2*60*1000);
+      });
+  }
+
+  /* ── Toggle panneau ─────────────────────────────────────────────── */
+  window.toggleNotifPanel = function(){
+    var panel = document.getElementById('notifPanel');
+    if(!panel) return;
+    var isOpen = panel.classList.contains('open');
+    /* Fermer les autres menus ouverts */
+    var ud = document.getElementById('userDropdown');
+    if(ud) ud.classList.remove('open');
+    panel.classList.toggle('open', !isOpen);
+    if(!isOpen){
+      /* Rafraîchir les alertes DB à chaque ouverture */
+      _fetchAlertes(true);
+    }
+  };
+
+  /* ── Tout marquer comme lu ──────────────────────────────────────── */
+  window.notifMarkAll = function(){
+    _dbAlertes.forEach(function(a){ _readIds['db_' + a.id] = true; });
+    _manualList.forEach(function(n){ _readIds['man_' + n.id] = true; });
+    _saveRead(); _render();
+  };
+
+  /* ── Ajouter une alerte manuelle (ex: flash toast) ──────────────── */
+  window.addNotif = function(msg, cat, icon){
+    cat  = cat  || 'info';
+    icon = icon || _catIcons[cat] || 'ℹ️';
+    var n = { id: _manUid++, msg: msg, cat: cat, icon: icon };
+    _manualList.push(n);
+    if(_manualList.length > 30) _manualList.splice(0, _manualList.length - 30);
+    _render();
+    try{ if(navigator.vibrate) navigator.vibrate(40); }catch(e){}
+  };
+
+  /* ── Vider tout ─────────────────────────────────────────────────── */
+  window.clearNotifs = function(){
+    _manualList = []; _render();
+  };
+
+  /* ── Rechargement forcé depuis l'extérieur ──────────────────────── */
+  window.notifRefresh = function(){
+    _fetchAlertes(false);
+  };
+
+  /* ── Fermer au clic extérieur ───────────────────────────────────── */
+  document.addEventListener('click', function(e){
+    var wrap = document.getElementById('notifWrap');
+    if(wrap && !wrap.contains(e.target)){
+      var p = document.getElementById('notifPanel');
+      if(p) p.classList.remove('open');
+    }
+  });
+
+  /* ── Hook showToast : chaque flash Flask copié aussi en notif ──── */
+  document.addEventListener('DOMContentLoaded', function(){
+    _loadRead();
+
+    if(typeof showToast === 'function'){
+      var _orig = showToast;
+      window.showToast = function(cat, msg, duration){
+        var catMap = { success:'success', danger:'danger', error:'danger',
+                       warning:'warning', info:'info' };
+        var tmp = document.createElement('div');
+        tmp.innerHTML = msg;
+        var plain = (tmp.textContent || tmp.innerText || msg).trim();
+        addNotif(plain.length > 140 ? plain.slice(0,137)+'…' : plain,
+                 catMap[cat] || 'info');
+        return _orig(cat, msg, duration);
+      };
+    }
+
+    /* Premier chargement des alertes DB */
+    _fetchAlertes(true);
+  });
+
+})();
+</script>
+
+<!-- ══ THÈME CLAIR / SOMBRE ══ -->
+<script>
+(function(){
+  /* ── Appliquer immédiatement (anti-flash) ── */
+  var _theme = localStorage.getItem('dg-theme') || 'light';
+  document.documentElement.setAttribute('data-theme', _theme);
+
+  function _applyTheme(t){
+    document.documentElement.setAttribute('data-theme', t);
+    var isDark = t === 'dark';
+
+    /* Bouton toggle */
+    var icon  = document.getElementById('themeToggleIcon');
+    var label = document.getElementById('themeToggleLabel');
+    var btn   = document.getElementById('themToggleBtn');
+    if(icon)  icon.textContent  = isDark ? '☀️' : '🌙';
+    if(label) label.textContent = isDark ? 'Thème clair' : 'Thème sombre';
+    if(btn){
+      btn.style.background  = isDark ? '#1d3461' : 'var(--bg-input)';
+      btn.style.borderColor = isDark ? 'var(--bleu2)' : 'var(--border)';
+      btn.style.color       = isDark ? '#93c5fd' : 'var(--texte)';
+    }
+
+    /* meta theme-color */
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if(meta) meta.content = isDark ? '#010409' : '#0f2347';
+  }
+
+  window.setTheme = function(t){
+    localStorage.setItem('dg-theme', t);
+    _applyTheme(t);
+  };
+
+  window.toggleTheme = function(){
+    var current = localStorage.getItem('dg-theme') || 'light';
+    setTheme(current === 'dark' ? 'light' : 'dark');
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){
+    _applyTheme(localStorage.getItem('dg-theme') || 'light');
+  });
+})();
+</script>
+
+<!-- ══ POP-UP ERREUR — fonctions globales + intercepteur fetch ══ -->
+<script>
+(function(){
+  /* ── Config par code ── */
+  var ERR_CFG = {
+    400: { icon:'⚠️',  titre:'Requête invalide',
+           msg:'Les données envoyées sont incorrectes ou incomplètes.',
+           bar:'linear-gradient(90deg,#f59e0b,#f97316)' },
+    403: { icon:'⛔',  titre:'Accès refusé',
+           msg:"Vous n'avez pas les droits nécessaires pour cette ressource.",
+           bar:'linear-gradient(90deg,#2563eb,#dc2626)' },
+    404: { icon:'🔍',  titre:'Page introuvable',
+           msg:"La ressource demandée n'existe pas ou a été déplacée.",
+           bar:'linear-gradient(90deg,#0ea5e9,#6366f1)' },
+    500: { icon:'🔥',  titre:'Erreur interne du serveur',
+           msg:"Une erreur inattendue s'est produite côté serveur.",
+           bar:'linear-gradient(90deg,#dc2626,#f97316)' },
+  };
+  var _DEFAULT_CFG = {
+    icon:'🔥', titre:'Erreur',
+    msg:'Une erreur inattendue s\'est produite.',
+    bar:'linear-gradient(90deg,#dc2626,#f97316)'
+  };
+
+  /* ── Ouvrir la pop-up ── */
+  window.showErrorPopup = function(code, extraDesc){
+    var cfg  = ERR_CFG[code] || _DEFAULT_CFG;
+    var ov   = document.getElementById('error-overlay');
+    if(!ov) return;
+    document.getElementById('error-icon').textContent  = cfg.icon;
+    document.getElementById('error-code').textContent  = code || '?';
+    document.getElementById('error-titre').textContent = cfg.titre;
+    document.getElementById('error-msg').textContent   = cfg.msg;
+    var descEl = document.getElementById('error-desc');
+    descEl.textContent = extraDesc || '';
+    descEl.style.display = extraDesc ? 'block' : 'none';
+    document.getElementById('error-topbar').style.background = cfg.bar;
+    /* gradient texte code */
+    var codeEl = document.getElementById('error-code');
+    codeEl.style.background = cfg.bar;
+    codeEl.style.webkitBackgroundClip = 'text';
+    codeEl.style.webkitTextFillColor  = 'transparent';
+    ov.classList.add('open');
+    /* Fermer sur clic overlay */
+    ov.onclick = function(e){ if(e.target===ov) closeErrorPopup(); };
+    /* Fermer sur Echap */
+    document.addEventListener('keydown', _escClose);
+  };
+
+  window.closeErrorPopup = function(){
+    var ov = document.getElementById('error-overlay');
+    if(ov){ ov.classList.remove('open'); }
+    document.removeEventListener('keydown', _escClose);
+  };
+
+  function _escClose(e){
+    if(e.key==='Escape') closeErrorPopup();
+  }
+
+  /* ── Intercepteur fetch global ── */
+  var _origFetch = window.fetch;
+  window.fetch = function(url, opts){
+    return _origFetch.call(this, url, opts).then(function(resp){
+      /* On intercepte les erreurs serveur sur les réponses JSON/fetch internes */
+      if(!resp.ok && (resp.status===500 || resp.status===400 ||
+                      resp.status===403 || resp.status===404)){
+        /* Clone pour pouvoir lire le body sans consommer la réponse */
+        resp.clone().json().then(function(data){
+          var desc = (data && data.message) ? data.message : '';
+          showErrorPopup(resp.status, desc);
+        }).catch(function(){
+          /* Pas du JSON (page HTML d'erreur) : afficher quand même */
+          showErrorPopup(resp.status);
+        });
+      }
+      return resp;
+    }).catch(function(err){
+      /* Erreur réseau (serveur coupé, timeout…) */
+      showErrorPopup(500, 'Serveur inaccessible — vérifiez votre connexion.');
+      return Promise.reject(err);
+    });
+  };
+})();
+</script>
+</body>
+</html>

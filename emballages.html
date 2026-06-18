@@ -1,0 +1,775 @@
+{% extends "base.html" %}
+{% block title %}Emballages Vides — GESTDEPOT-CI{% endblock %}
+{% block topbar_title %}🧴 Emballages & Consignes{% endblock %}
+
+{% block content %}
+<style>
+/* ── Statut pills ── */
+.pill-dispo  { background:#dcfce7;color:#15803d; }
+.pill-circ   { background:#dbeafe;color:#1d4ed8; }
+.pill-rep    { background:#fef9c3;color:#a16207; }
+.pill-ref    { background:var(--gris); color:var(--gris3); }
+
+/* ══ BOUTONS ACTION (identiques à stock.html) ══════════════════════ */
+.btn-action-transfert,
+.btn-action-inventaire,
+.btn-action-mouvement,
+.btn-reparation,
+.btn-nouveau-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .18s;
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+  letter-spacing: .1px;
+  text-decoration: none;
+}
+
+/* Mouvement — vert émeraude */
+.btn-action-mouvement {
+  background: linear-gradient(135deg, #065f46, #10b981);
+  color: white;
+  box-shadow: 0 3px 12px rgba(16,185,129,.35), inset 0 1px 0 rgba(255,255,255,.15);
+  border: 1.5px solid rgba(255,255,255,.12);
+}
+.btn-action-mouvement:hover {
+  background: linear-gradient(135deg, #047857, #34d399);
+  box-shadow: 0 6px 20px rgba(16,185,129,.5);
+  transform: translateY(-2px);
+}
+.btn-action-mouvement:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(16,185,129,.3); }
+
+/* Réparation — orange ambré (style Mouvement) */
+.btn-reparation {
+  background: linear-gradient(135deg, #92400e, #f59e0b);
+  color: white;
+  box-shadow: 0 3px 12px rgba(245,158,11,.4), inset 0 1px 0 rgba(255,255,255,.15);
+  border: 1.5px solid rgba(255,255,255,.12);
+}
+.btn-reparation:hover {
+  background: linear-gradient(135deg, #b45309, #fbbf24);
+  box-shadow: 0 6px 20px rgba(245,158,11,.55);
+  transform: translateY(-2px);
+}
+.btn-reparation:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(245,158,11,.35); }
+
+/* Nouveau type — bleu acier */
+.btn-nouveau-type {
+  background: linear-gradient(135deg, #1e40af, #3b82f6);
+  color: white;
+  box-shadow: 0 3px 12px rgba(59,130,246,.35), inset 0 1px 0 rgba(255,255,255,.15);
+  border: 1.5px solid rgba(255,255,255,.12);
+}
+.btn-nouveau-type:hover {
+  background: linear-gradient(135deg, #1d4ed8, #60a5fa);
+  box-shadow: 0 6px 20px rgba(59,130,246,.5);
+  transform: translateY(-2px);
+}
+.btn-nouveau-type:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(59,130,246,.3); }
+
+/* ── Cycle de vie ── */
+.cycle-step {
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  flex:1;position:relative;
+}
+.cycle-step::after {
+  content:'→';position:absolute;right:-14px;top:14px;
+  font-size:18px;color:var(--gris2);font-weight:300;
+}
+.cycle-step:last-child::after { display:none; }
+.cycle-icon {
+  width:44px;height:44px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;border:2px solid;
+}
+.cycle-label { font-size:9px;font-weight:700;text-transform:uppercase;text-align:center; }
+.cycle-count { font-size:16px;font-weight:900; }
+
+/* ── Type card ── */
+.emb-type-card {
+  background:var(--bg-card);border-radius:10px;border:1px solid var(--border);
+  box-shadow:var(--ombre);overflow:hidden;transition:transform .15s,box-shadow .15s;
+}
+.emb-type-card:hover { transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.12); }
+.emb-type-band { height:4px;width:100%; }
+.emb-type-body { padding:12px 14px; }
+.emb-stock-row {
+  display:grid;grid-template-columns:1fr 1fr 1fr 1fr;
+  gap:4px;margin-top:8px;padding:8px;
+  background:var(--bg-card);border-radius:7px;border:1px solid var(--border);
+}
+.emb-stock-cell { text-align:center; }
+.emb-stock-cell .val { font-size:15px;font-weight:800; }
+.emb-stock-cell .lbl { font-size:8px;font-weight:700;color:var(--gris3);text-transform:uppercase; }
+</style>
+
+<div class="page-header">
+  <div><h1>🧴 Emballages & Consignes</h1><div class="sub">Cycle de vie · Consignes clients · Réparations</div></div>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <button onclick="openModal('modalAddType')" class="btn-nouveau-type">➕ Nouveau type</button>
+    <button onclick="openModal('modalMvt')" class="btn btn-action-mouvement">
+      <span class="btn-icon">📦</span> Mouvement
+    </button>
+    <button onclick="openModal('modalAddRep')" class="btn-reparation">
+      <span class="btn-icon">🔧</span> Réparation
+    </button>
+  </div>
+</div>
+
+<!-- ── Alertes retards ── -->
+{% if alertes %}
+<div style="background:#fff1f2;border:1.5px solid #fecdd3;border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:flex-start;gap:12px;">
+  <span style="font-size:22px;">⚠️</span>
+  <div>
+    <div style="font-weight:800;font-size:13px;color:#dc2626;">{{ nb_alertes }} consigne(s) en retard de retour</div>
+    <div style="font-size:11px;color:#9f1239;margin-top:4px;">
+      {% for a in alertes[:3] %}
+        {{ a.client_nom }} — {{ a.quantite_sortie - (a.quantite_retournee or 0) }} × {{ a.type_nom }}
+        (prévu le {{ a.date_retour_prevu }}){% if not loop.last %} · {% endif %}
+      {% endfor %}
+      {% if alertes|length > 3 %} … et {{ alertes|length - 3 }} autre(s){% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── KPIs ── -->
+<div class="kpi-grid" style="margin-bottom:18px;">
+  <div class="kpi-card vert">
+    <div class="label">Disponibles</div>
+    <div class="value" style="color:var(--vert);">{{ stats.total_dispo or 0 }}</div>
+    <div class="sub">En stock dépôt</div><div class="icon-bg">✅</div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">En circulation</div>
+    <div class="value" style="color:var(--bleu2);">{{ stats.total_circ or 0 }}</div>
+    <div class="sub">Chez les clients</div><div class="icon-bg">🔄</div>
+  </div>
+  <div class="kpi-card or">
+    <div class="label">En réparation</div>
+    <div class="value" style="color:var(--or);">{{ stats.total_rep or 0 }}</div>
+    <div class="sub">En atelier</div><div class="icon-bg">🔧</div>
+  </div>
+  <div class="kpi-card rouge">
+    <div class="label">Valeur consignes</div>
+    <div class="value" style="color:var(--rouge);font-size:18px;">{{ valeur_consignes | fcfa }}</div>
+    <div class="sub">FCFA engagés clients</div><div class="icon-bg">💰</div>
+  </div>
+</div>
+
+<!-- ── Cycle de vie visuel ── -->
+<div class="table-card" style="margin-bottom:18px;padding:16px 20px;">
+  <div style="font-size:11px;font-weight:700;color:var(--gris3);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Cycle de vie des emballages</div>
+  <div style="display:flex;align-items:flex-start;gap:0;overflow-x:auto;padding-bottom:4px;">
+    {% set cycle = [
+      ('🏭','Mise en\nservice','#1a3a6c','#dbeafe', stats.total_dispo or 0),
+      ('🔄','En circu-\nlation client','#2563eb','#eff6ff', stats.total_circ or 0),
+      ('↩️','Retour\ndépôt','#16a34a','#dcfce7', stats.total_dispo or 0),
+      ('🔧','Réparation\natelier','#d97706','#fef9c3', stats.total_rep or 0),
+      ('🚮','Réforme /\nRecyclage','#dc2626','#fee2e2', stats.total_ref or 0),
+    ] %}
+    {% for ico, lbl, color, bg, count in cycle %}
+    <div class="cycle-step">
+      <div class="cycle-icon" style="background:{{ bg }};border-color:{{ color }};color:{{ color }};">{{ ico }}</div>
+      <div class="cycle-count" style="color:{{ color }};">{{ count }}</div>
+      <div class="cycle-label" style="color:{{ color }};max-width:60px;">{{ lbl }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ── Onglets ── -->
+<div style="display:flex;gap:0;border-bottom:2px solid var(--gris2);margin-bottom:18px;">
+  {% for tid, tlbl in [('types','🧴 Types & Stocks'),('consignes','📋 Consignes clients'),('reparations','🔧 Réparations'),('mouvements','📜 Historique')] %}
+  <button class="emb-tab {% if loop.first %}active{% endif %}" data-tab="{{ tid }}"
+    onclick="switchEmbTab('{{ tid }}')"
+    style="padding:10px 18px;border:none;background:none;font-size:12px;font-weight:700;
+    color:{% if loop.first %}var(--bleu){% else %}var(--gris3){% endif %};
+    border-bottom:3px solid {% if loop.first %}var(--bleu2){% else %}transparent{% endif %};
+    cursor:pointer;margin-bottom:-2px;white-space:nowrap;">
+    {{ tlbl }}
+    {% if tid=='consignes' and consignes %}<span style="background:var(--bleu2);color:white;border-radius:20px;padding:1px 6px;font-size:9px;margin-left:4px;">{{ consignes|length }}</span>{% endif %}
+    {% if tid=='reparations' and reparations %}<span style="background:var(--or);color:white;border-radius:20px;padding:1px 6px;font-size:9px;margin-left:4px;">{{ reparations|length }}</span>{% endif %}
+  </button>
+  {% endfor %}
+</div>
+
+<!-- ══ TAB : Types & Stocks ══ -->
+<div id="tabtypes">
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;">
+    {% for t in types %}
+    <div class="emb-type-card">
+      <div class="emb-type-band" style="background:{{ t.couleur }};"></div>
+      <div class="emb-type-body">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+          <div>
+            <div style="font-size:13px;font-weight:800;color:var(--bleu);">{{ t.nom }}</div>
+            <div style="font-size:10px;color:var(--gris3);">{{ t.code }} · {{ t.contenance or '—' }}</div>
+          </div>
+          <span style="font-size:9px;font-weight:700;padding:3px 8px;border-radius:20px;background:var(--gris);color:var(--gris3);text-transform:uppercase;">
+            {{ t.categorie }}
+          </span>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:8px;font-size:10px;font-weight:600;flex-wrap:wrap;">
+          <span>🏷️ Consigne : <strong style="color:var(--bleu);">{{ t.prix_consigne | fcfa }} FCFA</strong></span>
+        </div>
+        <div class="emb-stock-row">
+          <div class="emb-stock-cell">
+            <div class="val" style="color:var(--vert);">{{ t.qte_dispo }}</div>
+            <div class="lbl">Dispo</div>
+          </div>
+          <div class="emb-stock-cell">
+            <div class="val" style="color:var(--bleu2);">{{ t.qte_circ }}</div>
+            <div class="lbl">Circ.</div>
+          </div>
+          <div class="emb-stock-cell">
+            <div class="val" style="color:var(--or);">{{ t.qte_rep }}</div>
+            <div class="lbl">Rép.</div>
+          </div>
+          <div class="emb-stock-cell">
+            <div class="val" style="color:var(--bleu);font-weight:900;">{{ t.qte_total }}</div>
+            <div class="lbl">Total</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:4px;margin-top:8px;">
+          <button onclick="prefillMvt({{ t.id }}, '{{ t.nom|e }}')" class="btn btn-sm" style="flex:1;background:var(--bleu2);color:white;font-size:10px;">📦 Mouvement</button>
+          <a href="/emballages/type/delete/{{ t.id }}" onclick="return confirm('Désactiver {{ t.nom }} ?')" class="btn btn-danger btn-sm">🗑</a>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--gris3);">
+      <div style="font-size:40px;margin-bottom:10px;">🧴</div>
+      Aucun type d'emballage — <a href="javascript:void(0)" onclick="openModal('modalAddType')" style="color:var(--bleu2);">Créer le premier</a>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ══ TAB : Consignes ══ -->
+<div id="tabconsignes" style="display:none;">
+  <div class="table-card">
+    <div class="thead"><h3>{{ consignes|length }} consigne(s) en cours</h3></div>
+    <table>
+      <thead>
+        <tr>
+          <th>Réf.</th><th>Client</th><th>Emballage</th>
+          <th>Sortie</th><th>Retourné</th><th>Reste</th>
+          <th>Valeur consigne</th><th>Retour prévu</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for c in consignes %}
+      {% set reste = c.quantite_sortie - (c.quantite_retournee or 0) %}
+      {% set retard = c.date_retour_prevu and c.date_retour_prevu < '' %}
+      <tr style="{{ 'background:#fff1f2;' if c.date_retour_prevu and c.date_retour_prevu < '2099-01-01' else '' }}">
+        <td><code style="font-size:10px;color:var(--bleu2);font-weight:700;">{{ c.reference }}</code></td>
+        <td>
+          <div style="font-weight:700;font-size:12px;">{{ c.client_nom or '—' }}</div>
+          <div style="font-size:10px;color:var(--gris3);">{{ c.client_tel or '' }}</div>
+        </td>
+        <td>
+          <span style="display:inline-flex;align-items:center;gap:5px;">
+            <span style="width:8px;height:8px;border-radius:50%;background:{{ c.couleur }};flex-shrink:0;"></span>
+            <span style="font-size:12px;font-weight:600;">{{ c.type_nom }}</span>
+          </span>
+        </td>
+        <td style="text-align:center;font-weight:700;">{{ c.quantite_sortie }}</td>
+        <td style="text-align:center;color:var(--vert);font-weight:700;">{{ c.quantite_retournee or 0 }}</td>
+        <td style="text-align:center;">
+          <span style="font-size:14px;font-weight:900;color:{{ 'var(--rouge)' if reste > 0 else 'var(--vert)' }};">{{ reste }}</span>
+        </td>
+        <td style="font-weight:700;color:var(--bleu);">{{ (c.montant_total - (c.montant_retourne or 0)) | fcfa }} FCFA</td>
+        <td style="font-size:11px;color:{{ 'var(--rouge)' if c.date_retour_prevu else 'var(--gris3)' }};font-weight:{{ '700' if c.date_retour_prevu else '400' }};">
+          {{ c.date_retour_prevu or '—' }}
+        </td>
+        <td>
+          {% if reste > 0 %}
+          <button onclick="openRetourModal({{ c.id }}, {{ reste }}, '{{ c.client_nom|e }}')"
+            class="btn btn-sm" style="background:var(--vert);color:white;font-size:10px;">↩️ Retour</button>
+          {% else %}
+          <span class="badge badge-success" style="font-size:9px;">✅ Soldée</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="9" style="text-align:center;color:var(--gris3);padding:30px;">Aucune consigne en cours</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══ TAB : Réparations ══ -->
+<div id="tabreparations" style="display:none;">
+  <div class="table-card">
+    <div class="thead">
+      <h3>{{ reparations|length }} réparation(s) en cours</h3>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Emballage</th><th>Qté</th><th>Entrée atelier</th><th>Sortie prévue</th><th>Motif</th><th>Coût</th><th>Statut</th><th>Action</th></tr>
+      </thead>
+      <tbody>
+      {% for r in reparations %}
+      <tr>
+        <td>
+          <span style="display:inline-flex;align-items:center;gap:5px;">
+            <span style="width:8px;height:8px;border-radius:50%;background:{{ r.couleur }};flex-shrink:0;"></span>
+            <span style="font-size:12px;font-weight:600;">{{ r.type_nom }}</span>
+          </span>
+        </td>
+        <td style="text-align:center;font-weight:700;">{{ r.quantite }}</td>
+        <td style="font-size:11px;color:var(--gris3);">{{ r.date_entree }}</td>
+        <td style="font-size:11px;font-weight:600;color:var(--or);">{{ r.date_sortie_prevue or '—' }}</td>
+        <td style="font-size:11px;">{{ r.motif or '—' }}</td>
+        <td style="font-size:11px;color:var(--gris3);">{{ (r.cout_reparation or 0) | fcfa }}</td>
+        <td><span class="badge" style="background:#fef9c3;color:#a16207;">🔧 En cours</span></td>
+        <td>
+          <button onclick="openCloreModal({{ r.id }})" class="btn btn-sm"
+            style="background:var(--vert);color:white;font-size:10px;">✅ Clôturer</button>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" style="text-align:center;color:var(--gris3);padding:30px;">Aucune réparation en cours</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══ TAB : Historique mouvements ══ -->
+<div id="tabmouvements" style="display:none;">
+  <div class="table-card">
+    <div class="thead"><h3>Derniers {{ mouvements|length }} mouvements</h3></div>
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Type mouvement</th><th>Emballage</th><th>Qté</th><th>Client</th><th>Statut avant → après</th></tr>
+      </thead>
+      <tbody>
+      {% set mvt_labels = {
+        'mise_en_service':'🏭 Mise en service',
+        'sortie_client':'📤 Sortie client',
+        'retour_client':'↩️ Retour client',
+        'mise_reparation':'🔧 Mise en réparation',
+        'fin_reparation':'✅ Fin réparation',
+        'reforme':'⛔ Réforme',
+        'recyclage':'♻️ Recyclage',
+        'perte':'❌ Perte/Casse',
+      } %}
+      {% for m in mouvements %}
+      <tr>
+        <td style="font-size:11px;color:var(--gris3);">{{ m.date_mvt }}</td>
+        <td style="font-size:12px;font-weight:600;">{{ mvt_labels.get(m.type_mvt, m.type_mvt) }}</td>
+        <td>
+          <span style="display:inline-flex;align-items:center;gap:4px;">
+            <span style="width:7px;height:7px;border-radius:50%;background:{{ m.couleur }};flex-shrink:0;"></span>
+            <span style="font-size:11px;">{{ m.type_nom }}</span>
+          </span>
+        </td>
+        <td style="text-align:center;font-weight:700;">{{ m.quantite }}</td>
+        <td style="font-size:11px;color:var(--gris3);">{{ m.client_nom or '—' }}</td>
+        <td style="font-size:10px;color:var(--gris3);">
+          {% if m.statut_avant %}<span class="badge badge-sec" style="font-size:9px;">{{ m.statut_avant }}</span>{% endif %}
+          {% if m.statut_apres %} → <span class="badge badge-info" style="font-size:9px;">{{ m.statut_apres }}</span>{% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" style="text-align:center;color:var(--gris3);padding:30px;">Aucun mouvement enregistré</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ════════════════════════════════════════════════════════ MODALS ═══ #}
+
+<!-- MODAL : Mouvement emballage -->
+<div id="modalMvt" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>📦 Mouvement d'emballage</h3>
+      <button class="modal-close" onclick="closeModal('modalMvt')">✕</button>
+    </div>
+    <form method="POST" action="/emballages/mouvement">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Type d'emballage *</label>
+            <select name="type_id" id="mvtTypeId" required
+              style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="">— Sélectionner —</option>
+              {% for t in types %}
+              <option value="{{ t.id }}">{{ t.nom }} ({{ t.contenance }}) — Consigne {{ t.prix_consigne | fcfa }} FCFA</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group full">
+            <label>Type de mouvement *</label>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+              {% for val,ico,lbl,clr in [
+                ('mise_en_service','🏭','Mise en\nservice','#1a3a6c'),
+                ('sortie_client','📤','Sortie\nclient','#2563eb'),
+                ('retour_client','↩️','Retour\nclient','#16a34a'),
+                ('mise_reparation','🔧','Répa-\nration','#d97706'),
+                ('fin_reparation','✅','Fin\nrép.','#059669'),
+                ('reforme','⛔','Réforme','#dc2626'),
+                ('recyclage','♻️','Recyclage','#6b7280'),
+                ('perte','❌','Perte','#7f1d1d'),
+              ] %}
+              <button type="button" class="mvt-btn"
+                data-val="{{ val }}"
+                onclick="selectMvt(this)"
+                style="display:flex;flex-direction:column;align-items:center;gap:3px;
+                padding:8px 4px;border-radius:7px;border:1.5px solid var(--gris2);
+                background:var(--bg-input);cursor:pointer;font-family:inherit;font-size:9px;font-weight:700;
+                color:{{ clr }};transition:all .12s;">
+                <span style="font-size:16px;">{{ ico }}</span>
+                <span style="text-align:center;line-height:1.2;white-space:pre-line;">{{ lbl }}</span>
+              </button>
+              {% endfor %}
+            </div>
+            <input type="hidden" name="type_mvt" id="mvtType" required>
+          </div>
+
+          <div class="form-group">
+            <label>Quantité *</label>
+            <input type="number" name="quantite" min="1" value="1" required
+              style="width:100%;height:36px;padding:0 10px;border:1.5px solid var(--gris2);border-radius:6px;font-size:13px;font-family:inherit;font-weight:700;">
+          </div>
+          <div class="form-group">
+            <label>Dépôt</label>
+            <select name="depot_id"
+              style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              {% for d in depots %}
+              <option value="{{ d.id }}">{{ d.nom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group full" id="mvtClientDiv" style="display:none;">
+            <label>Client</label>
+            <select name="client_id"
+              style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="">— Sélectionner client —</option>
+              {% for c in clients %}
+              <option value="{{ c.id }}">{{ c.nom }}{% if c.telephone %} · {{ c.telephone }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group full" id="mvtDateRetDiv" style="display:none;">
+            <label>Date retour prévu</label>
+            <input type="date" name="date_retour_prevu">
+          </div>
+
+          <div class="form-group full">
+            <label>Notes</label>
+            <input name="notes" placeholder="Remarques…">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalMvt')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">✅ Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL : Réparation -->
+<div id="modalAddRep" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>🔧 Mise en réparation</h3>
+      <button class="modal-close" onclick="closeModal('modalAddRep')">✕</button>
+    </div>
+    <form method="POST" action="/emballages/reparation/add">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Type d'emballage *</label>
+            <select name="type_id" required
+              style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="">— Sélectionner —</option>
+              {% for t in types %}<option value="{{ t.id }}">{{ t.nom }} (dispo: {{ t.qte_dispo }})</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group"><label>Quantité</label><input type="number" name="quantite" min="1" value="1"></div>
+          <div class="form-group"><label>Date entrée</label><input type="date" name="date_entree" id="repDateEntree"></div>
+          <div class="form-group full"><label>Sortie prévue</label><input type="date" name="date_sortie_prevue"></div>
+          <div class="form-group full">
+            <label>Motif</label>
+            <select name="motif"
+              style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              {% for m in ['Fissure / Cassure','Bouchon défectueux','Corrosion / Rouille','Étiquetage effacé','Fond endommagé','Nettoyage intensif','Autre'] %}
+              <option>{{ m }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group full"><label>Coût estimé (FCFA)</label><input type="number" name="cout_reparation" step="100" min="0" placeholder="0"></div>
+          <div class="form-group full"><label>Notes</label><input name="notes" placeholder="Remarques atelier…"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalAddRep')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary" style="background:var(--or);color:white;">🔧 Envoyer en atelier</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL : Clôturer réparation -->
+<div id="modalClore" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>✅ Clôturer réparation</h3>
+      <button class="modal-close" onclick="closeModal('modalClore')">✕</button>
+    </div>
+    <form method="POST" id="formClore" action="">
+      <div class="modal-body">
+        <div class="form-group full">
+          <label>Résultat *</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            {% for val,ico,lbl,clr in [('repare','✅','Réparé — retour en stock','#16a34a'),('reforme','⛔','Non réparable — réforme','#dc2626')] %}
+            <button type="button" class="clore-btn" data-val="{{ val }}"
+              onclick="selectClore(this)"
+              style="padding:12px;border-radius:8px;border:2px solid var(--border);background:var(--bg-input);cursor:pointer;font-family:inherit;color:{{ clr }};font-weight:700;">
+              <div style="font-size:22px;">{{ ico }}</div>
+              <div style="font-size:11px;margin-top:4px;">{{ lbl }}</div>
+            </button>
+            {% endfor %}
+          </div>
+          <input type="hidden" name="resultat" id="cloreResultat">
+        </div>
+        <div class="form-group full"><label>Coût réel réparation (FCFA)</label><input type="number" name="cout_reparation" step="100" min="0" placeholder="0"></div>
+        <div class="form-group full"><label>Notes</label><textarea name="notes" rows="2" style="width:100%;padding:8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalClore')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">✅ Valider</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL : Retour consigne -->
+<div id="modalRetour" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>↩️ Retour emballages</h3>
+      <button class="modal-close" onclick="closeModal('modalRetour')">✕</button>
+    </div>
+    <form method="POST" id="formRetour" action="">
+      <div class="modal-body">
+        <div id="retourInfo" style="padding:10px 14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;margin-bottom:12px;font-size:12px;"></div>
+        <div class="form-group full">
+          <label>Quantité retournée *</label>
+          <input type="number" name="quantite_retour" id="retourQte" min="1" value="1" required
+            style="width:100%;height:36px;padding:0 10px;border:1.5px solid var(--gris2);border-radius:6px;font-size:18px;font-weight:900;font-family:inherit;text-align:center;">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalRetour')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary" style="background:var(--vert);">↩️ Valider le retour</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL : Nouveau type emballage -->
+<div id="modalAddType" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>🧴 Nouveau type d'emballage</h3>
+      <button class="modal-close" onclick="closeModal('modalAddType')">✕</button>
+    </div>
+    <form method="POST" action="/emballages/type/add">
+      <div class="modal-body">
+
+        <!-- Nom (pleine largeur) -->
+        <div class="form-group" style="margin-bottom:14px;">
+          <label>Nom *</label>
+          <input name="nom" required placeholder="Bouteille 33cl, Fût 50L…">
+        </div>
+
+        <!-- Ligne 1 : Catégorie + Contenance + Couleur -->
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px;margin-bottom:14px;">
+          <div class="form-group">
+            <label>Catégorie</label>
+            <select name="categorie" style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              {% for c in ['bouteille','casier','fut','bonbonne','bidon','autre'] %}
+              <option value="{{ c }}">{{ c|capitalize }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Contenance</label>
+            <input name="contenance" placeholder="33 cl, 50 L…">
+          </div>
+          <div class="form-group">
+            <label>Couleur</label>
+            <input type="color" name="couleur" value="#3b82f6"
+              style="height:36px;width:52px;border:1.5px solid var(--gris2);border-radius:6px;padding:2px 4px;cursor:pointer;display:block;">
+          </div>
+        </div>
+
+        <!-- Ligne 2 : Prix consigne + Prix achat -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+          <div class="form-group">
+            <label>Prix consigne (FCFA)</label>
+            <input type="number" name="prix_consigne" step="50" min="0" placeholder="150">
+          </div>
+          <div class="form-group">
+            <label>Prix achat (FCFA)</label>
+            <input type="number" name="prix_achat" step="50" min="0" placeholder="80">
+          </div>
+        </div>
+
+        <!-- Ligne 3 : Durée vie + Rotations max -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+          <div class="form-group">
+            <label>Durée vie (mois)</label>
+            <input type="number" name="duree_vie_mois" min="1" placeholder="60">
+          </div>
+          <div class="form-group">
+            <label>Rotations max</label>
+            <input type="number" name="nb_rotations_max" min="0" placeholder="50">
+          </div>
+        </div>
+
+        <!-- Notes (pleine largeur) -->
+        <div class="form-group">
+          <label>Notes</label>
+          <input name="notes" placeholder="Remarques…">
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalAddType')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Créer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+document.getElementById('repDateEntree').value = new Date().toISOString().split('T')[0];
+
+// ── Onglets
+function switchEmbTab(tab) {
+  ['types','consignes','reparations','mouvements'].forEach(function(t){
+    document.getElementById('tab'+t).style.display = (t===tab)?'':'none';
+  });
+  document.querySelectorAll('.emb-tab').forEach(function(b){
+    var on = b.dataset.tab===tab;
+    b.style.color = on?'var(--bleu)':'var(--gris3)';
+    b.style.borderBottomColor = on?'var(--bleu2)':'transparent';
+    b.classList.toggle('active',on);
+  });
+}
+
+// ── Sélection type mouvement
+function selectMvt(btn) {
+  document.querySelectorAll('.mvt-btn').forEach(function(b){
+    b.style.background='#f8fafc'; b.style.borderColor='var(--gris2)';
+    b.style.boxShadow='none';
+  });
+  btn.style.background='var(--bleu3)'; btn.style.borderColor='var(--bleu2)';
+  btn.style.boxShadow='0 0 0 3px rgba(37,99,235,.2)';
+  document.getElementById('mvtType').value = btn.dataset.val;
+  // Afficher/masquer client selon type
+  var needClient = ['sortie_client','retour_client','perte'].includes(btn.dataset.val);
+  var needDate   = btn.dataset.val === 'sortie_client';
+  document.getElementById('mvtClientDiv').style.display  = needClient ? '' : 'none';
+  document.getElementById('mvtDateRetDiv').style.display = needDate   ? '' : 'none';
+}
+
+// ── Pré-remplir mouvement depuis carte type
+function prefillMvt(typeId, typeNom) {
+  openModal('modalMvt');
+  var sel = document.getElementById('mvtTypeId');
+  for(var i=0;i<sel.options.length;i++){
+    if(sel.options[i].value==typeId){ sel.selectedIndex=i; break; }
+  }
+}
+
+// ── Clôturer réparation
+function openCloreModal(id) {
+  document.getElementById('formClore').action = '/emballages/reparation/clore/' + id;
+  document.getElementById('cloreResultat').value = '';
+  document.querySelectorAll('.clore-btn').forEach(b => {
+    b.style.borderColor='var(--gris2)'; b.style.background='#f8fafc';
+  });
+  openModal('modalClore');
+}
+function selectClore(btn) {
+  document.querySelectorAll('.clore-btn').forEach(b=>{
+    b.style.borderColor='var(--gris2)'; b.style.background='#f8fafc';
+  });
+  btn.style.borderColor='var(--bleu2)'; btn.style.background='var(--bleu3)';
+  document.getElementById('cloreResultat').value = btn.dataset.val;
+}
+
+// ── Retour consigne
+function openRetourModal(id, reste, nom) {
+  document.getElementById('formRetour').action = '/consignes/retour/' + id;
+  document.getElementById('retourQte').value = reste;
+  document.getElementById('retourQte').max = reste;
+  document.getElementById('retourInfo').innerHTML =
+    '<strong>' + nom + '</strong> — Reste à retourner : <strong style="color:var(--rouge);">' + reste + ' emballage(s)</strong>';
+  openModal('modalRetour');
+}
+</script>
+
+{# ── Patch thème sombre — emballages ── #}
+<style>
+[data-theme="dark"] .table-card      { background:var(--bg-card) !important; }
+[data-theme="dark"] .table-card .thead { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] thead th          { background:var(--bg-thead) !important; color:var(--gris3) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody td          { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody tr:hover td { background:var(--row-hover) !important; }
+[data-theme="dark"] .kpi-card         { background:var(--bg-card) !important; }
+[data-theme="dark"] .kpi-card .label,
+[data-theme="dark"] .kpi-card .sub    { color:var(--gris3) !important; }
+[data-theme="dark"] .pill-ref         { background:var(--gris) !important; color:var(--gris3) !important; }
+[data-theme="dark"] .badge-info       { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] .badge-success    { background:#052e16 !important; color:#4ade80 !important; }
+[data-theme="dark"] .badge-warning    { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] .badge-danger     { background:#3d0f0f !important; color:#fca5a5 !important; }
+[data-theme="dark"] .badge-sec        { background:#1c2128 !important; color:#8b949e !important; }
+[data-theme="dark"] [style*="background:#fff1f2"] { background:#3d0f0f !important; }
+[data-theme="dark"] [style*="background:#fef9c3"] { background:#3d2e00 !important; }
+[data-theme="dark"] .hist-action-btn  { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+[data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
+  background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+}
+[data-theme="dark"] .modal            { background:var(--modal-bg) !important; }
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer     { border-color:var(--border) !important; }
+[data-theme="dark"] .btn-sec          { background:#1c2128 !important; color:#8b949e !important; border-color:var(--border) !important; }
+@media (prefers-color-scheme:dark) {
+  [data-theme="system"] .table-card   { background:var(--bg-card) !important; }
+  [data-theme="system"] thead th      { background:var(--bg-thead) !important; color:var(--gris3) !important; }
+  [data-theme="system"] tbody td      { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] .kpi-card     { background:var(--bg-card) !important; }
+  [data-theme="system"] .badge-info   { background:#1d3461 !important; color:#93c5fd !important; }
+  [data-theme="system"] .badge-success { background:#052e16 !important; color:#4ade80 !important; }
+  [data-theme="system"] .badge-warning { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] .badge-danger  { background:#3d0f0f !important; color:#fca5a5 !important; }
+  [data-theme="system"] input, [data-theme="system"] select, [data-theme="system"] textarea {
+    background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+  }
+  [data-theme="system"] .modal        { background:var(--modal-bg) !important; }
+  [data-theme="system"] .btn-sec      { background:#1c2128 !important; color:#8b949e !important; }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,491 @@
+{% extends "base.html" %}
+{% block title %}Dossier {{ fourn.nom }} — DISTRIGEST{% endblock %}
+{% block topbar_title %}🏢 Dossier Fournisseur{% endblock %}
+{% block content %}
+<style>
+.tl-item{display:flex;gap:14px;position:relative;}
+.tl-item::before{content:'';position:absolute;left:17px;top:36px;bottom:-1px;width:2px;background:var(--gris2);z-index:0;}
+.tl-item:last-child::before{display:none;}
+.tl-dot{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;z-index:1;border:2px solid;}
+.tl-body{flex:1;padding:0 0 20px;}
+.tl-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.tl-title{font-size:13px;font-weight:700;color:var(--bleu);}
+.tl-date{font-size:11px;color:var(--gris3);}
+.tl-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;}
+.dette-gauge{height:10px;background:var(--gris2);border-radius:5px;overflow:hidden;margin:6px 0;}
+.dette-fill{height:100%;background:var(--rouge);border-radius:5px;transition:width .6s;}
+.stat-mini{
+  background:var(--bg-card);
+  border:1px solid var(--gris2);
+  border-radius:12px;
+  padding:14px 16px 12px;
+  text-align:center;
+  position:relative;
+  overflow:hidden;
+  cursor:default;
+  box-shadow:0 1px 3px rgba(0,0,0,.06);
+  transition:transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s ease, border-color .18s ease;
+}
+.stat-mini::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:3px;
+  background:var(--kpi-accent,var(--or));
+  border-radius:12px 12px 0 0;
+  opacity:.8;
+  transition:opacity .18s;
+}
+.stat-mini:hover{
+  transform:translateY(-4px) scale(1.02);
+  box-shadow:0 8px 24px rgba(0,0,0,.12), 0 2px 6px rgba(0,0,0,.06);
+  border-color:transparent;
+  z-index:2;
+}
+.stat-mini:hover::before{ opacity:1; }
+.stat-mini .val{font-size:18px;font-weight:900;line-height:1.1;}
+.stat-mini .lbl{font-size:9px;font-weight:700;color:var(--gris3);text-transform:uppercase;margin-top:4px;letter-spacing:.4px;}
+.dossier-tabs{display:flex;gap:0;border-bottom:2px solid var(--gris2);margin-bottom:20px;overflow-x:auto;}
+.dossier-tab{padding:9px 15px;border:none;background:none;font-size:11px;font-weight:700;color:var(--gris3);border-bottom:3px solid transparent;cursor:pointer;margin-bottom:-2px;white-space:nowrap;font-family:inherit;transition:color .15s,border-color .15s;}
+.dossier-tab.active{color:var(--bleu);border-bottom-color:var(--bleu2);}
+.dossier-tab:hover{color:var(--bleu);}
+/* ── Boutons d'action par ligne ── */
+.hist-action-btn{display:inline-flex;align-items:center;gap:3px;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;font-family:inherit;border:1.5px solid transparent;cursor:pointer;transition:all .15s;white-space:nowrap;line-height:1;text-decoration:none;}
+.hist-action-btn span{font-size:10px;}
+.hist-btn-imprimer{background:#f0f7ff;color:#2563eb;border-color:#bfdbfe;}
+.hist-btn-imprimer:hover{background:#2563eb;color:white;border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.25);}
+.hist-btn-modifier{background:#fefce8;color:#ca8a04;border-color:#fde047;}
+.hist-btn-modifier:hover{background:#ca8a04;color:white;border-color:#ca8a04;box-shadow:0 2px 8px rgba(202,138,4,.25);}
+.hist-btn-regler{background:#f0fdf4;color:#16a34a;border-color:#86efac;}
+.hist-btn-regler:hover{background:#16a34a;color:white;border-color:#16a34a;box-shadow:0 2px 8px rgba(22,163,74,.25);}
+.hist-btn-supprimer{background:#fff1f2;color:#dc2626;border-color:#fca5a5;}
+.hist-btn-supprimer:hover{background:#dc2626;color:white;border-color:#dc2626;box-shadow:0 2px 8px rgba(220,38,38,.25);}
+.hist-btn-action{background:#f5f3ff;color:#7c3aed;border-color:#ddd6fe;}
+.hist-btn-action:hover{background:#7c3aed;color:white;border-color:#7c3aed;box-shadow:0 2px 8px rgba(124,58,237,.25);}
+.hist-btn-action-cyan{background:#ecfeff;color:#0891b2;border-color:#a5f3fc;}
+.hist-btn-action-cyan:hover{background:#0891b2;color:white;border-color:#0891b2;box-shadow:0 2px 8px rgba(8,145,178,.25);}
+.action-cell{white-space:nowrap;vertical-align:middle;padding:4px 6px;}
+.action-cell-inner{display:inline-flex;gap:3px;align-items:center;flex-wrap:wrap;}
+
+/* ── Grille de la fiche d'édition (tabinfos) ─────────────────────────────
+   - 2 colonnes côte-à-côte sur grand écran
+   - 1 colonne empilée en dessous de 1280px pour éviter que les champs
+     comme "Code comptable" ou "Matricule fiscal" soient écrasés. */
+.tabinfos-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;}
+@media (max-width:1280px){
+  .tabinfos-grid{grid-template-columns:1fr;}
+}
+/* Les inputs des sections "Classification & Comptable" doivent toujours
+   afficher leur placeholder en entier — pas d'overflow caché. */
+.tabinfos-grid .form-group input,
+.tabinfos-grid .form-group select,
+.tabinfos-grid .form-group textarea{
+  width:100%;
+  min-width:0;
+  text-overflow:ellipsis;
+}
+</style>
+
+<!-- Bandeau -->
+<div style="background:linear-gradient(135deg,#92400e 0%,#f59e0b 100%);border-radius:14px;padding:22px 28px;margin-bottom:20px;position:relative;overflow:hidden;">
+  <div style="position:absolute;right:24px;top:50%;transform:translateY(-50%);opacity:.08;pointer-events:none;"><svg width="110" height="110" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="18" width="48" height="32" rx="4" fill="white"/><path d="M4 20 Q4 14 10 14 L22 14 Q26 14 27 18 L4 18 Z" fill="white"/><rect x="4" y="20" width="48" height="30" rx="3" fill="white"/><rect x="14" y="34" width="20" height="2.5" rx="1.2" fill="white"/><rect x="14" y="39" width="14" height="2.5" rx="1.2" fill="white"/></svg></div>
+  <div style="display:flex;align-items:flex-start;gap:18px;position:relative;z-index:1;flex-wrap:wrap;">
+    <div style="width:56px;height:56px;flex-shrink:0;filter:drop-shadow(0 3px 8px rgba(0,0,0,.25));"><svg width="56" height="56" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dossier arrière -->
+  <rect x="4" y="18" width="48" height="32" rx="4" fill="#d97706" stroke="#92400e" stroke-width="1.5"/>
+  <!-- Onglet -->
+  <path d="M4 20 Q4 14 10 14 L22 14 Q26 14 27 18 L4 18 Z" fill="#f59e0b" stroke="#92400e" stroke-width="1.5"/>
+  <!-- Face avant -->
+  <rect x="4" y="20" width="48" height="30" rx="3" fill="#f59e0b" stroke="#92400e" stroke-width="1.5"/>
+  <!-- Lignes document -->
+  <rect x="14" y="34" width="20" height="2.5" rx="1.2" fill="#92400e" opacity="0.7"/>
+  <rect x="14" y="39" width="14" height="2.5" rx="1.2" fill="#92400e" opacity="0.5"/>
+  <!-- Initiale -->
+  <text x="38" y="33" font-size="12" font-weight="900" fill="#7c2d12" text-anchor="middle" font-family="Inter,sans-serif" opacity="0.85">{{ fourn.nom[0] }}</text>
+</svg></div>
+    <div style="flex:1;min-width:180px;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span style="font-size:20px;font-weight:900;color:white;">{{ fourn.nom }}</span>
+        <span style="background:rgba(255,255,255,.18);color:white;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;">{{ fourn.code }}</span>
+        {% if alerte_dette and dettes > 0 %}<span style="background:rgba(239,68,68,.3);color:#fca5a5;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;">⚠️ Dette en cours</span>{% endif %}
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:5px;">
+        {% if fourn.contact %}<span style="color:rgba(255,255,255,.8);font-size:11px;">👤 {{ fourn.contact }}</span>{% endif %}
+        {% if fourn.telephone %}<span style="color:rgba(255,255,255,.8);font-size:11px;">📞 {{ fourn.telephone }}</span>{% endif %}
+        {% if fourn.email %}<span style="color:rgba(255,255,255,.8);font-size:11px;">✉️ {{ fourn.email }}</span>{% endif %}
+        {% if fourn.ville %}<span style="color:rgba(255,255,255,.8);font-size:11px;">📍 {{ fourn.ville }}</span>{% endif %}
+      </div>
+      <div style="margin-top:7px;display:flex;gap:6px;flex-wrap:wrap;">
+        {% if fourn.categorie_fournisseur and fourn.categorie_fournisseur != 'standard' %}<span style="background:rgba(255,255,255,.15);color:white;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;">⭐ {{ fourn.categorie_fournisseur|capitalize }}</span>{% endif %}
+        {% if fourn.secteur %}<span style="background:rgba(255,255,255,.15);color:white;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;">🏭 {{ fourn.secteur }}</span>{% endif %}
+        {% if fourn.type_produits %}<span style="background:rgba(255,255,255,.15);color:white;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;">🍺 {{ fourn.type_produits }}</span>{% endif %}
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0;">
+      <a href="/fournisseurs" class="btn btn-sec btn-sm" style="background:rgba(255,255,255,.15);color:white;border-color:rgba(255,255,255,.3);">← Liste</a>
+      <button onclick="switchFournTab('infos')" class="btn btn-sm" style="background:rgba(255,255,255,.2);color:white;border:1px solid rgba(255,255,255,.35);">✏️ Modifier</button>
+    </div>
+  </div>
+</div>
+
+<!-- KPIs -->
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:18px;">
+  {% for val,lbl,clr in [
+    ((stats.total_achats or 0)|fcfa+' FCFA','Total achats','var(--or)'),
+    ((dettes or 0)|fcfa+' FCFA','Dettes','var(--rouge)' if (dettes or 0)>0 else 'var(--vert)'),
+    ((stats.total_paye or 0)|fcfa+' FCFA','Payé','var(--vert)'),
+    (stats.nb_commandes or 0,'Commandes','var(--bleu)'),
+    (stats.nb_recues or 0,'Reçues','var(--vert)'),
+    (stats.nb_attente or 0,'En attente','var(--or)'),
+    (stats_rgl.nb_reglements or 0,'Règlements','var(--bleu2)'),
+    ((fourn.date_creation[:10] if fourn.date_creation else '—'),'Fourn. depuis','var(--violet)'),
+  ] %}
+  <div class="stat-mini" style="--kpi-accent:{{ clr }};"><div class="val" style="color:{{ clr }};font-size:{{ '12px' if val|string|length > 8 else '18px' }};">{{ val }}</div><div class="lbl">{{ lbl }}</div></div>
+  {% endfor %}
+</div>
+
+<!-- Jauge dettes -->
+{% if dettes > 0 %}
+<div class="table-card" style="margin-bottom:16px;padding:14px 18px;">
+  <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+    <span style="font-size:12px;font-weight:700;color:var(--rouge);">⚠️ Dettes fournisseur</span>
+    <span style="font-size:12px;font-weight:900;color:var(--rouge);">{{ dettes|fcfa }} FCFA</span>
+  </div>
+  <div style="height:6px;background:var(--gris2);border-radius:3px;overflow:hidden;">
+    <div style="height:100%;{% if stats.total_achats and stats.total_achats > 0 %}width:{{ [(dettes/stats.total_achats*100)|round(0)|int,100]|min }}%;{% else %}width:100%;{% endif %}background:var(--rouge);border-radius:3px;"></div>
+  </div>
+  <div style="font-size:10px;color:var(--gris3);margin-top:3px;">Sur {{ (stats.total_achats or 0)|fcfa }} FCFA d'achats totaux</div>
+</div>
+{% endif %}
+
+<!-- Onglets -->
+<div class="dossier-tabs">
+  {% for tid,tico,tlbl,cnt in [
+    ('historique','📜','Historique',(commandes|length)+(reglements|length)),
+    ('commandes','🛒','Commandes',commandes|length),
+    ('reglements','💳','Règlements',reglements|length),
+    ('infos','⚙️','Fiche & Classification',0),
+  ] %}
+  <button class="dossier-tab {% if loop.first %}active{% endif %}" data-tab="{{ tid }}" onclick="switchFournTab('{{ tid }}')">
+    {{ tico }} {{ tlbl }}{% if cnt %} <span style="background:var(--bleu3);color:var(--bleu2);border-radius:20px;padding:0 6px;font-size:9px;margin-left:3px;">{{ cnt }}</span>{% endif %}
+  </button>
+  {% endfor %}
+</div>
+
+<!-- Historique -->
+<div id="tabhistorique">
+  <div class="table-card">
+    <div class="thead"><h3>📜 Tous documents depuis le {{ fourn.date_creation[:10] if fourn.date_creation else 'début' }}</h3></div>
+    <div style="padding:18px 20px;display:flex;flex-direction:column;gap:0;">
+      {% set all_docs = [] %}
+      {% for d in commandes %}{% if all_docs.append({'id':d.id,'date':d.date_doc,'type':'commande','ref':d.reference,'montant':d.total_ttc,'statut':d.statut}) %}{% endif %}{% endfor %}
+      {% for r in reglements %}{% if all_docs.append({'id':r.id,'date':r.date_reglement,'type':'reglement','ref':r.reference,'montant':r.montant,'statut':'payé'}) %}{% endif %}{% endfor %}
+      {% set ico_map = {'commande':('#fef9c3','#a16207','🛒'),'reglement':('#dcfce7','#15803d','💳')} %}
+      {% set tab_map = {'commande':'commandes','reglement':'reglements'} %}
+      {% for doc in all_docs|sort(attribute='date',reverse=True) %}
+      {% set bg,clr,ico = ico_map.get(doc.type,('#f1f5f9','#475569','📄')) %}
+      <div class="tl-item">
+        <div class="tl-dot" style="background:{{ bg }};border-color:{{ clr }};color:{{ clr }};">{{ ico }}</div>
+        <div class="tl-body">
+          <div class="tl-head"><span class="tl-title">{{ doc.ref }}</span><span class="tl-date">{{ doc.date }}</span></div>
+          <div class="tl-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:{{ bg }};color:{{ clr }};">{{ doc.type|capitalize }}</span>
+                <span style="font-size:12px;font-weight:700;color:{{ 'var(--vert)' if doc.type=='reglement' else 'var(--or)' }};">{{ (doc.montant or 0)|fcfa }} FCFA</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:10px;color:var(--gris3);">{{ doc.statut }}</span>
+                {% if doc.type == 'commande' %}
+                <a href="/achats/{{ doc.id }}/print" target="_blank"
+                   class="hist-action-btn hist-btn-imprimer" title="Imprimer">🖨️</a>
+                {% endif %}
+                <button type="button" onclick="switchFournTab('{{ tab_map[doc.type] }}')"
+                        class="hist-action-btn hist-btn-action" title="Voir dans l'onglet {{ doc.type }}s">↗️</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div style="text-align:center;color:var(--gris3);padding:40px;"><div style="font-size:36px;margin-bottom:8px;">📜</div>Aucun document</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Commandes -->
+<div id="tabcommandes" style="display:none;">
+  <div class="table-card">
+    <div class="thead"><h3>{{ commandes|length }} commande(s) — historique complet</h3><a href="/achats" class="btn btn-sec btn-sm">+ Nouvelle</a></div>
+    <table><thead><tr><th>Référence</th><th>Date</th><th>TTC</th><th>Payé</th><th>Reste</th><th>Statut</th><th style="text-align:right;">Actions</th></tr></thead>
+    <tbody>
+    {% for c in commandes %}
+    <tr>
+      <td><code style="color:var(--bleu2);font-size:10px;font-weight:700;">{{ c.reference }}</code></td>
+      <td style="font-size:11px;color:var(--gris3);">{{ c.date_doc or '—' }}</td>
+      <td style="font-weight:700;">{{ (c.total_ttc or 0)|fcfa }}</td>
+      <td style="color:var(--vert);">{{ (c.montant_paye or 0)|fcfa }}</td>
+      <td style="font-weight:700;color:{{ 'var(--rouge)' if (c.reste or 0)>0 else 'var(--vert)' }};">{{ (c.reste or 0)|fcfa }}</td>
+      <td>{% if c.statut=='recu' %}<span class="badge badge-success">✅ Reçu</span>{% elif c.statut=='partiellement_recu' %}<span class="badge" style="background:#dbeafe;color:#1d4ed8;">◑ Partiel</span>{% elif c.statut=='en_attente' %}<span class="badge" style="background:#fef9c3;color:#a16207;">⏳</span>{% else %}<span class="badge badge-sec">{{ c.statut }}</span>{% endif %}</td>
+      <td class="action-cell" style="text-align:right;">
+        <div class="action-cell-inner" style="justify-content:flex-end;">
+        {% set a_paiement = (c.montant_paye or 0) > 0 %}
+        {% set est_solde   = a_paiement and (c.reste or 0) <= 0 %}
+        {# Payer : seulement si reste > 0 et pas encore soldé #}
+        {% if (c.reste or 0) > 0 and not est_solde %}
+        <button class="hist-action-btn hist-btn-regler"
+                onclick="openPaiementFourn({{ c.id }}, '{{ c.reference|e }}', {{ c.total_ttc or 0 }}, {{ c.montant_paye or 0 }})"
+                title="Payer ce fournisseur">💳 <span>Payer</span></button>
+        {% endif %}
+        {# Modifier : bloqué dès qu'un paiement est reçu #}
+        {% if c.statut not in ['recu','annulee'] and not a_paiement %}
+        <a href="{{ url_for('achat_edit', id=c.id) }}"
+           class="hist-action-btn hist-btn-modifier" title="Modifier">✏️</a>
+        {% endif %}
+        <a href="{{ url_for('achat_print', id=c.id) }}" target="_blank"
+           class="hist-action-btn hist-btn-imprimer" title="Imprimer">🖨️</a>
+        {# Supprimer : masqué si soldé #}
+        {% if not est_solde %}
+        <a href="{{ url_for('achat_delete', id=c.id) }}"
+           onclick="return confirm('Supprimer la commande {{ c.reference }} ?\nCette action est définitive.');"
+           class="hist-action-btn hist-btn-supprimer" title="Supprimer">🗑️</a>
+        {% endif %}
+        </div>
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="7" style="text-align:center;color:var(--gris3);padding:24px;">Aucune commande</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+</div>
+
+<!-- Règlements -->
+<div id="tabreglements" style="display:none;">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px;">
+    {% for val,lbl,clr in [(stats.total_achats or 0,'Total achats','var(--or)'),(stats.total_paye or 0,'Payé','var(--vert)'),(dettes or 0,'Dettes restantes','var(--rouge)' if (dettes or 0)>0 else 'var(--vert)')] %}
+    <div class="stat-mini" style="--kpi-accent:{{ clr }};">
+      <div class="lbl">{{ lbl }}</div>
+      <div class="val" style="font-size:16px;color:{{ clr }};margin-top:4px;">{{ val|fcfa }} FCFA</div>
+    </div>{% endfor %}
+  </div>
+  <div class="table-card">
+    <div class="thead"><h3>{{ reglements|length }} règlement(s) — depuis l'enregistrement</h3></div>
+    <table><thead><tr><th>Date</th><th>Référence</th><th>Commande</th><th>Mode</th><th>Montant</th><th style="text-align:right;">Actions</th></tr></thead>
+    <tbody>
+    {% for r in reglements %}
+    <tr>
+      <td style="font-size:11px;color:var(--gris3);">{{ r.date_reglement or '—' }}</td>
+      <td><code style="font-size:10px;color:var(--bleu2);">{{ r.reference }}</code></td>
+      <td style="font-size:11px;">{{ r.commande_ref or '—' }}</td>
+      <td style="font-size:11px;">{% set m={'especes':'💵 Espèces','wave':'📱 Wave','orange_money':'🟠 Orange','mtn_money':'🟡 MTN','virement':'🏦 Virement','cheque':'📄 Chèque'} %}{{ m.get(r.mode_paiement,r.mode_paiement or '—') }}</td>
+      <td style="font-weight:800;color:var(--vert);">{{ r.montant|fcfa }} FCFA</td>
+      <td class="action-cell" style="text-align:right;">
+        <a href="{{ url_for('reglement_delete', id=r.id) }}"
+           onclick="return confirm('Annuler le règlement {{ r.reference }} ({{ r.montant|fcfa }} FCFA) ?\nLa commande liée redeviendra impayée.');"
+           class="hist-action-btn hist-btn-supprimer" title="Annuler">🗑️ <span>Annuler</span></a>
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="6" style="text-align:center;color:var(--gris3);padding:24px;">Aucun règlement</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+</div>
+
+<!-- Fiche & Classification -->
+<div id="tabinfos" style="display:none;">
+  <form method="POST" action="/fournisseurs/{{ fourn.id }}/edit">
+  <div class="tabinfos-grid">
+    <div class="table-card" style="padding:20px 24px;">
+      <div style="font-size:12px;font-weight:800;color:var(--bleu);margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--bleu3);">📋 Informations générales</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Code fournisseur</label><input name="code" value="{{ fourn.code or ''|e }}" placeholder="Ex : F-0001" style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--bleu2);"></div>
+        <div class="form-group"><label>Statut</label>
+          <select name="actif" style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+            <option value="1" {{ 'selected' if (fourn.actif if fourn.actif is not none else 1) else '' }}>✅ Actif</option>
+            <option value="0" {{ 'selected' if not (fourn.actif if fourn.actif is not none else 1) else '' }}>⛔ Inactif (archivé)</option>
+          </select>
+        </div>
+        <div class="form-group full"><label>Nom *</label><input name="nom" value="{{ fourn.nom|e }}" required style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+        <div class="form-group"><label>Contact principal</label><input name="contact" value="{{ fourn.contact or ''|e }}"></div>
+        <div class="form-group"><label>Contact 2</label><input name="contact2" value="{{ fourn.contact2 or ''|e }}"></div>
+        <div class="form-group"><label>Téléphone mobile</label><input name="telephone" value="{{ fourn.telephone or ''|e }}"></div>
+        <div class="form-group"><label>Téléphone fixe</label><input name="telephone_fixe" value="{{ fourn.telephone_fixe or ''|e }}"></div>
+        <div class="form-group"><label>Téléphone 2</label><input name="telephone2" value="{{ fourn.telephone2 or ''|e }}"></div>
+        <div class="form-group"><label>Email</label><input name="email" type="email" value="{{ fourn.email or ''|e }}"></div>
+        <div class="form-group full"><label>Adresse</label><input name="adresse" value="{{ fourn.adresse or ''|e }}"></div>
+        <div class="form-group"><label>Ville</label><input name="ville" value="{{ fourn.ville or ''|e }}"></div>
+        <div class="form-group"><label>Pays</label><input name="pays" value="{{ fourn.pays or 'Côte d\'Ivoire'|e }}"></div>
+        <div class="form-group full"><label>Site web</label><input name="site_web" value="{{ fourn.site_web or ''|e }}" placeholder="https://"></div>
+        <div class="form-group full"><label>Notes</label><textarea name="notes" rows="2" style="width:100%;padding:8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;">{{ fourn.notes or '' }}</textarea></div>
+        <div class="form-group full" style="background:var(--bg-card);padding:8px 12px;border-radius:8px;border:1px dashed var(--border);">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gris3);">
+            <span>🗓️ Créé le : <strong style="color:var(--bleu);">{{ fourn.date_creation or '—' }}</strong></span>
+            <span>🆔 ID interne : <strong style="color:var(--bleu);">#{{ fourn.id }}</strong></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:18px;">
+      <div class="table-card" style="padding:20px 24px;">
+        <div style="font-size:12px;font-weight:800;color:var(--bleu);margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--bleu3);">🏷️ Classification & Comptable</div>
+        <div class="form-grid">
+          <div class="form-group full"><label>Type de produits fournis</label><input name="type_produits" value="{{ fourn.type_produits or ''|e }}" placeholder="Bières, Sodas, Eaux…"></div>
+          <div class="form-group"><label>Catégorie</label><select name="categorie_fournisseur">{% for v in ['standard','prioritaire','exclusif','strategique','occasionnel'] %}<option value="{{ v }}" {{ 'selected' if (fourn.categorie_fournisseur or 'standard')==v }}>{{ v|capitalize }}</option>{% endfor %}</select></div>
+          <div class="form-group full"><label>Secteur</label><input name="secteur" value="{{ fourn.secteur or ''|e }}" placeholder="Brasserie, Import-export…"></div>
+          <div class="form-group full"><label>Matricule fiscal</label><input name="matricule_fiscal" value="{{ fourn.matricule_fiscal or ''|e }}" placeholder="DGI-CI-XXXX"></div>
+          <div class="form-group full"><label>Code comptable</label><input name="code_comptable" value="{{ fourn.code_comptable or ''|e }}" placeholder="401XXX (SYSCOHADA)"></div>
+          <div class="form-group full"><label>Délai livraison habituel</label><input name="delai_livraison" value="{{ fourn.delai_livraison or ''|e }}" placeholder="3 jours, 1 semaine…"></div>
+          <div class="form-group full"><label>Conditions paiement</label><input name="conditions_paiement" value="{{ fourn.conditions_paiement or ''|e }}" placeholder="30j, comptant, crédit 60j…"></div>
+        </div>
+      </div>
+      <div class="table-card" style="padding:20px 24px;">
+        <div style="font-size:12px;font-weight:800;color:var(--bleu);margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--bleu3);">📊 Contrôle Dettes & Conditions</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Plafond crédit fournisseur (FCFA)</label><input name="plafond_credit" type="number" step="1000" min="0" value="{{ fourn.plafond_credit or 0 }}"></div>
+          <div class="form-group"><label>Remise accordée (%)</label><input name="remise_pct" type="number" step="0.5" min="0" max="50" value="{{ fourn.remise_pct or 0 }}"></div>
+        </div>
+        {% if dettes > 0 %}
+        <div style="margin-top:12px;padding:12px 14px;background:#fff1f2;border:1px solid #fecdd3;border-radius:8px;font-size:12px;">
+          ⚠️ Dette actuelle : <strong style="color:var(--rouge);">{{ dettes|fcfa }} FCFA</strong>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+    <a href="/fournisseurs/{{ fourn.id }}/fiche" class="btn btn-sec">Annuler</a>
+    <button type="submit" class="btn btn-primary" style="background:linear-gradient(135deg,#92400e,#f59e0b);">💾 Enregistrer la fiche</button>
+  </div>
+  </form>
+</div>
+
+<!-- Modal Paiement fournisseur -->
+<div id="modalPaiementFourn" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h3>💳 Payer le fournisseur</h3><button class="modal-close" onclick="closeModal('modalPaiementFourn')">✕</button></div>
+    <form method="POST" id="formPaiementFourn">
+      <div class="modal-body">
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:11px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:var(--gris3);">Commande :</span><strong id="pay_ref" style="color:var(--bleu2);"></strong></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:var(--gris3);">Total TTC :</span><strong id="pay_ttc"></strong></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:var(--gris3);">Déjà payé :</span><strong id="pay_paye" style="color:var(--vert);"></strong></div>
+          <div style="display:flex;justify-content:space-between;padding-top:5px;border-top:1px dashed var(--gris2);"><span style="color:var(--rouge);font-weight:700;">Reste dû :</span><strong id="pay_reste" style="color:var(--rouge);"></strong></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group full"><label>Montant du paiement (FCFA) *</label>
+            <input type="number" name="montant" id="pay_montant" min="1" step="1" required
+                   style="font-size:16px;font-weight:700;color:var(--vert);"></div>
+          <div class="form-group full"><label>Mode de paiement</label>
+            <select name="mode_paiement" id="pay_mode" style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="virement">🏦 Virement</option>
+              <option value="especes">💵 Espèces</option>
+              <option value="wave">📱 Wave</option>
+              <option value="orange_money">🟠 Orange Money</option>
+              <option value="mtn_money">🟡 MTN Money</option>
+              <option value="cheque">📄 Chèque</option>
+            </select>
+          </div>
+          <div class="form-group full"><label>Date de paiement</label>
+            <input type="date" name="date_reglement" id="pay_date"></div>
+          <div class="form-group full"><label>Notes (optionnel)</label>
+            <textarea name="notes" rows="2" style="width:100%;padding:8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;"
+                      placeholder="Référence virement, n° chèque…"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalPaiementFourn')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary" style="background:var(--vert);">💳 Enregistrer le paiement</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function switchFournTab(tab) {
+  ['historique','commandes','reglements','infos'].forEach(function(t){
+    var el=document.getElementById('tab'+t);
+    if(el) el.style.display=(t===tab)?'':'none';
+  });
+  document.querySelectorAll('.dossier-tab').forEach(function(b){ b.classList.toggle('active',b.dataset.tab===tab); });
+}
+
+/* ── Modal paiement direct d'une commande d'achat ── */
+function openPaiementFourn(id, ref, ttc, paye){
+  var reste = Math.max(0, ttc - paye);
+  var fmt = function(n){ return (n||0).toLocaleString('fr-FR',{maximumFractionDigits:0}); };
+  document.getElementById('pay_ref').textContent   = ref;
+  document.getElementById('pay_ttc').textContent   = fmt(ttc) + ' FCFA';
+  document.getElementById('pay_paye').textContent  = fmt(paye) + ' FCFA';
+  document.getElementById('pay_reste').textContent = fmt(reste) + ' FCFA';
+  document.getElementById('pay_montant').value     = Math.round(reste);
+  document.getElementById('pay_montant').max       = Math.round(reste);
+  document.getElementById('pay_date').value        = new Date().toISOString().split('T')[0];
+  document.getElementById('formPaiementFourn').action = '/achats/' + id + '/payer';
+  openModal('modalPaiementFourn');
+}
+</script>
+
+{# ── Patch thème sombre — fiche_fournisseur ── #}
+<style>
+[data-theme="dark"] .tl-card         { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] [class*="stat"]  { background:var(--bg-card) !important; border-color:var(--border) !important; color:var(--texte) !important; }
+[data-theme="dark"] .dossier-tabs    { border-bottom-color:var(--border) !important; background:var(--bg-card) !important; }
+[data-theme="dark"] .dossier-tab     { color:var(--gris3) !important; }
+[data-theme="dark"] .dossier-tab.active { color:var(--bleu2) !important; border-bottom-color:var(--bleu2) !important; }
+[data-theme="dark"] .table-card      { background:var(--bg-card) !important; }
+[data-theme="dark"] .table-card .thead { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] thead th         { background:var(--bg-thead) !important; color:var(--gris3) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody td         { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody tr:hover td { background:var(--row-hover) !important; }
+[data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
+  background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+}
+[data-theme="dark"] .modal           { background:var(--modal-bg) !important; }
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer    { border-color:var(--border) !important; }
+[data-theme="dark"] .btn-sec         { background:#1c2128 !important; color:#8b949e !important; border-color:var(--border) !important; }
+[data-theme="dark"] .hist-action-btn { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .hist-btn-imprimer { background:#0d1d38 !important; color:#93c5fd !important; border-color:#1d3461 !important; }
+[data-theme="dark"] .hist-btn-modifier { background:#3d2e00 !important; color:#fbbf24 !important; border-color:#78350f !important; }
+[data-theme="dark"] .hist-btn-regler   { background:#052e16 !important; color:#4ade80 !important; border-color:#14532d !important; }
+[data-theme="dark"] .hist-btn-supprimer { background:#3d0f0f !important; color:#fca5a5 !important; border-color:#7f1d1d !important; }
+[data-theme="dark"] .hist-btn-action   { background:#1e1040 !important; color:#c084fc !important; border-color:#4c1d95 !important; }
+[data-theme="dark"] .hist-btn-action-cyan { background:#0a2a33 !important; color:#67e8f9 !important; border-color:#164e63 !important; }
+/* Badges inline */
+[data-theme="dark"] .badge-info    { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] .badge-success { background:#052e16 !important; color:#4ade80 !important; }
+[data-theme="dark"] .badge-warning { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] .badge-danger  { background:#3d0f0f !important; color:#fca5a5 !important; }
+[data-theme="dark"] .badge-sec     { background:#1c2128 !important; color:#8b949e !important; }
+[data-theme="dark"] [style*="background:#fef9c3"],
+[data-theme="dark"] [style*="background: #fef9c3"] { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] [style*="background:#fee2e2"],
+[data-theme="dark"] [style*="background: #fee2e2"] { background:#3d0f0f !important; color:#fca5a5 !important; }
+[data-theme="dark"] [style*="background:#dbeafe"],
+[data-theme="dark"] [style*="background: #dbeafe"] { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] [style*="background:#dcfce7"],
+[data-theme="dark"] [style*="background: #dcfce7"] { background:#052e16 !important; color:#4ade80 !important; }
+@media (prefers-color-scheme:dark) {
+  [data-theme="system"] .tl-card    { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .dossier-tabs { border-bottom-color:var(--border) !important; background:var(--bg-card) !important; }
+  [data-theme="system"] .dossier-tab  { color:var(--gris3) !important; }
+  [data-theme="system"] .dossier-tab.active { color:var(--bleu2) !important; }
+  [data-theme="system"] .table-card  { background:var(--bg-card) !important; }
+  [data-theme="system"] thead th     { background:var(--bg-thead) !important; color:var(--gris3) !important; }
+  [data-theme="system"] tbody td     { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] input, [data-theme="system"] select, [data-theme="system"] textarea {
+    background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+  }
+  [data-theme="system"] .modal       { background:var(--modal-bg) !important; }
+  [data-theme="system"] .btn-sec     { background:#1c2128 !important; color:#8b949e !important; }
+  [data-theme="system"] .hist-btn-imprimer { background:#0d1d38 !important; color:#93c5fd !important; }
+  [data-theme="system"] .hist-btn-modifier { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] .hist-btn-regler   { background:#052e16 !important; color:#4ade80 !important; }
+  [data-theme="system"] .hist-btn-supprimer { background:#3d0f0f !important; color:#fca5a5 !important; }
+  [data-theme="system"] [style*="background:#fef9c3"] { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] [style*="background:#fee2e2"] { background:#3d0f0f !important; color:#fca5a5 !important; }
+  [data-theme="system"] [style*="background:#dbeafe"] { background:#1d3461 !important; color:#93c5fd !important; }
+  [data-theme="system"] [style*="background:#dcfce7"] { background:#052e16 !important; color:#4ade80 !important; }
+}
+</style>
+{% endblock %}

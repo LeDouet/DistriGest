@@ -1,0 +1,1147 @@
+{% extends "base.html" %}
+{% block title %}Articles — DISTRIGEST{% endblock %}
+{% block topbar_title %}📦 Articles{% endblock %}
+{% block content %}
+
+<style>
+/* ─── Sélecteur d'icônes ─── */
+.icon-picker{display:flex;gap:8px;align-items:stretch;}
+.icon-preview{width:54px;height:38px;border:1.5px solid var(--gris2);border-radius:8px;background:var(--bg-card);display:flex;align-items:center;justify-content:center;font-size:24px;line-height:1;flex-shrink:0;}
+.icon-trigger{flex:1;height:38px;padding:0 12px;border:1.5px solid var(--gris2);border-radius:8px;background:var(--bg-card);font-family:inherit;font-size:12px;font-weight:600;color:var(--texte);cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all .15s;}
+.icon-trigger:hover{border-color:var(--bleu2);background:#f0f7ff;}
+.icon-trigger .chev{font-size:10px;color:var(--gris3);}
+.icon-panel{display:none;margin-top:6px;border:1.5px solid var(--gris2);border-radius:10px;background:var(--bg-card);overflow:hidden;}
+.icon-panel.open{display:block;animation:fadeIn .15s ease;}
+.icon-tabs{display:flex;background:var(--bg-card);border-bottom:1px solid var(--gris2);overflow-x:auto;}
+.icon-tab{padding:7px 12px;font-size:11px;font-weight:700;border:none;background:transparent;color:var(--gris3);cursor:pointer;font-family:inherit;border-bottom:2px solid transparent;white-space:nowrap;}
+.icon-tab:hover{color:var(--bleu);}
+.icon-tab.active{color:var(--bleu);border-bottom-color:var(--bleu2);background:var(--bg-card);}
+.icon-grid{padding:10px;display:grid;grid-template-columns:repeat(8,1fr);gap:4px;max-height:180px;overflow-y:auto;}
+.icon-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:20px;border-radius:6px;cursor:pointer;background:#fafbfc;border:1px solid transparent;transition:all .12s;user-select:none;}
+.icon-cell:hover{background:#dbeafe;border-color:var(--bleu2);transform:scale(1.1);}
+.icon-cell.selected{background:linear-gradient(135deg,var(--bleu),var(--bleu2));color:white;border-color:var(--bleu);box-shadow:0 2px 8px rgba(37,99,235,.35);}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:none;}}
+/* ─── Onglet image locale ─── */
+.icon-img-zone{padding:14px 12px;display:flex;flex-direction:column;align-items:center;gap:10px;}
+.icon-img-drop{width:100%;border:2px dashed var(--gris2);border-radius:10px;padding:18px 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:border-color .15s,background .15s;text-align:center;}
+.icon-img-drop:hover,.icon-img-drop.dragover{border-color:var(--bleu2);background:#f0f7ff;}
+.icon-img-drop .drop-icon{font-size:28px;}
+.icon-img-drop .drop-label{font-size:12px;font-weight:600;color:var(--gris3);}
+.icon-img-drop .drop-sub{font-size:10px;color:var(--gris3);}
+.icon-img-preview-wrap{display:none;flex-direction:column;align-items:center;gap:8px;}
+.icon-img-preview-wrap.show{display:flex;}
+.icon-img-preview-wrap img{width:72px;height:72px;object-fit:contain;border-radius:10px;border:1.5px solid var(--gris2);background:var(--bg-card);}
+.icon-img-preview-wrap .img-use-btn{padding:6px 18px;border-radius:7px;font-size:12px;font-weight:700;background:var(--bleu2);color:white;border:none;cursor:pointer;font-family:inherit;}
+.icon-img-preview-wrap .img-use-btn:hover{opacity:.88;}
+.icon-img-preview-wrap .img-reset-btn{font-size:11px;color:var(--gris3);background:none;border:none;cursor:pointer;font-family:inherit;}
+.icon-preview img{width:100%;height:100%;object-fit:contain;border-radius:6px;}
+/* ─── Boutons action tableau ─── */
+.hist-action-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:7px;font-size:11px;font-weight:700;font-family:inherit;border:1.5px solid transparent;cursor:pointer;transition:all .15s;white-space:nowrap;line-height:1;text-decoration:none;background:none;}
+.hist-action-btn span{font-size:11px;}
+.hist-btn-supprimer{background:#fff1f2;color:#dc2626;border-color:#fca5a5;}
+.hist-btn-supprimer:hover{background:#dc2626;color:white;border-color:#dc2626;box-shadow:0 2px 8px rgba(220,38,38,.25);}
+.hist-btn-modifier{background:#eff6ff;color:#2563eb;border-color:#bfdbfe;}
+.hist-btn-modifier:hover{background:#2563eb;color:white;border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.25);}
+/* ── Hauteur des lignes réduite + alignement vertical centré ── */
+.table-card table td,.table-card table th{padding:5px 10px;vertical-align:middle;}
+
+/* ── Composant Code-barres ── */
+.cb-input-wrap{position:relative;}
+.cb-input-wrap input{width:100%;padding-right:32px;font-family:'Courier New',monospace;font-size:13px;letter-spacing:1px;font-weight:700;}
+.cb-status{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:14px;font-weight:700;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:50%;pointer-events:none;}
+.cb-status.valid{background:#dcfce7;color:#15803d;}
+.cb-status.invalid{background:#fef3c7;color:#a16207;}
+.cb-status.empty{display:none;}
+.cb-actions{display:flex;gap:6px;margin-top:6px;}
+.cb-btn{flex:1;padding:5px 8px;border-radius:6px;border:1.5px solid;background:var(--bg-card);cursor:pointer;font-size:10px;font-weight:700;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:3px;}
+.cb-btn-gen{color:#7c3aed;border-color:#ddd6fe;background:#f5f3ff;}
+.cb-btn-gen:hover{background:#7c3aed;color:white;border-color:#7c3aed;box-shadow:0 2px 8px rgba(124,58,237,.25);}
+.cb-btn-clr{color:var(--gris3);border-color:var(--border);background:var(--bg-card);}
+.cb-btn-clr:hover{background:#64748b;color:white;border-color:var(--gris3);}
+.cb-preview{margin-top:8px;padding:10px 12px;background:#fafbfc;border:1.5px dashed var(--gris2);border-radius:8px;min-height:54px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;transition:border-color .2s;}
+.cb-preview.has-code{background:var(--bg-card);border-style:solid;border-color:#bfdbfe;}
+.cb-preview-svg{display:block;}
+.cb-preview-num{font-family:'Courier New',monospace;font-size:11px;font-weight:700;letter-spacing:2px;color:var(--bleu);}
+.cb-preview-empty{font-size:10px;color:var(--gris3);font-style:italic;}
+.cb-preview-info{font-size:9px;color:var(--gris3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
+
+/* ══ BOUTONS ACTION PAGE-HEADER (identique stock) ══════════════ */
+.btn-action-imprimer,
+.btn-action-nouvel {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .18s;
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+  letter-spacing: .1px;
+  text-decoration: none;
+}
+/* Imprimer — vert émeraude (= inventaire dans stock) */
+.btn-action-imprimer {
+  background: linear-gradient(135deg, #065f46, #10b981);
+  color: white;
+  box-shadow: 0 3px 12px rgba(16,185,129,.35), inset 0 1px 0 rgba(255,255,255,.15);
+  border: 1.5px solid rgba(255,255,255,.12);
+}
+.btn-action-imprimer:hover {
+  background: linear-gradient(135deg, #047857, #34d399);
+  box-shadow: 0 6px 20px rgba(16,185,129,.5);
+  transform: translateY(-2px);
+}
+.btn-action-imprimer:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(16,185,129,.3); }
+
+/* Nouvel article — bleu acier (= transfert dans stock) */
+.btn-action-nouvel {
+  background: linear-gradient(135deg, #1e40af, #3b82f6);
+  color: white;
+  box-shadow: 0 3px 12px rgba(59,130,246,.35), inset 0 1px 0 rgba(255,255,255,.15);
+  border: 1.5px solid rgba(255,255,255,.12);
+}
+.btn-action-nouvel:hover {
+  background: linear-gradient(135deg, #1d4ed8, #60a5fa);
+  box-shadow: 0 6px 20px rgba(59,130,246,.5);
+  transform: translateY(-2px);
+}
+.btn-action-nouvel:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(59,130,246,.3); }
+
+.btn-action-imprimer .btn-icon,
+.btn-action-nouvel .btn-icon {
+  font-size: 15px;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.2));
+}
+</style>
+
+<div class="page-header">
+  <div><h1>📦 Articles</h1><div class="sub">Catalogue produits</div></div>
+  <div style="display:flex;gap:8px;">
+    <button onclick="imprimerArticles()" class="btn-action-imprimer">
+      <span class="btn-icon">🖨️</span> Imprimer
+    </button>
+    <button onclick="openAddArt()" class="btn-action-nouvel">
+      <span class="btn-icon">➕</span> Nouvel article
+    </button>
+  </div>
+</div>
+
+<!-- Filtres -->
+<div class="table-card" style="margin-bottom:14px;">
+  <form method="GET" action="{{ url_for('articles_list') }}">
+    <div style="padding:10px 16px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+      <div>
+        <label style="font-size:10px;font-weight:700;color:var(--gris3);text-transform:uppercase;display:block;margin-bottom:3px;">Recherche</label>
+        <input type="text" name="q" value="{{ q }}" placeholder="Désignation, référence…"
+          style="height:32px;padding:0 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;width:220px;">
+      </div>
+      <div>
+        <label style="font-size:10px;font-weight:700;color:var(--gris3);text-transform:uppercase;display:block;margin-bottom:3px;">Famille</label>
+        <select name="famille" style="height:32px;padding:0 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;">
+          <option value="">Toutes</option>
+          {% for fam in familles %}
+          <option value="{{ fam.id }}" {% if famille_f==fam.id|string %}selected{% endif %}>{{ fam.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-sm btn-primary">🔍 Filtrer</button>
+      <a href="{{ url_for('articles_list') }}" class="btn btn-sec btn-sm">✕</a>
+      <span style="margin-left:auto;font-size:12px;color:var(--gris3);font-weight:600;">{{ articles|length }} article(s)</span>
+    </div>
+  </form>
+</div>
+
+<!-- Familles pills -->
+<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+  {% for fam in familles %}
+  <a href="{{ url_for('articles_list') }}?famille={{ fam.id }}"
+     style="padding:5px 14px;border-radius:20px;background:{{ fam.couleur }}22;border:1.5px solid {{ fam.couleur }}55;color:{{ fam.couleur }};font-size:11px;font-weight:700;text-decoration:none;transition:all .15s;"
+     onmouseover="this.style.background='{{ fam.couleur }}33'"
+     onmouseout="this.style.background='{{ fam.couleur }}22'">
+    {{ fam.nom }}
+  </a>
+  {% endfor %}
+</div>
+
+<div class="table-card">
+  <div class="thead"><h3>📦 {{ articles|length }} article(s)</h3></div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:50px;text-align:center;">Icône</th>
+        <th>Réf</th><th>Désignation</th><th>Famille</th><th>Contenance</th>
+        <th>Colisage</th><th>PU Achat HT</th><th>PU Vente Colis HT</th><th>PU Vente Unitaire</th>
+        <th>TVA</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in articles %}
+      <tr>
+        <td style="text-align:center;font-size:22px;line-height:1;">
+          {% if a.icone and a.icone.startswith('data:') %}
+            <img src="{{ a.icone }}" alt="img" style="width:32px;height:32px;object-fit:contain;border-radius:6px;vertical-align:middle;">
+          {% else %}
+            {{ a.icone or '📦' }}
+          {% endif %}
+        </td>
+        <td>
+          <code style="font-size:10px;color:var(--bleu2);font-weight:700;">{{ a.reference }}</code>
+          {% if a.code_barre %}
+          <div style="font-size:9px;color:var(--gris3);font-family:monospace;margin-top:2px;letter-spacing:.5px;" title="Code-barres">📷 {{ a.code_barre }}</div>
+          {% endif %}
+        </td>
+        <td style="font-weight:600;">{{ a.designation }}</td>
+        <td>
+          {% if a.famille_nom %}
+          <span class="badge" style="background:{{ a.famille_couleur }}22;color:{{ a.famille_couleur }};border:1px solid {{ a.famille_couleur }}44;">
+            {{ a.famille_nom }}
+          </span>
+          {% else %}—{% endif %}
+        </td>
+        <td style="font-size:11px;color:var(--gris3);">{{ a.contenance or '—' }}</td>
+        <td style="text-align:center;">
+          <span class="badge badge-info">{{ a.colisage }} × {{ a.unite_vente }}</span>
+        </td>
+        <td>{{ a.prix_achat_ht | fcfa }}</td>
+        <td style="font-weight:700;color:var(--bleu);">{{ a.prix_vente_ht | fcfa }}</td>
+        <td style="font-weight:700;color:var(--vert);">{{ a.prix_unitaire | fcfa }}</td>
+        <td style="color:var(--gris3);font-size:11px;">{{ a.tva }}%</td>
+        <td style="white-space:nowrap;vertical-align:middle;">
+          <div style="display:flex;gap:6px;align-items:center;">
+          <button type="button" class="hist-action-btn hist-btn-modifier"
+            data-id="{{ a.id }}"
+            data-reference="{{ a.reference | e }}"
+            data-designation="{{ a.designation | e }}"
+            data-famille-id="{{ a.famille_id or '' }}"
+            data-contenance="{{ a.contenance | e if a.contenance else '' }}"
+            data-colisage="{{ a.colisage | int }}"
+            data-unite-vente="{{ a.unite_vente | e }}"
+            data-prix-achat-ht="{{ a.prix_achat_ht | float }}"
+            data-prix-vente-ht="{{ a.prix_vente_ht | float }}"
+            data-prix-unitaire="{{ a.prix_unitaire | float }}"
+            data-tva="{{ a.tva | float }}"
+            data-code-barre="{{ a.code_barre | e if a.code_barre else '' }}"
+            data-icone="{{ a.icone | e if a.icone else '📦' }}"
+            onclick="openEditArt(this)"
+          >✏️ Modifier</button>
+          <a href="{{ url_for('article_delete', id=a.id) }}"
+            onclick="return confirm('Supprimer cet article ?')" class="hist-action-btn hist-btn-supprimer"><span style="pointer-events:none;">🗑️ Supprimer</span></a>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="11" style="text-align:center;color:var(--gris3);padding:40px;">
+        <div style="font-size:36px;margin-bottom:10px;">📦</div>
+        Aucun article — <button onclick="openAddArt()" style="background:none;border:none;color:var(--bleu2);cursor:pointer;font-weight:600;">Ajouter le premier</button>
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- MODAL Ajouter -->
+<div id="modalAddArt" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>📦 Nouvel article</h3>
+      <button class="modal-close" onclick="closeModal('modalAddArt')">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('article_add') }}">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Référence (auto si vide)</label>
+            <input name="reference" placeholder="Ex : ART001">
+          </div>
+          <div class="form-group">
+            <label>Désignation *</label>
+            <input name="designation" required placeholder="Nom du produit, modèle, marque…">
+          </div>
+          <div class="form-group full">
+            <label>Icône de l'article</label>
+            <input type="hidden" name="icone" id="add_icone" value="📦">
+            <div class="icon-picker">
+              <div class="icon-preview" id="add_icon_preview">📦</div>
+              <button type="button" class="icon-trigger" onclick="toggleIconPanel('add')">
+                <span>Choisir une icône…</span><span class="chev">▼</span>
+              </button>
+            </div>
+            <div class="icon-panel" id="add_icon_panel">
+              <div class="icon-tabs" id="add_icon_tabs"></div>
+              <div class="icon-grid" id="add_icon_grid"></div>
+              <div class="icon-img-zone" id="add_icon_img_zone" style="display:none;">
+                <div class="icon-img-drop" id="add_img_drop"
+                  onclick="document.getElementById('add_img_input').click()"
+                  ondragover="imgDragOver(event,'add')" ondragleave="imgDragLeave('add')" ondrop="imgDrop(event,'add')">
+                  <span class="drop-icon">🖼️</span>
+                  <span class="drop-label">Cliquer pour choisir une image</span>
+                  <span class="drop-sub">ou glisser-déposer ici · PNG, JPG, WEBP, GIF — max 500 Ko</span>
+                </div>
+                <input type="file" id="add_img_input" accept="image/*" style="display:none" onchange="imgFileChosen(event,'add')">
+                <div class="icon-img-preview-wrap" id="add_img_preview_wrap">
+                  <img id="add_img_preview_img" src="" alt="Aperçu">
+                  <button type="button" class="img-use-btn" onclick="imgUse('add')">✅ Utiliser cette image</button>
+                  <button type="button" class="img-reset-btn" onclick="imgReset('add')">✕ Choisir une autre</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Famille</label>
+            <select name="famille_id">
+              <option value="">— Sélectionner —</option>
+              {% for fam in familles %}
+              <option value="{{ fam.id }}">{{ fam.nom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Contenance</label>
+            <input name="contenance" placeholder="1L, 50kg, 1m, lot de 12…">
+          </div>
+          <div class="form-group">
+            <label>Colisage (unités/colis)</label>
+            <input name="colisage" type="number" min="1" value="24" placeholder="24">
+          </div>
+          <div class="form-group">
+            <label>Unité de vente</label>
+            <select name="unite_vente">
+              {% for u in unites %}
+              <option>{{ u.nom }}</option>
+              {% else %}
+              {% for u in ['Unité','Pièce','Carton','Caisse','Pack','Palette','Lot','Sachet','Boîte','Litre','Kg'] %}
+              <option>{{ u }}</option>{% endfor %}
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Prix achat HT ({{ cfg.get('devise','FCFA') }})</label>
+            <input name="prix_achat_ht" type="number" step="1" min="0" value="0">
+          </div>
+          <div class="form-group">
+            <label>Prix de vente colis HT ({{ cfg.get('devise','FCFA') }})</label>
+            <input name="prix_vente_ht" type="number" step="1" min="0" value="0">
+          </div>
+          <div class="form-group">
+            <label>Prix de vente unitaire ({{ cfg.get('devise','FCFA') }})</label>
+            <input name="prix_unitaire" type="number" step="1" min="0" value="0">
+          </div>
+
+          <div class="form-group">
+            <label>Code-barres</label>
+            <div class="cb-input-wrap">
+              <input name="code_barre" id="add_cb_input"
+                placeholder="13 chiffres ou laisser vide"
+                maxlength="13"
+                oninput="cbUpdate('add')"
+                onkeypress="return cbOnlyDigits(event)">
+              <span class="cb-status" id="add_cb_status" title=""></span>
+            </div>
+            <div class="cb-actions">
+              <button type="button" class="cb-btn cb-btn-gen" onclick="cbGenerate('add')" title="Générer un code EAN-13 valide (préfixe 200)">🎲 Générer</button>
+              <button type="button" class="cb-btn cb-btn-clr" onclick="cbClear('add')" title="Effacer le code">🗑 Effacer</button>
+            </div>
+            <div class="cb-preview" id="add_cb_preview"></div>
+          </div>
+          <div class="form-group">
+            <label>TVA (%)</label>
+            <input name="tva" type="number" step="0.1" min="0" max="100"
+                   value="{{ tva_collectee }}"
+                   style="background:#f0f7ff;border-color:#bae6fd;font-weight:700;color:#1d4ed8;"
+                   placeholder="0">
+            <small style="color:var(--gris3);font-size:10px;">Depuis Paramètres → TVA collectée</small>
+          </div>
+      </div>
+      </div><!-- /modal-body -->
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalAddArt')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL Modifier -->
+<div id="modalEditArt" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>✏️ Modifier l'article</h3>
+      <button class="modal-close" onclick="closeModal('modalEditArt')">✕</button>
+    </div>
+    <form method="POST" id="formEditArt" action="">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Référence</label>
+            <input name="reference" id="edit_reference" placeholder="ART001">
+          </div>
+          <div class="form-group">
+            <label>Désignation *</label>
+            <input name="designation" id="edit_designation" required placeholder="Nom du produit…">
+          </div>
+          <div class="form-group full">
+            <label>Icône de l'article</label>
+            <input type="hidden" name="icone" id="edit_icone" value="📦">
+            <div class="icon-picker">
+              <div class="icon-preview" id="edit_icon_preview">📦</div>
+              <button type="button" class="icon-trigger" onclick="toggleIconPanel('edit')">
+                <span>Choisir une icône…</span><span class="chev">▼</span>
+              </button>
+            </div>
+            <div class="icon-panel" id="edit_icon_panel">
+              <div class="icon-tabs" id="edit_icon_tabs"></div>
+              <div class="icon-grid" id="edit_icon_grid"></div>
+              <div class="icon-img-zone" id="edit_icon_img_zone" style="display:none;">
+                <div class="icon-img-drop" id="edit_img_drop"
+                  onclick="document.getElementById('edit_img_input').click()"
+                  ondragover="imgDragOver(event,'edit')" ondragleave="imgDragLeave('edit')" ondrop="imgDrop(event,'edit')">
+                  <span class="drop-icon">🖼️</span>
+                  <span class="drop-label">Cliquer pour choisir une image</span>
+                  <span class="drop-sub">ou glisser-déposer ici · PNG, JPG, WEBP, GIF — max 500 Ko</span>
+                </div>
+                <input type="file" id="edit_img_input" accept="image/*" style="display:none" onchange="imgFileChosen(event,'edit')">
+                <div class="icon-img-preview-wrap" id="edit_img_preview_wrap">
+                  <img id="edit_img_preview_img" src="" alt="Aperçu">
+                  <button type="button" class="img-use-btn" onclick="imgUse('edit')">✅ Utiliser cette image</button>
+                  <button type="button" class="img-reset-btn" onclick="imgReset('edit')">✕ Choisir une autre</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Famille</label>
+            <select name="famille_id" id="edit_famille_id">
+              <option value="">— Sélectionner —</option>
+              {% for fam in familles %}
+              <option value="{{ fam.id }}">{{ fam.nom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Contenance</label>
+            <input name="contenance" id="edit_contenance" placeholder="1L, 50kg, lot de 12…">
+          </div>
+          <div class="form-group">
+            <label>Colisage (unités/colis)</label>
+            <input name="colisage" id="edit_colisage" type="number" min="1" value="1">
+          </div>
+          <div class="form-group">
+            <label>Unité de vente</label>
+            <select name="unite_vente" id="edit_unite_vente">
+              {% for u in unites %}
+              <option>{{ u.nom }}</option>
+              {% else %}
+              {% for u in ['Unité','Pièce','Carton','Caisse','Pack','Palette','Lot','Sachet','Boîte','Litre','Kg'] %}
+              <option>{{ u }}</option>{% endfor %}
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Prix achat HT ({{ cfg.get('devise','FCFA') }})</label>
+            <input name="prix_achat_ht" id="edit_prix_achat_ht" type="number" step="1" min="0" value="0">
+          </div>
+          <div class="form-group">
+            <label>Prix de vente colis HT ({{ cfg.get('devise','FCFA') }})</label>
+            <input name="prix_vente_ht" id="edit_prix_vente_ht" type="number" step="1" min="0" value="0">
+          </div>
+          <div class="form-group">
+            <label>Prix de vente unitaire ({{ cfg.get('devise','FCFA') }})</label>
+            <input name="prix_unitaire" id="edit_prix_unitaire" type="number" step="1" min="0" value="0">
+          </div>
+          <div class="form-group">
+            <label>Code-barres</label>
+            <div class="cb-input-wrap">
+              <input name="code_barre" id="edit_cb_input"
+                placeholder="13 chiffres ou laisser vide"
+                maxlength="13"
+                oninput="cbUpdateEdit()"
+                onkeypress="return cbOnlyDigits(event)">
+              <span class="cb-status" id="edit_cb_status" title=""></span>
+            </div>
+            <div class="cb-actions">
+              <button type="button" class="cb-btn cb-btn-gen" onclick="cbGenerateEdit()" title="Générer un EAN-13 valide">🎲 Générer</button>
+              <button type="button" class="cb-btn cb-btn-clr" onclick="cbClearEdit()" title="Effacer le code">🗑 Effacer</button>
+            </div>
+            <div class="cb-preview" id="edit_cb_preview"></div>
+          </div>
+          <div class="form-group">
+            <label>TVA (%)</label>
+            <input name="tva" id="edit_tva" type="number" step="0.1" min="0" max="100"
+                   style="background:#f0f7ff;border-color:#bae6fd;font-weight:700;color:#1d4ed8;"
+                   placeholder="0">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalEditArt')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<script>
+/* ── openModal / closeModal : fallback si base.html ne les définit pas ── */
+if(typeof openModal === 'undefined'){
+  function openModal(id){
+    const el = document.getElementById(id);
+    if(el){ el.style.display='flex'; document.body.style.overflow='hidden'; }
+  }
+  function closeModal(id){
+    const el = document.getElementById(id);
+    if(el){ el.style.display='none'; document.body.style.overflow=''; }
+  }
+  document.addEventListener('click', function(e){
+    if(e.target.classList.contains('modal-overlay')) closeModal(e.target.id);
+  });
+}
+
+/* ════════════════════════════════════════════════════════════════
+   BIBLIOTHÈQUE D'ICÔNES PAR CATÉGORIE
+   ════════════════════════════════════════════════════════════════ */
+const ICON_LIBRARY = {
+  'Alimentaire'  : ['🍚','🍞','🥖','🥐','🍰','🧁','🍪','🍫','🍬','🍭','🥫','🥣','🍯','🧂','🌶️','🧄','🧅','🥔','🍅','🥕','🌽','🥒','🥬','🥦','🍆','🍎','🍊','🍌','🍇','🍓','🍉','🍍','🥥','🫒','🥑','🍞','🍝','🍜','🍲','🍛','🍱','🥟','🌯','🌮','🍔','🍟','🍕','🌭','🥩','🍗','🍳','🥚','🧀','🥛','🍵','☕','🍶','🍷','🍺','🥤','🧃','💧','🥃'],
+  'Boissons 🍶'  : [
+    /* Eau & Eaux minérales */
+    '💧','🧊','🫗','🪣','🌊',
+    /* Sodas & Soft drinks */
+    '🥤','🧃','🫙','🧋',
+    /* Bières & Alcools */
+    '🍺','🍻','🥂','🍷','🥃','🍸','🍹','🍾',
+    /* Vins & Champagnes */
+    '🍾','🫙',
+    /* Café / Thé / Chaud */
+    '☕','🍵','🫖',
+    /* Jus & Fruits */
+    '🍊','🍋','🍓','🍉','🥭','🍍','🫐',
+    /* Lait & Produits laitiers */
+    '🥛',
+    /* Bouteilles génériques (toutes marques) */
+    '🍶','🧴','🫗',
+    /* Marques emblématiques par icône proche */
+    '🟥','🟦','🟩','🟨','⬜','🔴','🔵','🟢','🟡','⚪',
+    /* Symboles boissons */
+    '♻️','🏷️','🧊','🫙','🥤','🧃','🍹','🍸','🥂','🍷'
+  ],
+  'Hygiène'      : ['🧼','🧴','🪥','🦷','🧻','🚿','🛁','🧽','🧹','🧺','🧴','💧','🌊','🪣','🧯','🪒','💄','💅','🧖','🪞','🚽','🩹','🩺','💊','💉','🧬','🦠','🌿','🍃','🌸','🌺','🪷'],
+  'BTP 🏗️'      : [
+    /* Gros œuvre */
+    '🏗️','🧱','🪨','🪵','🪜','🚧','🚜','🏭','🏢','🏠','🏡','🏬',
+    /* Menuiserie & Huisserie */
+    '🪟','🚪','🪞','🪑','🛋️','🛏️',
+    /* Plomberie & Sanitaire */
+    '🛁','🚽','🪠','🚿','🪣','🔧','🪛',
+    /* Outillage & Fixation */
+    '🔨','⚒️','🛠️','⚙️','🔩','🪤','🧰','📏','📐','🧲','🔗','⛓️',
+    /* Électricité & Chauffage */
+    '🔌','💡','🔋','🔦','🕯️','🧯','🌡️','❄️','🔥','💨',
+    /* Peinture & Revêtements */
+    '🖌️','🎨','🪣','🪟','🧽',
+    /* Matériaux */
+    '🪨','🪵','⛏️','🏔️','🏜️',
+    /* Sécurité chantier */
+    '⛑️','🦺','🥾','🧤','🥽','🔒','⚠️','🚨','🚦'
+  ],
+  'Informatique 💻': [
+    /* Matériel */
+    '💻','🖥️','⌨️','🖱️','🖨️','🖼️','📺','📻','📷','📸','📹','🎥','📽️','🎞️',
+    /* Stockage */
+    '💾','💿','📀','💽','🗄️','🗃️',
+    /* Réseau & Connectique */
+    '🔌','🔋','🪫','📡','🛰️','📶','🌐','🔗','⚡',
+    /* Mobile & Téléphonie */
+    '📱','☎️','📞','📠','📟',
+    /* Audio & Multimédia */
+    '🎧','🎤','📢','📣','🔔','🎚️','🎛️','🎮','🕹️',
+    /* Périphériques & Accessoires */
+    '🖲️','💡','🔦','⌚','🖱️',
+    /* Développement & Code */
+    '🧮','📊','📈','📉','🗂️','📋','📌','🔍','🔎',
+    /* Cloud & Internet */
+    '☁️','🌩️','⚙️','🔧','🪛','🔩','🛠️',
+    /* Marques & Systèmes (icônes proches) */
+    '🍎','🪟','🐧','🤖','🌀','🔷','🔶','🔵','⬛','🟦'
+  ],
+  'Sécurité 🔒'  : [
+    /* Surveillance & Caméras */
+    '📹','🎥','📷','📸','👁️','🔭',
+    /* Alarmes & Détecteurs */
+    '🔔','🚨','⚠️','🚦','🔕','📣','🔊',
+    /* Contrôle d'accès */
+    '🔒','🔓','🗝️','🔑','🪪','🃏','💳','🏷️',
+    /* Coffres & Protections */
+    '🛡️','⚔️','🧱','🔐',
+    /* Détection incendie */
+    '🧯','🔥','💨','🌡️','☁️',
+    /* Réseaux & Cyber-sécurité */
+    '🔒','🌐','📡','📶','🧮','💻','🛰️','🔏',
+    /* Biométrie & Identification */
+    '👆','🫵','👁️','🧬','📲','🤳',
+    /* Badges & Signalisation */
+    '🚫','⛔','🚷','🚳','🚯','🔞','📵','⚡','☢️','☣️',
+    /* Interphones & Portiers */
+    '📞','☎️','🔈','📟',
+    /* Éclairage sécurité */
+    '💡','🔦','🕯️','🌟','✨',
+    /* Fils & Câbles */
+    '🔌','🔗','⛓️'
+  ],
+  'Bureau'       : ['📝','✏️','🖊️','🖋️','🖌️','🖍️','📋','📌','📎','🖇️','📁','📂','📑','📒','📓','📔','📕','📗','📘','📙','📚','📰','🗞️','📃','📄','📜','📋','🗒️','🗓️','📆','📅','🗑️','🗃️','🗄️','✂️','📐','📏','🧷','🧮'],
+  'Mode'         : ['👕','👔','👖','👗','👘','🥻','🩱','🩲','🩳','👙','👚','🧥','🧣','🧤','🧦','👞','👟','🥾','👠','👡','🥿','👢','👑','👒','🎩','🎓','🧢','⛑️','💎','💍','📿','👓','🕶️','🥽','💼','👜','👛','🎒','🛍️'],
+  'Sport / Loisir': ['⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎱','🪀','🏓','🏸','🏒','🏑','🥍','🏏','🪃','🥅','⛳','🪁','🏹','🎣','🤿','🥊','🥋','🎽','🛹','🛼','🛷','⛸️','🥌','🎿','⛷️','🏂','🏋️','🤸','🤼','🚴','🚵','🏇','⛹️','🤺','🤾','🪂','🚣','🏊','🤽','🛶','🎯','🎳'],
+  'Maison'       : ['🛋️','🛏️','🛌','🚪','🪟','🪞','🖼️','🪑','🛁','🚽','🚿','🧴','🧷','🧹','🧺','🧻','🧯','🪞','🪜','🪤','🪣','🪠','🧽','💡','🕯️','📺','🪴','🌷','🌻'],
+  'Divers'       : ['📦','🎁','💰','💵','💴','💶','💷','💸','💳','🪙','💎','🧿','🎫','🎟️','🏷️','🛒','🛍️','📮','📪','📫','✉️','📧','📨','📩','✨','⭐','🌟','💫','💥','🔥','❄️','☀️','⛅','☁️','🌈','⚡']
+};
+
+let currentPickerScope = null;  // 'add' ou 'edit'
+let currentTab = 'Alimentaire';
+
+function toggleIconPanel(scope){
+  const panel = document.getElementById(scope+'_icon_panel');
+  const isOpen = panel.classList.contains('open');
+  // Fermer tous les panels
+  document.querySelectorAll('.icon-panel').forEach(p=>p.classList.remove('open'));
+  if(!isOpen){
+    panel.classList.add('open');
+    currentPickerScope = scope;
+    renderIconTabs(scope);
+    renderIconGrid(scope, currentTab);
+  }
+}
+
+function renderIconTabs(scope){
+  const cats = Object.keys(ICON_LIBRARY);
+  const tabs = cats.map(c => `<button type="button" class="icon-tab ${c===currentTab?'active':''}" onclick="selectIconTab('${scope}','${c}')">${c}</button>`);
+  tabs.push(`<button type="button" class="icon-tab ${currentTab==='__img__'?'active':''}" onclick="selectIconTab('${scope}','__img__')">📁 Image</button>`);
+  document.getElementById(scope+'_icon_tabs').innerHTML = tabs.join('');
+}
+
+function selectIconTab(scope, cat){
+  currentTab = cat;
+  renderIconTabs(scope);
+  if(cat === '__img__'){
+    document.getElementById(scope+'_icon_grid').style.display = 'none';
+    document.getElementById(scope+'_icon_img_zone').style.display = '';
+  } else {
+    document.getElementById(scope+'_icon_grid').style.display = '';
+    document.getElementById(scope+'_icon_img_zone').style.display = 'none';
+    renderIconGrid(scope, cat);
+  }
+}
+
+/* ── Gestion image locale ── */
+function imgFileChosen(e, scope){
+  const file = e.target.files[0];
+  if(!file) return;
+  if(file.size > 500*1024){ alert('Image trop lourde (max 500 Ko). Compressez-la avant.'); e.target.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    document.getElementById(scope+'_img_preview_img').src = ev.target.result;
+    document.getElementById(scope+'_img_preview_wrap').classList.add('show');
+    document.getElementById(scope+'_img_drop').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function imgDragOver(e, scope){
+  e.preventDefault();
+  document.getElementById(scope+'_img_drop').classList.add('dragover');
+}
+function imgDragLeave(scope){
+  document.getElementById(scope+'_img_drop').classList.remove('dragover');
+}
+function imgDrop(e, scope){
+  e.preventDefault();
+  imgDragLeave(scope);
+  const file = e.dataTransfer.files[0];
+  if(!file || !file.type.startsWith('image/')){ alert('Fichier invalide — image uniquement.'); return; }
+  if(file.size > 500*1024){ alert('Image trop lourde (max 500 Ko).'); return; }
+  try{
+    const dt = new DataTransfer(); dt.items.add(file);
+    const inp = document.getElementById(scope+'_img_input');
+    inp.files = dt.files;
+    imgFileChosen({target:inp}, scope);
+  } catch(ex){ alert('Glisser-déposer non supporté sur ce navigateur — utilisez le bouton.'); }
+}
+
+function imgUse(scope){
+  const src = document.getElementById(scope+'_img_preview_img').src;
+  if(!src) return;
+  document.getElementById(scope+'_icone').value = src;
+  // Afficher l'image dans la prévisualisation du picker
+  const prev = document.getElementById(scope+'_icon_preview');
+  prev.innerHTML = `<img src="${src}" alt="icône" style="width:100%;height:100%;object-fit:contain;border-radius:6px;">`;
+  // Fermer le panel
+  setTimeout(()=>{ document.getElementById(scope+'_icon_panel').classList.remove('open'); }, 200);
+}
+
+function imgReset(scope){
+  document.getElementById(scope+'_img_preview_wrap').classList.remove('show');
+  document.getElementById(scope+'_img_drop').style.display = '';
+  document.getElementById(scope+'_img_input').value = '';
+  document.getElementById(scope+'_img_preview_img').src = '';
+}
+
+function renderIconGrid(scope, cat){
+  const selected = document.getElementById(scope+'_icone').value;
+  const icons = ICON_LIBRARY[cat] || [];
+  document.getElementById(scope+'_icon_grid').innerHTML =
+    icons.map(ic => `<div class="icon-cell ${ic===selected?'selected':''}" onclick="pickIcon('${scope}','${ic}')">${ic}</div>`).join('');
+}
+
+function pickIcon(scope, ic){
+  document.getElementById(scope+'_icone').value = ic;
+  const prev = document.getElementById(scope+'_icon_preview');
+  // Emoji vs image base64
+  if(ic.startsWith('data:')){
+    prev.innerHTML = `<img src="${ic}" alt="icône" style="width:100%;height:100%;object-fit:contain;border-radius:6px;">`;
+  } else {
+    prev.textContent = ic;
+  }
+  renderIconGrid(scope, currentTab);
+  setTimeout(()=>{ document.getElementById(scope+'_icon_panel').classList.remove('open'); }, 250);
+}
+
+/* Initialise la prévisualisation au chargement (pour les images existantes en édition) */
+function initIconPreview(scope, val){
+  if(!val) return;
+  const prev = document.getElementById(scope+'_icon_preview');
+  if(val.startsWith('data:')){
+    prev.innerHTML = `<img src="${val}" alt="icône" style="width:100%;height:100%;object-fit:contain;border-radius:6px;">`;
+  } else {
+    prev.textContent = val;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   OUVERTURE DES MODALES — version SANS wrapper (plus fiable)
+   On appelle directement openModal() de base.html, et on fait le
+   reset du picker AVANT (de manière non bloquante).
+   ════════════════════════════════════════════════════════════════ */
+function openAddArt(){
+  // Reset du picker (non bloquant)
+  try {
+    const v  = document.getElementById('add_icone');         if(v)  v.value = '📦';
+    const p  = document.getElementById('add_icon_preview');  if(p)  p.textContent = '📦';
+    const pn = document.getElementById('add_icon_panel');    if(pn) pn.classList.remove('open');
+    const g  = document.getElementById('add_icon_grid');     if(g)  g.style.display = '';
+    const z  = document.getElementById('add_icon_img_zone'); if(z)  z.style.display = 'none';
+    try { imgReset('add'); } catch(e){}
+    currentTab = 'Alimentaire';
+  } catch(e) { console.error('[openAddArt] reset picker:', e); }
+
+  // Ouvrir la modale (appel direct, sans wrapper)
+  openModal('modalAddArt');
+}
+
+/* ════════════════════════════════════════════════════════════════
+   OUVERTURE MODAL MODIFIER
+   ════════════════════════════════════════════════════════════════ */
+function openEditArt(btn){
+  const d = btn.dataset;
+
+  // Action du formulaire
+  document.getElementById('formEditArt').action = '/articles/edit/' + d.id;
+
+  // Champs texte / numériques
+  document.getElementById('edit_reference').value     = d.reference    || '';
+  document.getElementById('edit_designation').value   = d.designation  || '';
+  document.getElementById('edit_contenance').value    = d.contenance   || '';
+  document.getElementById('edit_colisage').value      = d.colisage     || 1;
+  document.getElementById('edit_prix_achat_ht').value = d.prixAchatHt  || 0;
+  document.getElementById('edit_prix_vente_ht').value = d.prixVenteHt  || 0;
+  document.getElementById('edit_prix_unitaire').value = d.prixUnitaire || 0;
+  document.getElementById('edit_tva').value           = d.tva          || 0;
+  document.getElementById('edit_cb_input').value      = d.codeBarre    || '';
+
+  // Famille
+  const selFam = document.getElementById('edit_famille_id');
+  if(selFam) selFam.value = d.familleId || '';
+
+  // Unité de vente
+  const selU = document.getElementById('edit_unite_vente');
+  if(selU) selU.value = d.uniteVente || 'Unité';
+
+  // Icône
+  const icone = d.icone || '📦';
+  document.getElementById('edit_icone').value = icone;
+  initIconPreview('edit', icone);
+
+  // Reset picker
+  try {
+    const pn = document.getElementById('edit_icon_panel'); if(pn) pn.classList.remove('open');
+    const g  = document.getElementById('edit_icon_grid');  if(g)  g.style.display = '';
+    const z  = document.getElementById('edit_icon_img_zone'); if(z) z.style.display = 'none';
+    imgReset('edit');
+    currentTab = 'Alimentaire';
+  } catch(e){}
+
+  // Code-barres aperçu
+  try { cbUpdateEdit(); } catch(e){}
+
+  openModal('modalEditArt');
+}
+
+/* Helpers CB pour le scope edit */
+function cbUpdateEdit(){
+  const input   = document.getElementById('edit_cb_input');
+  const status  = document.getElementById('edit_cb_status');
+  const preview = document.getElementById('edit_cb_preview');
+  if(!input || !status || !preview) return;
+  const code = (input.value||'').trim();
+  if(!code){
+    status.className='cb-status empty'; status.textContent=''; status.title='';
+  } else if(cbValidateEAN13(code)){
+    status.className='cb-status valid'; status.textContent='✓'; status.title='EAN-13 valide';
+  } else {
+    status.className='cb-status invalid'; status.textContent='!';
+    status.title=code.length===13?'Chiffre de contrôle incorrect':'EAN-13 = 13 chiffres ('+code.length+' actuellement)';
+  }
+  if(!code){
+    preview.classList.remove('has-code');
+    preview.innerHTML='<span class="cb-preview-empty">📷 Aucun code</span>';
+  } else {
+    preview.classList.add('has-code');
+    const valid=cbValidateEAN13(code);
+    const info=valid
+      ?'<span class="cb-preview-info" style="color:#15803d;">✓ EAN-13 valide · scannable</span>'
+      :'<span class="cb-preview-info" style="color:#a16207;">⚠ Saisie partielle</span>';
+    preview.innerHTML=cbRenderSVG(code)+'<span class="cb-preview-num">'+_cbFormatNum(code)+'</span>'+info;
+  }
+}
+function cbGenerateEdit(){
+  let base='200';
+  for(let i=0;i<9;i++) base+=Math.floor(Math.random()*10);
+  const chk=cbCheckEAN13(base);
+  const input=document.getElementById('edit_cb_input');
+  if(input){ input.value=base+chk; cbUpdateEdit(); }
+}
+function cbClearEdit(){
+  const input=document.getElementById('edit_cb_input');
+  if(input){ input.value=''; cbUpdateEdit(); input.focus(); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   CODE-BARRES — Génération EAN-13, validation, aperçu SVG
+   ════════════════════════════════════════════════════════════════
+   Préfixe 200-299 = GS1 code interne entreprise (non commercialisé
+   au-delà du dépôt). Convient parfaitement à un usage interne.
+
+   Algorithme checksum EAN-13 :
+     - Somme = chiffre1×1 + chiffre2×3 + chiffre3×1 + chiffre4×3 + ...
+     - Checksum = (10 - (Somme mod 10)) mod 10
+   ════════════════════════════════════════════════════════════════ */
+
+// N'accepter que des chiffres dans l'input code-barres
+function cbOnlyDigits(e){
+  const c = e.charCode || e.keyCode;
+  // 0-9 ou touches de contrôle
+  if(c < 48 || c > 57){
+    if(c === 0 || c === 8 || c === 13) return true;
+    e.preventDefault();
+    return false;
+  }
+  return true;
+}
+
+// Calcule le chiffre de contrôle EAN-13 à partir des 12 premiers chiffres
+function cbCheckEAN13(d12){
+  if(!/^\d{12}$/.test(d12)) return null;
+  let sum = 0;
+  for(let i = 0; i < 12; i++){
+    sum += parseInt(d12[i], 10) * (i % 2 === 0 ? 1 : 3);
+  }
+  return (10 - (sum % 10)) % 10;
+}
+
+// Valide un EAN-13 complet (13 chiffres + checksum correct)
+function cbValidateEAN13(code){
+  if(!/^\d{13}$/.test(code)) return false;
+  const expected = cbCheckEAN13(code.substring(0, 12));
+  return expected === parseInt(code[12], 10);
+}
+
+// Génère un EAN-13 valide avec préfixe interne 200
+function cbGenerate(prefix){
+  // 200 (GS1 interne) + 9 chiffres aléatoires + checksum
+  let base = '200';
+  for(let i = 0; i < 9; i++){
+    base += Math.floor(Math.random() * 10);
+  }
+  const chk = cbCheckEAN13(base);
+  const code = base + chk;
+  const input = document.getElementById('add_cb_input');
+  if(input){
+    input.value = code;
+    cbUpdate(prefix);
+  }
+}
+
+// Vide le champ
+function cbClear(prefix){
+  const input = document.getElementById('add_cb_input');
+  if(input){
+    input.value = '';
+    cbUpdate(prefix);
+    input.focus();
+  }
+}
+
+// Met à jour le badge de statut + l'aperçu visuel
+function cbUpdate(prefix){
+  const input   = document.getElementById('add_cb_input');
+  const status  = document.getElementById('add_cb_status');
+  const preview = document.getElementById('add_cb_preview');
+  if(!input || !status || !preview) return;
+
+  const code = (input.value || '').trim();
+
+  // Statut
+  if(!code){
+    status.className = 'cb-status empty';
+    status.textContent = '';
+    status.title = '';
+  } else if(cbValidateEAN13(code)){
+    status.className = 'cb-status valid';
+    status.textContent = '✓';
+    status.title = 'EAN-13 valide';
+  } else {
+    status.className = 'cb-status invalid';
+    status.textContent = '!';
+    status.title = code.length === 13
+      ? 'Chiffre de contrôle incorrect'
+      : 'EAN-13 = 13 chiffres ('+code.length+' actuellement)';
+  }
+
+  // Aperçu SVG
+  if(!code){
+    preview.classList.remove('has-code');
+    preview.innerHTML = '<span class="cb-preview-empty">📷 Aucun code — cliquez sur 🎲 Générer ou scannez</span>';
+  } else {
+    preview.classList.add('has-code');
+    const valid = cbValidateEAN13(code);
+    const info = valid
+      ? '<span class="cb-preview-info" style="color:#15803d;">✓ EAN-13 valide · scannable</span>'
+      : '<span class="cb-preview-info" style="color:#a16207;">⚠ Saisie partielle</span>';
+    preview.innerHTML = cbRenderSVG(code) +
+      '<span class="cb-preview-num">'+_cbFormatNum(code)+'</span>' +
+      info;
+  }
+}
+
+// Formate un EAN-13 lisible : "2 001234 567890 3"
+function _cbFormatNum(code){
+  if(code.length !== 13) return code;
+  return code[0] + ' ' + code.substring(1, 7) + ' ' + code.substring(7, 13);
+}
+
+// Rendu SVG déterministe et lisible (Code-128-like simplifié) pour preview
+// Chaque chiffre du code génère un motif de barres fixe pour le visuel.
+// Note : ce rendu est destiné à l'aperçu ; pour impression de vraies étiquettes
+// scannables EAN-13, utiliser une librairie type JsBarcode.
+function cbRenderSVG(code){
+  if(!code) return '';
+  // Table des motifs de barres pour chaque chiffre (largeurs en unités)
+  // 0=barre fine, 1=espace, 2=barre épaisse, 3=espace épais
+  const PATTERNS = {
+    '0':[2,1,1,1,2,2,1,1],
+    '1':[1,2,2,1,1,1,2,2],
+    '2':[1,1,2,2,2,1,1,2],
+    '3':[2,2,1,1,2,1,1,2],
+    '4':[1,2,1,2,2,1,1,2],
+    '5':[2,1,2,1,2,1,1,2],
+    '6':[1,1,1,2,1,2,2,2],
+    '7':[2,2,1,2,1,1,1,2],
+    '8':[1,2,2,2,1,1,1,2],
+    '9':[1,1,2,1,2,2,1,2]
+  };
+  const H = 36;          // hauteur des barres
+  let x = 4;             // marge gauche
+  let bars = '';
+  // Barre de garde gauche
+  bars += `<rect x="${x}" y="0" width="1.5" height="${H}" fill="#111"/>`;
+  x += 4;
+  for(const ch of code){
+    const pat = PATTERNS[ch] || PATTERNS['0'];
+    for(let i = 0; i < pat.length; i++){
+      const w = pat[i];
+      if(i % 2 === 0){
+        // barre noire
+        bars += `<rect x="${x}" y="0" width="${w}" height="${H}" fill="#111"/>`;
+      }
+      x += w + 0.5;
+    }
+    x += 1;  // séparateur de chiffre
+  }
+  // Barre de garde droite
+  bars += `<rect x="${x}" y="0" width="1.5" height="${H}" fill="#111"/>`;
+  const W = x + 8;
+  return `<svg class="cb-preview-svg" xmlns="http://www.w3.org/2000/svg" width="${Math.min(W,260)}" height="${H}" viewBox="0 0 ${W} ${H}">${bars}</svg>`;
+}
+
+// Initialisation : aperçu vide au chargement
+document.addEventListener('DOMContentLoaded', function(){
+  try { cbUpdate('add'); } catch(e) {}
+});
+
+/* ══ IMPRESSION LISTE ARTICLES ═══════════════════════════════ */
+function imprimerArticles() {
+  var rows = document.querySelectorAll('.table-card table tbody tr');
+  var lignesHTML = '';
+  var count = 0;
+  rows.forEach(function(tr) {
+    var tds = tr.querySelectorAll('td');
+    if (tds.length < 3) return;
+    var desig = tds[2].textContent.trim();
+    if (!desig || desig.indexOf('Aucun article') !== -1) return;
+    count++;
+    var td = 'padding:8px 14px;border-bottom:1px solid #e2e8f0;font-size:13px;';
+    lignesHTML += '<tr>' +
+      '<td style="' + td + 'font-weight:600;color:var(--gris3);">' + count + '</td>' +
+      '<td style="' + td + 'font-weight:600;">' + desig + '</td>' +
+      '<td style="' + td + 'text-align:center;min-width:110px;"></td>' +
+      '<td style="' + td + 'text-align:center;min-width:110px;"></td>' +
+    '</tr>';
+  });
+
+  if (!lignesHTML) { alert('Aucun article à imprimer.'); return; }
+
+  var now = new Date().toLocaleString('fr-FR');
+  var win = window.open('', '_blank', 'width=820,height=600');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+    '<title>Liste des articles — DISTRIGEST</title>' +
+    '<style>' +
+      'body{font-family:Arial,sans-serif;margin:0;padding:28px;color:var(--texte);font-size:13px;}' +
+      'h1{font-size:17px;margin:0 0 3px;color:#1e3a5f;}' +
+      '.sub{font-size:11px;color:var(--gris3);margin-bottom:20px;}' +
+      'table{width:100%;border-collapse:collapse;}' +
+      'thead tr{background:#1e3a5f;color:white;}' +
+      'th{padding:9px 14px;text-align:left;font-size:12px;font-weight:700;letter-spacing:.3px;}' +
+      'th.center{text-align:center;}' +
+      'tr:nth-child(even) td{background:var(--bg-card);}' +
+      '.header-band{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #1e3a5f;}' +
+      '.total{margin-top:14px;font-size:12px;color:var(--gris3);font-weight:600;}' +
+      '@media print{button{display:none!important;}}' +
+    '</style></head><body>' +
+    '<div class="header-band">' +
+      '<div>' +
+        '<h1>&#128230; Liste des Articles</h1>' +
+        '<div class="sub">Généré le ' + now + ' — DISTRIGEST · STINAUG TECHNOLOGIE</div>' +
+      '</div>' +
+      '<button onclick="window.print()" style="background:#1e3a5f;color:white;border:none;padding:9px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">&#128424; Imprimer</button>' +
+    '</div>' +
+    '<table>' +
+      '<thead><tr>' +
+        '<th style="width:40px;">#</th>' +
+        '<th>Désignation</th>' +
+        '<th class="center" style="width:130px;">Quantité colis</th>' +
+        '<th class="center" style="width:130px;">Quantité unitaire</th>' +
+      '</tr></thead>' +
+      '<tbody>' + lignesHTML + '</tbody>' +
+    '</table>' +
+    '<div class="total">Total : ' + count + ' article(s)</div>' +
+    '</body></html>');
+  win.document.close();
+  win.focus();
+}
+</script>
+
+{# ── Patch thème sombre : éléments inline de cette page ── #}
+<style>
+/* ── Inputs / selects inline (style="border:1.5px solid var(--gris2)") ── */
+[data-theme="dark"] input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=hidden]),
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: var(--bg-input) !important;
+  color: var(--texte) !important;
+  border-color: var(--border) !important;
+}
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder { color: var(--gris3) !important; }
+
+/* Badges / pills inline */
+[data-theme="dark"] .badge      { background: var(--gris) !important; color: var(--texte) !important; }
+[data-theme="dark"] .badge-info    { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] .badge-success { background:#14290f !important; color:#4ade80 !important; }
+[data-theme="dark"] .badge-warning { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] .badge-danger  { background:#3d0f0f !important; color:#fca5a5 !important; }
+[data-theme="dark"] .badge-sec     { background:#1c2128 !important; color:#8b949e !important; }
+
+/* KPI cards */
+[data-theme="dark"] .kpi-card  { background: var(--bg-card) !important; }
+[data-theme="dark"] .kpi-card .label { color: var(--gris3) !important; }
+[data-theme="dark"] .kpi-card .sub   { color: var(--gris3) !important; }
+
+/* table-card thead */
+[data-theme="dark"] .table-card .thead { background: var(--bg-card) !important; border-bottom-color: var(--border) !important; }
+[data-theme="dark"] thead th { background: var(--bg-thead) !important; color: var(--gris3) !important; border-bottom-color: var(--border) !important; }
+[data-theme="dark"] tbody td { border-bottom-color: var(--border) !important; }
+[data-theme="dark"] tbody tr:last-child td { border-bottom: none !important; }
+
+/* Filtres / rangées de recherche */
+[data-theme="dark"] .table-card form > div { background: var(--bg-card) !important; }
+
+/* Boutons action inline */
+[data-theme="dark"] .hist-action-btn { background: var(--bg-input) !important; color: var(--texte) !important; border-color: var(--border) !important; }
+
+/* Modales (les modales héritent du bg-card via base.html mais
+   les div internes forcent parfois du blanc) */
+[data-theme="dark"] .modal-body > div[style*="background"],
+[data-theme="dark"] .modal-body div[style*="background:#f"] {
+  filter: brightness(0.85);
+}
+
+/* Cards / pcart */
+[data-theme="dark"] .pcart { background: var(--bg-card) !important; border-color: var(--border) !important; }
+[data-theme="dark"] .pcart-body { background: var(--bg-card) !important; }
+
+/* Sage mode buttons (réglements) */
+[data-theme="dark"] .sage-mode-btn { background: var(--bg-input) !important; border-color: var(--border) !important; color: var(--texte) !important; }
+[data-theme="dark"] .sage-mode-btn.active { background: var(--bleu2) !important; color: #fff !important; }
+
+/* Liv select */
+[data-theme="dark"] .liv-select { background: var(--bg-input) !important; color: var(--texte) !important; border-color: var(--border) !important; }
+
+/* Search hero (search.html) */
+[data-theme="dark"] .result-section { background: var(--bg-card) !important; border-color: var(--border) !important; }
+[data-theme="dark"] .result-section-header { background: var(--bg-thead) !important; }
+[data-theme="dark"] .result-table td { border-bottom-color: var(--border) !important; }
+[data-theme="dark"] .result-table tr:hover td { background: var(--row-hover) !important; }
+
+/* system auto */
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=hidden]),
+  [data-theme="system"] select,
+  [data-theme="system"] textarea {
+    background: var(--bg-input) !important;
+    color: var(--texte) !important;
+    border-color: var(--border) !important;
+  }
+  [data-theme="system"] input::placeholder,
+  [data-theme="system"] textarea::placeholder { color: var(--gris3) !important; }
+  [data-theme="system"] .badge      { background: var(--gris) !important; color: var(--texte) !important; }
+  [data-theme="system"] .badge-info    { background:#1d3461 !important; color:#93c5fd !important; }
+  [data-theme="system"] .badge-success { background:#14290f !important; color:#4ade80 !important; }
+  [data-theme="system"] .badge-warning { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] .badge-danger  { background:#3d0f0f !important; color:#fca5a5 !important; }
+  [data-theme="system"] .badge-sec     { background:#1c2128 !important; color:#8b949e !important; }
+  [data-theme="system"] .kpi-card  { background: var(--bg-card) !important; }
+  [data-theme="system"] .table-card .thead { background: var(--bg-card) !important; border-bottom-color: var(--border) !important; }
+  [data-theme="system"] thead th { background: var(--bg-thead) !important; color: var(--gris3) !important; border-bottom-color: var(--border) !important; }
+  [data-theme="system"] tbody td { border-bottom-color: var(--border) !important; }
+  [data-theme="system"] .hist-action-btn { background: var(--bg-input) !important; color: var(--texte) !important; border-color: var(--border) !important; }
+  [data-theme="system"] .pcart { background: var(--bg-card) !important; border-color: var(--border) !important; }
+  [data-theme="system"] .result-section { background: var(--bg-card) !important; border-color: var(--border) !important; }
+  [data-theme="system"] .result-section-header { background: var(--bg-thead) !important; }
+  [data-theme="system"] .sage-mode-btn { background: var(--bg-input) !important; border-color: var(--border) !important; color: var(--texte) !important; }
+}
+</style>
+
+{% endblock %}

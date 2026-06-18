@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+{% block title %}Relances — DISTRIGEST{% endblock %}
+{% block topbar_title %}🔔 Relances Clients{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div><h1>🔔 Relances</h1><div class="sub">Suivi des impayés et relances clients</div></div>
+  <button onclick="openModal('modalAddRelance')" class="btn btn-primary"
+    style="background:linear-gradient(135deg,#dc2626,#f87171);">➕ Nouvelle relance</button>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom:18px;">
+  <div class="kpi-card rouge">
+    <div class="label">Total impayé suivi</div>
+    <div class="value" style="color:var(--rouge);font-size:18px;">{{ total_du | fcfa }} FCFA</div>
+    <div class="sub">En cours de relance</div><div class="icon-bg">⚠️</div>
+  </div>
+  <div class="kpi-card or">
+    <div class="label">Relances planifiées</div>
+    <div class="value" style="color:var(--or);">{{ nb_planif }}</div>
+    <div class="sub">À effectuer</div><div class="icon-bg">📅</div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Relances envoyées</div>
+    <div class="value">{{ nb_envoy }}</div>
+    <div class="sub">En attente réponse</div><div class="icon-bg">📨</div>
+  </div>
+  <div class="kpi-card vert">
+    <div class="label">Total relances</div>
+    <div class="value" style="color:var(--vert);">{{ relances|length }}</div>
+    <div class="sub">Toutes périodes</div><div class="icon-bg">🔔</div>
+  </div>
+</div>
+
+<!-- Filtres statut -->
+<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+  {% for val, lbl, clr in [('','Toutes','var(--gris3)'),('planifiee','📅 Planifiées','var(--or)'),('envoyee','📨 Envoyées','var(--bleu2)'),('repondue','✅ Répondues','var(--vert)'),('classee','📁 Classées','var(--gris3)')] %}
+  <a href="/relances{% if val %}?statut={{ val }}{% endif %}"
+     style="padding:7px 16px;border-radius:20px;font-size:12px;font-weight:700;text-decoration:none;border:1.5px solid var(--gris2);
+     background:{{ 'var(--bg-card)' if statut_f != val else clr }};
+     color:{{ clr if statut_f != val else 'white' }};
+     box-shadow:{{ '0 2px 8px rgba(0,0,0,.15)' if statut_f == val else 'none' }};
+     border-color:var(--border);">
+    {{ lbl }}
+  </a>
+  {% endfor %}
+</div>
+
+<!-- Tableau relances -->
+<div class="table-card">
+  <div class="thead"><h3>{{ relances|length }} relance(s)</h3></div>
+  <table>
+    <thead>
+      <tr>
+        <th>Client</th><th>Facture</th><th>Montant dû</th>
+        <th>Type</th><th>Niveau</th><th>Date relance</th><th>Statut</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for r in relances %}
+    {% set niv_colors = {1:'#dbeafe,#1d4ed8', 2:'#fef9c3,#a16207', 3:'#fee2e2,#dc2626'} %}
+    {% set niv_c = niv_colors.get(r.niveau or 1, '#f1f5f9,#475569').split(',') %}
+    <tr>
+      <td>
+        <div style="font-weight:700;font-size:13px;">{{ r.client_nom or '—' }}</div>
+        {% if r.client_tel %}<div style="font-size:10px;color:var(--gris3);">{{ r.client_tel or '' }}</div>{% endif %}
+      </td>
+      <td>
+        {% if r.facture_ref %}
+        <span class="badge badge-info">🧾 {{ r.facture_ref or '—' }}</span>
+        {% else %}<span style="color:var(--gris3);font-size:11px;">—</span>{% endif %}
+      </td>
+      <td style="font-weight:800;color:var(--rouge);font-size:13px;">{{ (r.montant_du or 0) | fcfa }} FCFA</td>
+      <td style="font-size:12px;">
+        {% set types = {'appel':'📞 Appel','email':'📧 Email','sms':'💬 SMS','visite':'🚗 Visite','courrier':'📬 Courrier'} %}
+        {{ types.get(r.type_relance, r.type_relance) }}
+      </td>
+      <td>
+        <span class="badge" style="background:{{ niv_c[0] }};color:{{ niv_c[1] }};">
+          Niv. {{ r.niveau }}
+        </span>
+      </td>
+      <td style="font-size:11px;color:var(--gris3);">{{ r.date_relance or '—' }}</td>
+      <td>
+        {% if r.statut == 'planifiee' %}
+        <span class="badge" style="background:#fef9c3;color:#a16207;">📅 Planifiée</span>
+        {% elif r.statut == 'envoyee' %}
+        <span class="badge" style="background:#dbeafe;color:#1d4ed8;">📨 Envoyée</span>
+        {% elif r.statut == 'repondue' %}
+        <span class="badge badge-success">✅ Répondue</span>
+        {% elif r.statut == 'classee' %}
+        <span class="badge badge-sec">📁 Classée</span>
+        {% endif %}
+      </td>
+      <td style="display:flex;gap:4px;flex-wrap:wrap;">
+        {% if r.statut == 'planifiee' %}
+        <form method="POST" action="/relances/statut/{{ r.id }}" style="display:inline;">
+          <input type="hidden" name="statut" value="envoyee">
+          <button type="submit" class="hist-action-btn hist-btn-action-blue">📨 <span>Envoyé</span></button>
+        </form>
+        {% endif %}
+        {% if r.statut == 'envoyee' %}
+        <button onclick="openReponseModal({{ r.id }})" class="hist-action-btn hist-btn-action-green">✅ <span>Réponse</span></button>
+        {% endif %}
+        {% if r.statut not in ['classee'] %}
+        <form method="POST" action="/relances/statut/{{ r.id }}" style="display:inline;">
+          <input type="hidden" name="statut" value="classee">
+          <button type="submit" class="hist-action-btn hist-btn-action-sec">📁 <span>Classer</span></button>
+        </form>
+        {% endif %}
+        <a href="/relances/delete/{{ r.id }}" onclick="return confirm('Supprimer la relance de {{ r.client_nom or "ce client" }} ? Cette action est irréversible.')"
+           class="hist-action-btn hist-btn-supprimer">🗑️ <span>Supprimer</span></a>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--gris3);">
+      <div style="font-size:32px;margin-bottom:8px;">🔔</div>
+      Aucune relance — <a href="javascript:void(0)" onclick="openModal('modalAddRelance')" style="color:var(--bleu2);">créer la première</a>
+    </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══ MODAL Nouvelle relance ═══ -->
+<div id="modalAddRelance" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>🔔 Nouvelle relance</h3>
+      <button class="modal-close" onclick="closeModal('modalAddRelance')">✕</button>
+    </div>
+    <form method="POST" action="/relances/add">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Client *</label>
+            <select name="client_id" id="rl_client" required onchange="loadClientFactures(this.value)"
+              style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="">— Sélectionner client —</option>
+              {% for c in clients_dus %}
+              <option value="{{ c.id }}" data-du="{{ c.total_du }}">
+                {{ c.nom }} — Impayé : {{ c.total_du | fcfa }} FCFA ({{ c.nb_impayees }} facture(s))
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Montant dû auto -->
+          <div id="rl_du_info" style="display:none;grid-column:1/-1;padding:10px 14px;background:var(--bg-card);border:1.5px solid #fecdd3;border-radius:8px;font-size:12px;">
+            Montant impayé total : <strong id="rl_du_val" style="color:var(--rouge);font-size:14px;">—</strong>
+          </div>
+
+          <div class="form-group full">
+            <label>Facture concernée</label>
+            <select name="facture_id" id="rl_facture"
+              style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="">— Relance globale (toutes factures) —</option>
+              {% for f in factures_dues %}
+              <option value="{{ f.id }}" data-reste="{{ f.reste }}" data-client="{{ f.client_nom }}">
+                {{ f.reference }} — {{ f.client_nom }} — Reste : {{ f.reste | fcfa }} FCFA
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Date relance</label>
+            <input type="date" name="date_relance" id="rl_date">
+          </div>
+          <div class="form-group">
+            <label>Échéance souhaitée</label>
+            <input type="date" name="date_echeance">
+          </div>
+          <div class="form-group">
+            <label>Montant réclamé (FCFA)</label>
+            <input type="number" name="montant_du" id="rl_montant" step="1" min="0" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label>Niveau de relance</label>
+            <select name="niveau"
+              style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="1">1 — Rappel amical</option>
+              <option value="2">2 — Relance ferme</option>
+              <option value="3">3 — Mise en demeure</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Mode de relance</label>
+            <select name="type_relance"
+              style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="appel">📞 Appel téléphonique</option>
+              <option value="sms">💬 SMS</option>
+              <option value="email">📧 Email</option>
+              <option value="visite">🚗 Visite terrain</option>
+              <option value="courrier">📬 Courrier</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label>Message / Objet</label>
+            <textarea name="message" rows="3" placeholder="Cher client, nous vous rappelons que la facture … est échue depuis …"
+              style="width:100%;padding:8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalAddRelance')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary" style="background:linear-gradient(135deg,#dc2626,#f87171);">🔔 Créer la relance</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ MODAL Réponse client ═══ -->
+<div id="modalReponse" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>✅ Enregistrer la réponse</h3>
+      <button class="modal-close" onclick="closeModal('modalReponse')">✕</button>
+    </div>
+    <form method="POST" id="formReponse" action="">
+      <input type="hidden" name="statut" value="repondue">
+      <div class="modal-body">
+        <div class="form-group full">
+          <label>Réponse / Résultat</label>
+          <textarea name="reponse" rows="3" placeholder="Le client a promis de payer le …, contestation, accord de délai…"
+            style="width:100%;padding:8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalReponse')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+.hist-action-btn {
+  display:inline-flex;align-items:center;gap:4px;
+  padding:5px 10px;border-radius:7px;
+  font-size:11px;font-weight:700;font-family:inherit;
+  border:1.5px solid transparent;cursor:pointer;
+  transition:all .15s;white-space:nowrap;line-height:1;
+  text-decoration:none;background:none;
+}
+.hist-action-btn span { font-size:11px; }
+.hist-btn-action-blue  { background:var(--bg-input);color:#2563eb;border-color:#bfdbfe; }
+.hist-btn-action-blue:hover  { background:#2563eb;color:white;border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.25); }
+.hist-btn-action-green { background:var(--bg-input);color:#16a34a;border-color:#86efac; }
+.hist-btn-action-green:hover { background:#16a34a;color:white;border-color:#16a34a;box-shadow:0 2px 8px rgba(22,163,74,.25); }
+.hist-btn-action-sec   { background:var(--bg-card);color:var(--gris3);border-color:var(--border); }
+.hist-btn-action-sec:hover   { background:#475569;color:white;border-color:#475569;box-shadow:0 2px 8px rgba(71,85,105,.2); }
+.hist-btn-supprimer    { background:var(--bg-input);color:#dc2626;border-color:#fca5a5; }
+.hist-btn-supprimer:hover    { background:#dc2626;color:white;border-color:#dc2626;box-shadow:0 2px 8px rgba(220,38,38,.25); }
+</style>
+
+<script>
+document.getElementById('rl_date').value = new Date().toISOString().split('T')[0];
+
+function loadClientFactures(clientId) {
+  var sel = document.getElementById('rl_client');
+  var opt = sel.options[sel.selectedIndex];
+  var info = document.getElementById('rl_du_info');
+  var val  = document.getElementById('rl_du_val');
+  var mont = document.getElementById('rl_montant');
+  if (!clientId) { info.style.display='none'; return; }
+  var du = parseFloat(opt.dataset.du || 0);
+  val.textContent = Math.round(du).toLocaleString('fr-FR') + ' FCFA';
+  mont.value = Math.round(du);
+  info.style.display = '';
+}
+
+function openReponseModal(id) {
+  document.getElementById('formReponse').action = '/relances/statut/' + id;
+  openModal('modalReponse');
+}
+</script>
+
+{# ── Patch thème sombre — relances ── #}
+<style>
+/* ── Boutons filtres statut ── */
+[data-theme="dark"] a[style*="border-radius:20px"][style*="text-decoration:none"] {
+  background: var(--bg-card) !important;
+  border-color: var(--border) !important;
+  color: var(--gris3) !important;
+}
+/* Bouton actif : on garde la couleur thématique (injectée en inline) */
+/* Les boutons actifs ont box-shadow → on les cible */
+[data-theme="dark"] a[style*="border-radius:20px"][style*="0 2px 8px rgba(0,0,0,.15)"] {
+  color: white !important;
+}
+
+/* Badges niveau inline */
+[data-theme="dark"] .badge[style*="background:#dbeafe"],
+[data-theme="dark"] .badge[style*="background: #dbeafe"] { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] .badge[style*="background:#fef9c3"],
+[data-theme="dark"] .badge[style*="background: #fef9c3"] { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] .badge[style*="background:#fee2e2"],
+[data-theme="dark"] .badge[style*="background: #fee2e2"] { background:#3d0f0f !important; color:#fca5a5 !important; }
+
+/* Boutons action */
+[data-theme="dark"] .hist-btn-action-blue  { background:#0d1d38 !important; color:#93c5fd !important; border-color:#1d3461 !important; }
+[data-theme="dark"] .hist-btn-action-green { background:#052e16 !important; color:#4ade80 !important; border-color:#14532d !important; }
+[data-theme="dark"] .hist-btn-action-sec   { background:var(--bg-input) !important; color:var(--gris3) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .hist-btn-supprimer    { background:#3d0f0f !important; color:#fca5a5 !important; border-color:#7f1d1d !important; }
+
+/* Table */
+[data-theme="dark"] .table-card            { background:var(--bg-card) !important; }
+[data-theme="dark"] .table-card .thead     { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .table-card .thead h3  { color:var(--texte) !important; }
+[data-theme="dark"] thead th               { background:var(--bg-thead) !important; color:var(--gris3) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody td               { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody tr:hover td      { background:var(--row-hover) !important; }
+
+/* Inputs / selects / textarea */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background:var(--bg-input) !important;
+  color:var(--texte) !important;
+  border-color:var(--border) !important;
+}
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder { color:var(--gris3) !important; }
+
+/* Info montant dû */
+[data-theme="dark"] #rl_du_info { background:#3d0f0f !important; border-color:#7f1d1d !important; }
+
+/* Modal */
+[data-theme="dark"] .modal            { background:var(--modal-bg) !important; }
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer     { border-color:var(--border) !important; }
+[data-theme="dark"] .btn-sec          { background:#1c2128 !important; color:#8b949e !important; border-color:var(--border) !important; }
+
+/* KPI */
+[data-theme="dark"] .kpi-card         { background:var(--bg-card) !important; }
+[data-theme="dark"] .kpi-card .label,
+[data-theme="dark"] .kpi-card .sub    { color:var(--gris3) !important; }
+
+/* ── System (prefers-color-scheme: dark) ── */
+@media (prefers-color-scheme:dark) {
+  [data-theme="system"] a[style*="border-radius:20px"][style*="text-decoration:none"] {
+    background:var(--bg-card) !important; border-color:var(--border) !important; color:var(--gris3) !important;
+  }
+  [data-theme="system"] a[style*="border-radius:20px"][style*="0 2px 8px rgba(0,0,0,.15)"] { color:white !important; }
+  [data-theme="system"] .badge[style*="background:#dbeafe"] { background:#1d3461 !important; color:#93c5fd !important; }
+  [data-theme="system"] .badge[style*="background:#fef9c3"] { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] .badge[style*="background:#fee2e2"] { background:#3d0f0f !important; color:#fca5a5 !important; }
+  [data-theme="system"] .hist-btn-action-blue  { background:#0d1d38 !important; color:#93c5fd !important; border-color:#1d3461 !important; }
+  [data-theme="system"] .hist-btn-action-green { background:#052e16 !important; color:#4ade80 !important; border-color:#14532d !important; }
+  [data-theme="system"] .hist-btn-action-sec   { background:var(--bg-input) !important; color:var(--gris3) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .hist-btn-supprimer    { background:#3d0f0f !important; color:#fca5a5 !important; border-color:#7f1d1d !important; }
+  [data-theme="system"] .table-card            { background:var(--bg-card) !important; }
+  [data-theme="system"] thead th               { background:var(--bg-thead) !important; color:var(--gris3) !important; }
+  [data-theme="system"] tbody td               { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] input, [data-theme="system"] select, [data-theme="system"] textarea {
+    background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+  }
+  [data-theme="system"] #rl_du_info            { background:#3d0f0f !important; border-color:#7f1d1d !important; }
+  [data-theme="system"] .modal                 { background:var(--modal-bg) !important; }
+  [data-theme="system"] .btn-sec               { background:#1c2128 !important; color:#8b949e !important; }
+  [data-theme="system"] .kpi-card              { background:var(--bg-card) !important; }
+}
+</style>
+{% endblock %}

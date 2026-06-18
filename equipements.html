@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}Équipements — DISTRIGEST{% endblock %}
+{% block topbar_title %}💻 Équipements{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>💻 Équipements</h1>
+    <div class="sub">Appareils enregistrés
+      {% if client %} pour <strong style="color:var(--bleu2);">{{ client.nom }} {{ client.prenom }}</strong>{% endif %}
+    </div>
+  </div>
+  <button onclick="openModal('modalAddEq')" class="btn btn-primary">➕ Ajouter équipement</button>
+</div>
+
+<div class="table-card">
+  <div class="thead"><h3>{{ equipements|length }} équipement(s)</h3></div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Type</th><th>Marque / Modèle</th><th>Numéro série</th>
+        <th>Couleur</th><th>Client</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for e in equipements %}
+    <tr>
+      <td style="color:var(--gris3);font-size:11px">{{ e.id }}</td>
+      <td>
+        {% set icons = {'Ordinateur portable':'💻','PC fixe':'🖥️','Téléphone':'📱','Tablette':'📱','Imprimante':'🖨️','Écran':'🖥️','Disque dur':'💾','Serveur':'🗄️'} %}
+        {{ icons.get(e.type_appareil, '🔧') }} {{ e.type_appareil }}
+      </td>
+      <td style="font-weight:600">{{ e.marque }} {{ e.modele }}</td>
+      <td style="font-size:11px;color:var(--gris3)"><code>{{ e.numero_serie or '—' }}</code></td>
+      <td style="font-size:11px">{{ e.couleur or '—' }}</td>
+      <td>
+        <a href="{{ url_for('clients_list') }}?q={{ e.client_nom }}" style="color:var(--bleu2);font-weight:600;font-size:12px;">
+          {{ e.client_nom }}
+        </a>
+        <div style="font-size:10px;color:var(--gris3);">{{ e.client_tel or '' }}</div>
+      </td>
+      <td style="display:flex;gap:6px;">
+        <button class="btn btn-sec btn-sm"
+          data-id="{{ e.id }}" data-client="{{ e.client_id }}"
+          data-type="{{ e.type_appareil|e }}" data-marque="{{ e.marque|e }}"
+          data-modele="{{ e.modele|e }}" data-serie="{{ e.numero_serie or ''|e }}"
+          data-couleur="{{ e.couleur or ''|e }}" data-desc="{{ e.description or ''|e }}"
+          onclick="openEditEq(this)">✏️</button>
+        <a href="{{ url_for('equipement_delete', id=e.id) }}"
+          onclick="return confirm('Supprimer cet équipement ?')" class="btn btn-danger btn-sm">🗑</a>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" style="text-align:center;color:var(--gris3);padding:32px;">
+      <div style="font-size:32px;margin-bottom:8px;">💻</div>
+      Aucun équipement enregistré
+    </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- MODAL Ajouter -->
+<div id="modalAddEq" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>💻 Nouvel équipement</h3>
+      <button class="modal-close" onclick="closeModal('modalAddEq')">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('equipement_add') }}">
+      <input type="hidden" name="redirect_url" value="{{ request.url }}">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Client *</label>
+            <select name="client_id" required>
+              <option value="">— Sélectionner —</option>
+              {% for c in clients_all %}
+              <option value="{{ c.id }}" {{ 'selected' if client_id and c.id|string==client_id }}>
+                {{ c.label }} {{ '('+c.telephone+')' if c.telephone }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Type d'appareil *</label>
+            <select name="type_appareil" required>
+              {% for t in ['Ordinateur portable','PC fixe','Téléphone','Tablette','Imprimante','Écran','Disque dur','Serveur','Autre'] %}
+              <option>{{ t }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Marque</label>
+            <input name="marque" placeholder="HP, Dell, Samsung, Apple…">
+          </div>
+          <div class="form-group">
+            <label>Modèle</label>
+            <input name="modele" placeholder="EliteBook 840, Galaxy S21…">
+          </div>
+          <div class="form-group">
+            <label>Numéro de série</label>
+            <input name="numero_serie" placeholder="SN / IMEI">
+          </div>
+          <div class="form-group">
+            <label>Couleur</label>
+            <input name="couleur" placeholder="Noir, Argent…">
+          </div>
+          <div class="form-group full">
+            <label>Description / état visuel</label>
+            <textarea name="description" rows="2" placeholder="Rayures, écran fissuré, touches manquantes…"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalAddEq')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL Modifier -->
+<div id="modalEditEq" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>✏️ Modifier équipement</h3>
+      <button class="modal-close" onclick="closeModal('modalEditEq')">✕</button>
+    </div>
+    <form method="POST" id="editEqForm" action="">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Client *</label>
+            <select name="client_id" id="eeq_client" required>
+              {% for c in clients_all %}
+              <option value="{{ c.id }}">{{ c.label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Type *</label>
+            <select name="type_appareil" id="eeq_type">
+              {% for t in ['Ordinateur portable','PC fixe','Téléphone','Tablette','Imprimante','Écran','Disque dur','Serveur','Autre'] %}
+              <option>{{ t }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Marque</label>
+            <input name="marque" id="eeq_marque">
+          </div>
+          <div class="form-group">
+            <label>Modèle</label>
+            <input name="modele" id="eeq_modele">
+          </div>
+          <div class="form-group">
+            <label>N° série</label>
+            <input name="numero_serie" id="eeq_serie">
+          </div>
+          <div class="form-group">
+            <label>Couleur</label>
+            <input name="couleur" id="eeq_couleur">
+          </div>
+          <div class="form-group full">
+            <label>Description</label>
+            <textarea name="description" id="eeq_desc" rows="2"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalEditEq')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+function openEditEq(btn) {
+  document.getElementById('editEqForm').action = '/equipements/edit/'+btn.dataset.id;
+  setSelVal('eeq_client', btn.dataset.client);
+  setSelVal('eeq_type',   btn.dataset.type);
+  document.getElementById('eeq_marque').value  = btn.dataset.marque;
+  document.getElementById('eeq_modele').value  = btn.dataset.modele;
+  document.getElementById('eeq_serie').value   = btn.dataset.serie;
+  document.getElementById('eeq_couleur').value = btn.dataset.couleur;
+  document.getElementById('eeq_desc').value    = btn.dataset.desc;
+  openModal('modalEditEq');
+}
+function setSelVal(id, val) {
+  var s = document.getElementById(id);
+  for(var i=0;i<s.options.length;i++) if(s.options[i].value==val){s.selectedIndex=i;break;}
+}
+</script>
+{% endblock %}

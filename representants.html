@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Représentants — DISTRIGEST{% endblock %}
+{% block topbar_title %}🤝 Représentants & Commissions{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div><h1>🤝 Représentants</h1><div class="sub">Commissioning et suivi portefeuille</div></div>
+  <button onclick="openModal('modalAddRep')" class="btn btn-primary">➕ Nouveau représentant</button>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom:18px;">
+  <div class="kpi-card">
+    <div class="label">Représentants actifs</div>
+    <div class="value">{{ nb_reps or reps|length }}</div>
+    <div class="sub">Force de vente</div><div class="icon-bg">🤝</div>
+  </div>
+  <div class="kpi-card or">
+    <div class="label">Commissions dues</div>
+    <div class="value" style="color:var(--or);font-size:18px;">
+      {{ (total_dues or 0) | fcfa }} FCFA
+    </div>
+    <div class="sub">En attente de paiement</div><div class="icon-bg">💰</div>
+  </div>
+  <div class="kpi-card vert">
+    <div class="label">Total commissions</div>
+    <div class="value" style="color:var(--vert);font-size:18px;">
+      {{ (total_commissions or 0) | fcfa }} FCFA
+    </div>
+    <div class="sub">Toutes périodes</div><div class="icon-bg">📈</div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Clients couverts</div>
+    <div class="value">{{ total_clients or 0 }}</div>
+    <div class="sub">Portefeuille total</div><div class="icon-bg">👥</div>
+  </div>
+</div>
+
+<!-- Grille représentants -->
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:24px;">
+{% for r in reps %}
+<div class="table-card" style="padding:0;overflow:hidden;border-top:4px solid var(--bleu2);">
+  <div style="padding:16px 18px 12px;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
+      <div style="display:flex;gap:10px;align-items:center;">
+        <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--bleu),var(--bleu2));
+          display:flex;align-items:center;justify-content:center;font-size:18px;color:white;font-weight:700;flex-shrink:0;">
+          {{ r.nom[0] }}
+        </div>
+        <div>
+          <div style="font-size:14px;font-weight:800;color:var(--bleu);">{{ r.nom or '—' }} {{ r.prenom or '' }}</div>
+          <div style="font-size:10px;color:var(--bleu2);font-weight:600;">{{ r.code }}</div>
+        </div>
+      </div>
+      <span class="badge" class="badge-info">{{ r.taux_commission }}%</span>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px;">
+      {% if r.telephone %}
+      <div style="font-size:11px;color:var(--gris3);">📞 {{ r.telephone or '—' }}</div>
+      {% endif %}
+      {% if r.zone %}
+      <div style="font-size:11px;color:var(--gris3);">📍 {{ r.zone or '—' }}</div>
+      {% endif %}
+    </div>
+
+    <!-- Stats -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:10px;background:var(--bg-card);border-radius:8px;border:1px solid var(--border);">
+      <div style="text-align:center;">
+        <div style="font-size:16px;font-weight:800;color:var(--bleu);">{{ r.nb_clients }}</div>
+        <div style="font-size:9px;color:var(--gris3);">Clients</div>
+      </div>
+      <div style="text-align:center;border-left:1px solid var(--gris2);">
+        <div style="font-size:11px;font-weight:800;color:var(--or);">{{ r.commissions_dues | fcfa }}</div>
+        <div style="font-size:9px;color:var(--gris3);">Dues</div>
+      </div>
+      <div style="text-align:center;border-left:1px solid var(--gris2);">
+        <div style="font-size:11px;font-weight:800;color:var(--vert);">{{ r.commissions_total | fcfa }}</div>
+        <div style="font-size:9px;color:var(--gris3);">Total</div>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;gap:0;border-top:1px solid var(--gris2);">
+    <button class="btn btn-sec btn-sm" style="flex:1;border-radius:0;border:none;border-right:1px solid var(--gris2);"
+      data-id="{{ r.id }}" data-nom="{{ r.nom|e }}" data-prenom="{{ r.prenom or ''|e }}"
+      data-tel="{{ r.telephone or ''|e }}" data-email="{{ r.email or ''|e }}"
+      data-zone="{{ r.zone or ''|e }}" data-taux="{{ r.taux_commission }}" data-notes="{{ r.notes or ''|e }}"
+      onclick="openEditRep(this)">✏️ Modifier</button>
+    <a href="/representants/delete/{{ r.id }}"
+       onclick="return confirm('Supprimer le représentant {{ r.nom }} ? Cette action est irréversible.')"
+       class="btn btn-danger btn-sm" style="flex:1;border-radius:0;border:none;justify-content:center;">🗑</a>
+  </div>
+</div>
+{% else %}
+<div style="grid-column:1/-1;text-align:center;padding:60px;background:var(--bg-card);border-radius:12px;border:1px solid var(--border);">
+  <div style="font-size:40px;margin-bottom:12px;">🤝</div>
+  <div style="font-weight:700;">Aucun représentant</div>
+</div>
+{% endfor %}
+</div>
+
+<!-- ═══ MODAL Ajouter ═══ -->
+<div id="modalAddRep" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>🤝 Nouveau représentant</h3>
+      <button class="modal-close" onclick="closeModal('modalAddRep')">✕</button>
+    </div>
+    <form method="POST" action="/representants/add">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nom *</label>
+            <input name="nom" required placeholder="NOM" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div class="form-group"><label>Prénom</label><input name="prenom" placeholder="Prénom"></div>
+          <div class="form-group"><label>Téléphone</label><input name="telephone" placeholder="+225 07 XX XX XX XX"></div>
+          <div class="form-group"><label>Email</label><input name="email" type="email" placeholder="rep@societe.ci"></div>
+          <div class="form-group full"><label>Zone / Secteur</label><input name="zone" placeholder="Abidjan Nord, Intérieur pays…"></div>
+          <div class="form-group">
+            <label>Taux de commission (%)</label>
+            <input name="taux_commission" type="number" step="0.5" min="0" max="50" value="5" placeholder="5">
+          </div>
+          <div class="form-group full">
+            <label>Notes</label>
+            <textarea name="notes" rows="2" style="width:100%;padding:8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalAddRep')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ MODAL Modifier ═══ -->
+<div id="modalEditRep" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>✏️ Modifier représentant</h3>
+      <button class="modal-close" onclick="closeModal('modalEditRep')">✕</button>
+    </div>
+    <form method="POST" id="formEditRep" action="">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group"><label>Nom *</label><input name="nom" id="eRNom" required style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+          <div class="form-group"><label>Prénom</label><input name="prenom" id="eRPrenom"></div>
+          <div class="form-group"><label>Téléphone</label><input name="telephone" id="eRTel"></div>
+          <div class="form-group"><label>Email</label><input name="email" id="eREmail" type="email"></div>
+          <div class="form-group full"><label>Zone / Secteur</label><input name="zone" id="eRZone"></div>
+          <div class="form-group"><label>Taux commission (%)</label><input name="taux_commission" id="eRTaux" type="number" step="0.5" min="0" max="50"></div>
+          <div class="form-group full"><label>Notes</label><textarea name="notes" id="eRNotes" rows="2" style="width:100%;padding:8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalEditRep')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openEditRep(btn) {
+  document.getElementById('formEditRep').action = '/representants/edit/' + btn.dataset.id;
+  document.getElementById('eRNom').value    = btn.dataset.nom;
+  document.getElementById('eRPrenom').value = btn.dataset.prenom;
+  document.getElementById('eRTel').value    = btn.dataset.tel;
+  document.getElementById('eREmail').value  = btn.dataset.email;
+  document.getElementById('eRZone').value   = btn.dataset.zone;
+  document.getElementById('eRTaux').value   = btn.dataset.taux;
+  document.getElementById('eRNotes').value  = btn.dataset.notes;
+  openModal('modalEditRep');
+}
+</script>
+{# ── Patch thème sombre ── #}
+<style>
+[data-theme="dark"] .kpi-card,
+[data-theme="dark"] .table-card { background:var(--bg-card) !important; }
+[data-theme="dark"] .kpi-card .label,
+[data-theme="dark"] .kpi-card .sub { color:var(--gris3) !important; }
+[data-theme="dark"] .badge-info { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
+  background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+}
+[data-theme="dark"] .btn-sec { background:#1c2128 !important; color:#8b949e !important; border-color:var(--border) !important; }
+[data-theme="dark"] .modal { background:var(--modal-bg) !important; }
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer { border-color:var(--border) !important; }
+@media (prefers-color-scheme:dark) {
+  [data-theme="system"] .kpi-card,
+  [data-theme="system"] .table-card { background:var(--bg-card) !important; }
+  [data-theme="system"] .badge-info { background:#1d3461 !important; color:#93c5fd !important; }
+  [data-theme="system"] input, [data-theme="system"] select, [data-theme="system"] textarea {
+    background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+  }
+  [data-theme="system"] .btn-sec { background:#1c2128 !important; color:#8b949e !important; }
+  [data-theme="system"] .modal { background:var(--modal-bg) !important; }
+}
+</style>
+{% endblock %}

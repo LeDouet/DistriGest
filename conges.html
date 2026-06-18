@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% block title %}Congés — DISTRIGEST{% endblock %}
+{% block topbar_title %}🏖️ Gestion des Congés{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>🏖️ Gestion des Congés</h1>
+    <div class="sub" style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap;">
+      <span style="display:flex;align-items:center;gap:7px;padding:6px 14px;border-radius:20px;background:white;border:1px solid var(--gris2);box-shadow:var(--ombre);font-size:12px;font-weight:600;">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--orange);flex-shrink:0;"></span>
+        <strong style="color:var(--orange);">{{ kpi.nb_attente }}</strong>&nbsp;en attente
+      </span>
+      <span style="display:flex;align-items:center;gap:7px;padding:6px 14px;border-radius:20px;background:white;border:1px solid var(--gris2);box-shadow:var(--ombre);font-size:12px;font-weight:600;">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--vert);flex-shrink:0;"></span>
+        <strong style="color:var(--vert);">{{ kpi.nb_approuve }}</strong>&nbsp;approuvés
+      </span>
+      <span style="display:flex;align-items:center;gap:7px;padding:6px 14px;border-radius:20px;background:white;border:1px solid var(--gris2);box-shadow:var(--ombre);font-size:12px;font-weight:600;">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--bleu);flex-shrink:0;"></span>
+        <strong style="color:var(--bleu);">{{ kpi.total_jours }}</strong>&nbsp;jours accordés
+      </span>
+    </div>
+  </div>
+  <button onclick="openModal('modalAddConge')" class="btn btn-primary">➕ Nouvelle demande</button>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom:18px;">
+  <div class="kpi-card">
+    <div class="label">Total demandes</div>
+    <div class="value">{{ kpi.nb_total or 0 }}</div>
+    <div class="sub">Toutes périodes</div><div class="icon-bg">📋</div>
+  </div>
+  <div class="kpi-card or">
+    <div class="label">Jours total</div>
+    <div class="value" style="color:var(--or);">{{ kpi.total_jours or 0 }}</div>
+    <div class="sub">Jours accordés</div><div class="icon-bg">📅</div>
+  </div>
+  <div class="kpi-card orange">
+    <div class="label">En attente</div>
+    <div class="value" style="color:var(--orange);">{{ kpi.nb_attente or 0 }}</div>
+    <div class="sub">À traiter</div><div class="icon-bg">⏳</div>
+  </div>
+  <div class="kpi-card vert">
+    <div class="label">Approuvés</div>
+    <div class="value" style="color:var(--vert);">{{ kpi.nb_approuve or 0 }}</div>
+    <div class="sub">Congés validés</div><div class="icon-bg">✅</div>
+  </div>
+</div>
+
+<!-- Filtres statut -->
+<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+  {% for val, lbl, clr in [('','Tous','var(--gris3)'),('en_attente','⏳ En attente','var(--orange)'),('approuve','✅ Approuvés','var(--vert)'),('refuse','❌ Refusés','var(--rouge)'),('termine','🏁 Terminés','var(--bleu2)')] %}
+  <a href="{{ url_for('conges_list') }}{% if val %}?statut={{ val }}{% endif %}"
+     style="padding:7px 16px;border-radius:20px;font-size:12px;font-weight:700;text-decoration:none;border:1.5px solid var(--gris2);
+     background:{{ 'white' if statut_f != val else clr }};
+     color:{{ clr if statut_f != val else 'white' }};
+     box-shadow:{{ '0 2px 8px rgba(0,0,0,.12)' if statut_f == val else 'none' }};">
+    {{ lbl }}
+  </a>
+  {% endfor %}
+</div>
+
+<!-- Tableau -->
+<div class="table-card">
+  <div class="thead"><h3>{{ conges|length }} demande(s) de congé</h3></div>
+  <table>
+    <thead>
+      <tr>
+        <th>Employé</th><th>Type de congé</th><th>Date début</th>
+        <th>Date fin</th><th>Jours</th><th>Motif</th><th>Statut</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for c in conges %}
+    <tr>
+      <td>
+        <div style="font-weight:700;">{{ c.nom }} {{ c.prenom or '' }}</div>
+        <div style="font-size:10px;color:var(--gris3);">{{ c.poste or '' }}</div>
+      </td>
+      <td>
+        {% set types = {'annuel':'🏖️ Annuel','maladie':'🏥 Maladie','sans_solde':'💼 Sans solde','maternite':'👶 Maternité','autre':'📌 Autre'} %}
+        <span class="badge badge-sec">{{ types.get(c.type_conge, c.type_conge) }}</span>
+      </td>
+      <td style="font-size:11px;">{{ c.date_debut or '—' }}</td>
+      <td style="font-size:11px;">{{ c.date_fin or '—' }}</td>
+      <td style="text-align:center;">
+        <span class="badge badge-info">{{ c.nb_jours }} j</span>
+      </td>
+      <td style="font-size:11px;color:var(--gris3);">{{ c.motif or '—' }}</td>
+      <td>
+        {% if c.statut == 'approuve' %}
+          <span class="badge badge-success">✅ Approuvé</span>
+        {% elif c.statut == 'refuse' %}
+          <span class="badge" style="background:#fee2e2;color:#dc2626;">❌ Refusé</span>
+        {% elif c.statut == 'termine' %}
+          <span class="badge" style="background:#dbeafe;color:#1d4ed8;">🏁 Terminé</span>
+        {% else %}
+          <span class="badge badge-warning">⏳ En attente</span>
+        {% endif %}
+      </td>
+      <td style="white-space:nowrap;">
+        <div style="display:inline-flex;gap:4px;align-items:center;">
+        {% if c.statut == 'en_attente' %}
+          <form method="POST" action="{{ url_for('conge_statut', id=c.id) }}" style="display:inline;">
+            <input type="hidden" name="statut" value="approuve">
+            <button type="submit" class="hist-action-btn hist-btn-approuver">✅ <span>Approuver</span></button>
+          </form>
+          <form method="POST" action="{{ url_for('conge_statut', id=c.id) }}" style="display:inline;">
+            <input type="hidden" name="statut" value="refuse">
+            <button type="submit" class="hist-action-btn hist-btn-refuser">❌ <span>Refuser</span></button>
+          </form>
+        {% endif %}
+        {% if c.statut == 'approuve' %}
+          <form method="POST" action="{{ url_for('conge_statut', id=c.id) }}" style="display:inline;">
+            <input type="hidden" name="statut" value="termine">
+            <button type="submit" class="hist-action-btn hist-btn-cloturer">🏁 <span>Clôturer</span></button>
+          </form>
+        {% endif %}
+        {% if c.statut in ['en_attente','refuse'] %}
+        <a href="{{ url_for('conge_delete', id=c.id) }}" onclick="return confirm('Supprimer cette demande ?')"
+           class="hist-action-btn hist-btn-supprimer">🗑️ <span>Supprimer</span></a>
+        {% endif %}
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" style="text-align:center;padding:48px;color:var(--gris3);">
+      <div style="font-size:36px;margin-bottom:10px;">🏖️</div>
+      Aucune demande de congé — <button onclick="openModal('modalAddConge')" style="background:none;border:none;color:var(--bleu2);cursor:pointer;font-weight:700;">Créer la première</button>
+    </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- MODAL Ajouter congé -->
+<div id="modalAddConge" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>🏖️ Nouvelle demande de congé</h3>
+      <button class="modal-close" onclick="closeModal('modalAddConge')">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('conge_add') }}">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Employé *</label>
+            <select name="employe_id" required style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="">— Sélectionner —</option>
+              {% for e in employes %}
+              <option value="{{ e.id }}">{{ e.nom }} {{ e.prenom or '' }} — {{ e.poste or '' }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Type de congé *</label>
+            <select name="type_conge" required style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="annuel">🏖️ Congé annuel</option>
+              <option value="maladie">🏥 Congé maladie</option>
+              <option value="maternite">👶 Congé maternité</option>
+              <option value="sans_solde">💼 Sans solde</option>
+              <option value="autre">📌 Autre</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Motif</label>
+            <input name="motif" placeholder="Raison du congé…">
+          </div>
+          <div class="form-group">
+            <label>Date début *</label>
+            <input type="date" name="date_debut" id="cg_debut" required onchange="calcJours()">
+          </div>
+          <div class="form-group">
+            <label>Date fin *</label>
+            <input type="date" name="date_fin" id="cg_fin" required onchange="calcJours()">
+          </div>
+          <!-- Nb jours calculé -->
+          <div class="form-group full">
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:8px;">
+              <span style="font-size:22px;">📅</span>
+              <div>
+                <div style="font-size:10px;color:var(--gris3);font-weight:700;text-transform:uppercase;">Durée calculée</div>
+                <div style="font-size:18px;font-weight:800;color:var(--vert);" id="disp_jours">— jours</div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group full">
+            <label>Notes</label>
+            <textarea name="notes" rows="2" placeholder="Informations complémentaires…"
+              style="width:100%;padding:8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalAddConge')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Soumettre la demande</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<style>
+/* ── Boutons d'action tableau ── */
+.hist-action-btn {
+  display:inline-flex;align-items:center;gap:4px;
+  padding:5px 10px;border-radius:7px;
+  font-size:11px;font-weight:700;font-family:inherit;
+  border:1.5px solid transparent;cursor:pointer;
+  transition:all .15s;white-space:nowrap;line-height:1;
+  text-decoration:none;
+}
+.hist-action-btn span { font-size:11px; }
+.hist-btn-edit      { background:#f5f3ff;color:#7c3aed;border-color:#ddd6fe; }
+.hist-btn-edit:hover { background:#7c3aed;color:white;border-color:#7c3aed;box-shadow:0 2px 8px rgba(124,58,237,.25); }
+.hist-btn-fiche     { background:#eff6ff;color:#2563eb;border-color:#bfdbfe; }
+.hist-btn-fiche:hover { background:#2563eb;color:white;border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.25); }
+.hist-btn-imprimer  { background:#f0f7ff;color:#2563eb;border-color:#bfdbfe; }
+.hist-btn-imprimer:hover { background:#2563eb;color:white;border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.25); }
+.hist-btn-valider   { background:#eff6ff;color:#2563eb;border-color:#bfdbfe; }
+.hist-btn-valider:hover { background:#2563eb;color:white;border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.25); }
+.hist-btn-payer     { background:#f0fdf4;color:#16a34a;border-color:#86efac; }
+.hist-btn-payer:hover { background:#16a34a;color:white;border-color:#16a34a;box-shadow:0 2px 8px rgba(22,163,74,.25); }
+.hist-btn-approuver { background:#f0fdf4;color:#16a34a;border-color:#86efac; }
+.hist-btn-approuver:hover { background:#16a34a;color:white;border-color:#16a34a;box-shadow:0 2px 8px rgba(22,163,74,.25); }
+.hist-btn-refuser   { background:#fff1f2;color:#dc2626;border-color:#fca5a5; }
+.hist-btn-refuser:hover { background:#dc2626;color:white;border-color:#dc2626;box-shadow:0 2px 8px rgba(220,38,38,.25); }
+.hist-btn-cloturer  { background:#f8fafc;color:#475569;border-color:#cbd5e1; }
+.hist-btn-cloturer:hover { background:#475569;color:white;border-color:#475569;box-shadow:0 2px 8px rgba(71,85,105,.25); }
+.hist-btn-supprimer { background:#fff1f2;color:#dc2626;border-color:#fca5a5; }
+.hist-btn-supprimer:hover { background:#dc2626;color:white;border-color:#dc2626;box-shadow:0 2px 8px rgba(220,38,38,.25); }
+</style>
+
+<script>
+document.getElementById('cg_debut').value = new Date().toISOString().split('T')[0];
+document.getElementById('cg_fin').value   = new Date().toISOString().split('T')[0];
+calcJours();
+
+function calcJours() {
+  var d1 = document.getElementById('cg_debut').value;
+  var d2 = document.getElementById('cg_fin').value;
+  if (!d1 || !d2) { document.getElementById('disp_jours').textContent = '— jours'; return; }
+  var diff = Math.round((new Date(d2) - new Date(d1)) / 86400000) + 1;
+  document.getElementById('disp_jours').textContent = (diff > 0 ? diff : 0) + ' jour' + (diff > 1 ? 's' : '');
+}
+</script>
+{% endblock %}

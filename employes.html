@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+{% block title %}Employés — DISTRIGEST{% endblock %}
+{% block topbar_title %}👷 Gestion du Personnel{% endblock %}
+{% block content %}
+
+<style>
+.emp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:24px;}
+.emp-card{background:white;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.10);border:1px solid var(--gris2);overflow:hidden;transition:box-shadow .18s,transform .18s;}
+.emp-card:hover{box-shadow:0 6px 20px rgba(26,58,108,.13);transform:translateY(-2px);}
+.emp-band{height:4px;width:100%;}
+.emp-card.actif   .emp-band{background:var(--vert);}
+.emp-card.inactif .emp-band{background:var(--gris3);}
+.emp-card.conge   .emp-band{background:var(--orange);}
+.emp-body{padding:14px 16px 10px;}
+.emp-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px;}
+.emp-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--bleu),var(--bleu2));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;color:white;font-weight:700;}
+.emp-info{flex:1;}
+.emp-nom{font-size:14px;font-weight:800;color:var(--bleu);line-height:1.2;}
+.emp-matricule{font-size:10px;color:var(--bleu2);font-weight:600;margin-top:2px;}
+.emp-badge{font-size:9px;font-weight:700;padding:3px 8px;border-radius:20px;text-transform:uppercase;white-space:nowrap;}
+.emp-card.actif   .emp-badge{background:#dcfce7;color:#15803d;}
+.emp-card.inactif .emp-badge{background:#f1f5f9;color:#475569;}
+.emp-card.conge   .emp-badge{background:#fef9c3;color:#a16207;}
+.emp-poste{font-size:12px;color:var(--texte);font-weight:600;margin:6px 0 4px;}
+.emp-meta{display:flex;gap:12px;flex-wrap:wrap;}
+.emp-meta-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--gris3);}
+.emp-salaire{margin-top:10px;padding-top:8px;border-top:1px dashed var(--gris2);display:flex;justify-content:space-between;align-items:center;}
+.emp-foot{display:flex;gap:0;border-top:1px solid var(--gris2);background:#fafbfc;}
+.emp-foot .btn{flex:1;justify-content:center;border-radius:0;border:none;}
+.emp-foot .btn:first-child{border-right:1px solid var(--gris2);}
+
+/* ── Dropdown multi-postes ── */
+.poste-dropdown{position:relative;}
+.poste-trigger{
+  display:flex;align-items:center;justify-content:space-between;
+  width:100%;height:36px;padding:0 10px;box-sizing:border-box;
+  border:1.5px solid var(--gris2);border-radius:6px;
+  font-size:12px;font-family:inherit;background:white;color:var(--texte);
+  cursor:pointer;user-select:none;transition:border-color .12s;
+}
+.poste-trigger:hover,.poste-trigger.open{border-color:var(--bleu);}
+.poste-trigger .arrow{font-size:9px;color:var(--gris3);transition:transform .15s;}
+.poste-trigger.open .arrow{transform:rotate(180deg);}
+.poste-menu{
+  display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:999;
+  background:white;border:1.5px solid var(--bleu);border-radius:8px;
+  box-shadow:0 6px 20px rgba(26,58,108,.15);overflow:hidden;
+}
+.poste-menu.open{display:block;}
+.poste-menu-item{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 12px;cursor:pointer;font-size:12px;font-family:inherit;
+  border-bottom:1px solid #f1f5f9;transition:background .1s;
+}
+.poste-menu-item:last-child{border-bottom:none;}
+.poste-menu-item:hover{background:#f0f7ff;}
+.poste-menu-item input[type=checkbox]{
+  width:15px;height:15px;accent-color:var(--bleu);cursor:pointer;flex-shrink:0;
+}
+.poste-menu-item span{flex:1;color:var(--texte);}
+.poste-menu-item.checked span{color:var(--bleu);font-weight:700;}
+</style>
+
+<div class="page-header">
+  <div>
+    <h1>👷 Personnel du dépôt</h1>
+    <div class="sub">Gestion des employés</div>
+  </div>
+  <button onclick="openModal('modalAddEmp')" class="btn btn-primary">➕ Nouvel employé</button>
+</div>
+
+<!-- Compteurs statut -->
+{% set nb_actif   = employes|selectattr('statut','eq','actif')|list|length %}
+{% set nb_inactif = employes|selectattr('statut','eq','inactif')|list|length %}
+{% set nb_conge   = employes|selectattr('statut','eq','conge')|list|length %}
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap;">
+  <span style="display:flex;align-items:center;gap:10px;padding:6px 16px;border-radius:20px;background:white;border:1px solid var(--gris2);box-shadow:var(--ombre);font-size:12px;font-weight:600;color:var(--texte);">
+    <span style="display:inline-flex;align-items:center;gap:6px;">
+      <span style="width:8px;height:8px;border-radius:50%;background:var(--vert);flex-shrink:0;"></span>
+      <strong style="color:var(--vert);">{{ nb_actif }}</strong> actif{{ 's' if nb_actif > 1 }}
+    </span>
+    <span style="color:var(--gris2);">·</span>
+    <span style="display:inline-flex;align-items:center;gap:6px;">
+      <span style="width:8px;height:8px;border-radius:50%;background:var(--orange);flex-shrink:0;"></span>
+      <strong style="color:var(--orange);">{{ nb_conge }}</strong> en congé
+    </span>
+    <span style="color:var(--gris2);">·</span>
+    <span style="display:inline-flex;align-items:center;gap:6px;">
+      <span style="width:8px;height:8px;border-radius:50%;background:var(--gris3);flex-shrink:0;"></span>
+      <strong style="color:var(--gris3);">{{ nb_inactif }}</strong> inactif{{ 's' if nb_inactif > 1 }}
+    </span>
+  </span>
+  <span style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:6px 16px;border-radius:20px;background:white;border:1px solid var(--gris2);box-shadow:var(--ombre);font-size:12px;font-weight:600;">
+    <strong style="color:var(--bleu);">{{ employes|length }}</strong>&nbsp;employé{{ 's' if employes|length > 1 }}
+  </span>
+</div>
+
+<!-- Grille employés -->
+<div class="emp-grid">
+{% for e in employes %}
+<div class="emp-card {{ e.statut }}">
+  <div class="emp-band"></div>
+  <div class="emp-body">
+    <div class="emp-top">
+      <div style="display:flex;gap:10px;align-items:flex-start;flex:1;">
+        <div class="emp-avatar">{{ e.nom[0] if e.nom else '?' }}</div>
+        <div class="emp-info">
+          <div class="emp-nom">{{ e.nom or '—' }} {{ e.prenom or '' }}</div>
+          <div class="emp-matricule">{{ e.matricule or '—' }}</div>
+        </div>
+      </div>
+      <span class="emp-badge">{{ e.statut }}</span>
+    </div>
+    <div class="emp-poste" style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 4px;">
+      {% for p in (e.poste or '—').split(',') %}
+      <span style="display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:#dbeafe;color:var(--bleu);">{{ p.strip() }}</span>
+      {% endfor %}
+    </div>
+    <div class="emp-meta">
+      {% if e.telephone %}<div class="emp-meta-item">📞 {{ e.telephone or '—' }}</div>{% endif %}
+      {% if e.date_embauche %}<div class="emp-meta-item">📅 {{ e.date_embauche or '—' }}</div>{% endif %}
+    </div>
+    <div class="emp-salaire">
+      <div>
+        <div style="font-size:10px;color:var(--gris3);">Salaire de base</div>
+        <div style="font-size:13px;font-weight:800;color:var(--bleu);">{{ (e.salaire_base or 0) | fcfa }} FCFA</div>
+      </div>
+    </div>
+  </div>
+  <div class="emp-foot">
+    <button class="btn btn-sec btn-sm"
+      data-id="{{ e.id }}"
+      data-nom="{{ e.nom|e }}"
+      data-prenom="{{ e.prenom or ''|e }}"
+      data-telephone="{{ e.telephone or ''|e }}"
+      data-email="{{ e.email or ''|e }}"
+      data-poste="{{ e.poste or 'Magasinier'|e }}"
+      data-salaire="{{ e.salaire_base or 0 }}"
+      data-statut="{{ e.statut }}"
+      data-embauche="{{ e.date_embauche or '' }}"
+      data-notes="{{ e.notes or ''|e }}"
+      onclick="openEditEmp(this)">✏️ Modifier</button>
+    <button onclick="if(confirm('Supprimer {{ e.nom }} ?')) window.location='/employes/delete/{{ e.id }}'"
+      class="btn btn-danger btn-sm">🗑 Supprimer</button>
+  </div>
+</div>
+{% else %}
+<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--gris3);">
+  <div style="font-size:40px;margin-bottom:12px;">👷</div>
+  <div style="font-size:14px;font-weight:600;">Aucun employé enregistré</div>
+  <div style="font-size:12px;margin-top:4px;">Cliquez sur <strong>Nouvel employé</strong> pour commencer</div>
+</div>
+{% endfor %}
+</div>
+
+<!-- ═══ MODAL : Ajouter employé ═══ -->
+<div id="modalAddEmp" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>👷 Nouvel employé</h3>
+      <button class="modal-close" onclick="closeModal('modalAddEmp')">✕</button>
+    </div>
+    <form method="POST" action="/employes/add">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nom *</label>
+            <input name="nom" required placeholder="NOM" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div class="form-group">
+            <label>Prénom</label>
+            <input name="prenom" placeholder="Prénom">
+          </div>
+          <div class="form-group">
+            <label>Poste(s) *</label>
+            <input type="hidden" name="poste" id="addPosteVal" required>
+            <div class="poste-dropdown" id="addPosteDrop">
+              <div class="poste-trigger" onclick="togglePosteDrop('addPosteDrop')">
+                <span id="addPosteLabel" style="color:var(--gris3);">Sélectionner…</span>
+                <span class="arrow">▼</span>
+              </div>
+              <div class="poste-menu" id="addPosteMenu">
+                {% for p in ['Magasinier','Responsable dépôt','Cariste','Chauffeur livreur','Commercial','Caissier','Comptable','Manutentionnaire','Gardien','Gérant','Autre'] %}
+                <label class="poste-menu-item">
+                  <input type="checkbox" value="{{ p }}" onchange="onPosteChange('addPosteDrop','addPosteVal','addPosteLabel')">
+                  <span>{{ p }}</span>
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Statut</label>
+            <select name="statut">
+              <option value="actif">Actif</option>
+              <option value="conge">En congé</option>
+              <option value="inactif">Inactif</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Téléphone</label>
+            <input name="telephone" placeholder="+225 07 XX XX XX XX">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input name="email" type="email" placeholder="email@entreprise.ci">
+          </div>
+          <div class="form-group">
+            <label>Salaire de base (FCFA)</label>
+            <input name="salaire_base" type="number" step="1000" min="0" placeholder="150000">
+          </div>
+          <div class="form-group">
+            <label>Date d'embauche</label>
+            <input name="date_embauche" type="date" id="addEmbauche">
+          </div>
+          <div class="form-group full">
+            <label>Notes</label>
+            <textarea name="notes" rows="2" placeholder="Compétences, observations…"
+              style="width:100%;padding:8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalAddEmp')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ MODAL : Modifier employé ═══ -->
+<div id="modalEditEmp" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>✏️ Modifier l'employé</h3>
+      <button class="modal-close" onclick="closeModal('modalEditEmp')">✕</button>
+    </div>
+    <form method="POST" id="formEditEmp" action="">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nom *</label>
+            <input name="nom" id="eNom" required style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div class="form-group">
+            <label>Prénom</label>
+            <input name="prenom" id="ePrenom">
+          </div>
+          <div class="form-group">
+            <label>Poste(s) *</label>
+            <input type="hidden" name="poste" id="ePosteVal" required>
+            <div class="poste-dropdown" id="ePosteDrop">
+              <div class="poste-trigger" onclick="togglePosteDrop('ePosteDrop')">
+                <span id="ePosteLabel" style="color:var(--gris3);">Sélectionner…</span>
+                <span class="arrow">▼</span>
+              </div>
+              <div class="poste-menu" id="ePosteMenu">
+                {% for p in ['Magasinier','Responsable dépôt','Cariste','Chauffeur livreur','Commercial','Caissier','Comptable','Manutentionnaire','Gardien','Gérant','Autre'] %}
+                <label class="poste-menu-item">
+                  <input type="checkbox" value="{{ p }}" onchange="onPosteChange('ePosteDrop','ePosteVal','ePosteLabel')">
+                  <span>{{ p }}</span>
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Statut</label>
+            <select name="statut" id="eStatut">
+              <option value="actif">Actif</option>
+              <option value="conge">En congé</option>
+              <option value="inactif">Inactif</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Téléphone</label><input name="telephone" id="eTel"></div>
+          <div class="form-group"><label>Email</label><input name="email" id="eEmail" type="email"></div>
+          <div class="form-group"><label>Salaire de base (FCFA)</label><input name="salaire_base" id="eSalaire" type="number" step="1000" min="0"></div>
+          <div class="form-group"><label>Date d'embauche</label><input name="date_embauche" id="eEmbauche" type="date"></div>
+          <div class="form-group full">
+            <label>Notes</label>
+            <textarea name="notes" id="eNotes" rows="2"
+              style="width:100%;padding:8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalEditEmp')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer les modifications</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('addEmbauche').value = new Date().toISOString().split('T')[0];
+
+/* ── Dropdown multi-postes ── */
+function togglePosteDrop(dropId) {
+  var drop = document.getElementById(dropId);
+  var trigger = drop.querySelector('.poste-trigger');
+  var menu    = drop.querySelector('.poste-menu');
+  var isOpen  = menu.classList.contains('open');
+  // Fermer tous les autres
+  document.querySelectorAll('.poste-menu.open').forEach(function(m){ m.classList.remove('open'); });
+  document.querySelectorAll('.poste-trigger.open').forEach(function(t){ t.classList.remove('open'); });
+  if (!isOpen) { menu.classList.add('open'); trigger.classList.add('open'); }
+}
+
+function onPosteChange(dropId, hiddenId, labelId) {
+  var checks = document.querySelectorAll('#' + dropId + ' input[type=checkbox]:checked');
+  var vals = Array.from(checks).map(function(c){ return c.value; });
+  document.getElementById(hiddenId).value = vals.join(',');
+  var lbl = document.getElementById(labelId);
+  lbl.textContent = vals.length ? vals.join(', ') : 'Sélectionner…';
+  lbl.style.color = vals.length ? 'var(--texte)' : 'var(--gris3)';
+  // Style ligne cochée
+  document.querySelectorAll('#' + dropId + ' .poste-menu-item').forEach(function(item){
+    var cb = item.querySelector('input');
+    item.classList.toggle('checked', cb.checked);
+  });
+}
+
+function setPostesChecks(dropId, hiddenId, labelId, posteStr) {
+  var postes = (posteStr || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+  document.querySelectorAll('#' + dropId + ' input[type=checkbox]').forEach(function(cb){
+    cb.checked = postes.indexOf(cb.value) !== -1;
+  });
+  onPosteChange(dropId, hiddenId, labelId);
+}
+
+// Fermer dropdown si clic dehors
+document.addEventListener('click', function(e){
+  if (!e.target.closest('.poste-dropdown')) {
+    document.querySelectorAll('.poste-menu.open').forEach(function(m){ m.classList.remove('open'); });
+    document.querySelectorAll('.poste-trigger.open').forEach(function(t){ t.classList.remove('open'); });
+  }
+});
+
+function setSelect(id, val) {
+  var s = document.getElementById(id);
+  if (!s) return;
+  for (var i = 0; i < s.options.length; i++) {
+    if (s.options[i].value === val) { s.selectedIndex = i; break; }
+  }
+}
+
+function openEditEmp(btn) {
+  document.getElementById('formEditEmp').action = '/employes/edit/' + btn.dataset.id;
+  document.getElementById('eNom').value      = btn.dataset.nom;
+  document.getElementById('ePrenom').value   = btn.dataset.prenom;
+  document.getElementById('eTel').value      = btn.dataset.telephone;
+  document.getElementById('eEmail').value    = btn.dataset.email;
+  document.getElementById('eSalaire').value  = btn.dataset.salaire;
+  document.getElementById('eEmbauche').value = btn.dataset.embauche;
+  document.getElementById('eNotes').value    = btn.dataset.notes;
+  setPostesChecks('ePosteDrop', 'ePosteVal', 'ePosteLabel', btn.dataset.poste);
+  setSelect('eStatut', btn.dataset.statut);
+  openModal('modalEditEmp');
+}
+</script>
+{% endblock %}

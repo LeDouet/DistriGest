@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}Recherche — DISTRIGEST{% endblock %}
+{% block topbar_title %}🔍 Recherche globale{% endblock %}
+{% block content %}
+
+<style>
+.search-hero{background:linear-gradient(135deg,var(--bleu) 0%,var(--bleu2) 100%);border-radius:14px;padding:28px 32px;margin-bottom:24px;display:flex;flex-direction:column;align-items:center;gap:14px;}
+.search-hero-title{font-size:18px;font-weight:800;color:white;margin-bottom:2px;}
+.search-hero-sub{font-size:12px;color:rgba(255,255,255,.65);}
+.search-bar-wrap{width:100%;max-width:560px;display:flex;gap:8px;}
+.search-bar-wrap input{flex:1;padding:13px 18px;border-radius:10px;border:2px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);color:white;font-size:15px;font-family:inherit;outline:none;transition:border-color .18s,background .18s;}
+.search-bar-wrap input::placeholder{color:rgba(255,255,255,.5);}
+.search-bar-wrap input:focus{border-color:rgba(255,255,255,.8);background:rgba(255,255,255,.22);}
+.search-bar-wrap button{padding:13px 22px;border-radius:10px;background:white;color:var(--bleu);border:none;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s,transform .12s;font-family:inherit;}
+.search-bar-wrap button:hover{opacity:.9;transform:translateY(-1px);}
+.result-section{background:white;border-radius:12px;border:1px solid var(--gris2);box-shadow:var(--ombre);margin-bottom:16px;overflow:hidden;}
+.result-section-header{padding:12px 18px;border-bottom:1px solid var(--gris2);display:flex;align-items:center;gap:8px;background:#f8fafc;}
+.result-section-header h3{font-size:13px;font-weight:700;color:var(--bleu);margin:0;flex:1;}
+.result-count{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;background:var(--bleu3);color:var(--bleu2);}
+.result-table{width:100%;border-collapse:collapse;}
+.result-table td{padding:10px 18px;border-bottom:1px solid var(--gris2);font-size:13px;vertical-align:middle;}
+.result-table tr:last-child td{border-bottom:none;}
+.result-table tr:hover td{background:#f8fafc;}
+</style>
+
+<div class="search-hero">
+  <div style="text-align:center;">
+    <div class="search-hero-title">🔍 Recherche globale</div>
+    <div class="search-hero-sub">Articles · Clients · Factures · Stock · Fournisseurs</div>
+  </div>
+  <form method="GET" action="/search" class="search-bar-wrap">
+    <input type="text" name="q" value="{{ q or '' }}" placeholder="Référence, nom client, désignation article…" autofocus>
+    <button type="submit">🔍 Chercher</button>
+  </form>
+</div>
+
+{% if q %}
+{% set total = (results.articles|length + results.clients|length + results.factures|length + results.stocks|length + results.fournisseurs|length + results.employes|length + results.depenses|length) %}
+
+<div style="margin-bottom:16px;font-size:13px;color:var(--gris3);">
+  {% if total == 0 %}
+  <div style="text-align:center;padding:40px;background:white;border-radius:12px;border:1px solid var(--gris2);box-shadow:var(--ombre);">
+    <div style="font-size:36px;margin-bottom:10px;">🔍</div>
+    <div style="font-weight:700;color:var(--texte);font-size:14px;">Aucun résultat pour « {{ q }} »</div>
+    <div style="font-size:12px;color:var(--gris3);margin-top:4px;">Essayez avec d'autres mots-clés</div>
+  </div>
+  {% else %}
+  <span style="background:var(--bleu3);color:var(--bleu);padding:4px 12px;border-radius:20px;font-weight:700;font-size:12px;">
+    {{ total }} résultat{{ 's' if total > 1 }} pour « {{ q }} »
+  </span>
+  {% endif %}
+</div>
+
+<!-- ── Articles ── -->
+{% if results.articles %}
+<div class="result-section">
+  <div class="result-section-header">
+    <span>📦</span><h3>Articles</h3><span class="result-count">{{ results.articles|length }}</span>
+  </div>
+  <table class="result-table">
+    {% for a in results.articles %}
+    <tr>
+      <td><code style="color:var(--bleu2);font-size:11px;font-weight:700;">{{ a.reference }}</code></td>
+      <td style="font-weight:700;">{{ a.designation or '—' }}</td>
+      <td><span class="badge badge-sec">{{ a.famille or '—' }}</span></td>
+      <td style="font-size:12px;color:var(--gris3);">Colis: {{ a.colisage or 1 }} unité(s)</td>
+      <td style="font-weight:700;color:var(--bleu);">{{ a.prix_vente_ttc | fcfa }} FCFA TTC</td>
+      <td style="text-align:right;"><a href="/articles" class="btn btn-sec btn-sm">Voir →</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<!-- ── Clients ── -->
+{% if results.clients %}
+<div class="result-section">
+  <div class="result-section-header">
+    <span>👥</span><h3>Clients</h3><span class="result-count">{{ results.clients|length }}</span>
+  </div>
+  <table class="result-table">
+    {% for c in results.clients %}
+    <tr>
+      <td>
+        <div style="font-weight:700;font-size:14px;color:var(--bleu);">{{ c.nom or '—' }}</div>
+        {% if c.type_client %}<div style="font-size:10px;color:var(--gris3);">{{ c.type_client|capitalize }}</div>{% endif %}
+      </td>
+      <td style="color:var(--gris3);font-size:12px;">{{ c.telephone or '—' }}</td>
+      <td style="font-size:11px;color:var(--gris3);">{{ c.ville or '' }}</td>
+      <td style="text-align:right;"><a href="/clients" class="btn btn-sec btn-sm">Voir →</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<!-- ── Factures ── -->
+{% if results.factures %}
+<div class="result-section">
+  <div class="result-section-header">
+    <span>🧾</span><h3>Factures</h3><span class="result-count">{{ results.factures|length }}</span>
+  </div>
+  <table class="result-table">
+    {% for f in results.factures %}
+    <tr>
+      <td><code style="color:var(--bleu2);font-size:11px;font-weight:700;">{{ f.reference }}</code></td>
+      <td style="font-weight:600;">{{ f.client_nom or '— Client occ.' }}</td>
+      <td style="font-weight:700;color:var(--bleu);">{{ f.montant_ttc | fcfa }} FCFA</td>
+      <td>
+        {% if f.statut == 'reglee' %}
+        <span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;">✅ Réglée</span>
+        {% elif f.statut == 'partielle' %}
+        <span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;">◑ Partielle</span>
+        {% else %}
+        <span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;">⏳ En attente</span>
+        {% endif %}
+      </td>
+      <td style="text-align:right;"><a href="/factures" class="btn btn-sec btn-sm">Voir →</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<!-- ── Stocks ── -->
+{% if results.stocks %}
+<div class="result-section">
+  <div class="result-section-header">
+    <span>📦</span><h3>Stock</h3><span class="result-count">{{ results.stocks|length }}</span>
+  </div>
+  <table class="result-table">
+    {% for s in results.stocks %}
+    <tr>
+      <td>
+        <div style="font-weight:700;">{{ s.designation or '—' }}</div>
+        <div style="font-size:10px;color:var(--gris3);">{{ s.depot_nom or '—' }}</div>
+      </td>
+      <td>
+        <span class="badge badge-info">{{ s.famille or '—' }}</span>
+      </td>
+      <td style="font-weight:700;color:{% if (s.qte_unite or 0) <= (s.seuil_alerte or 0) %}var(--rouge){% else %}var(--vert){% endif %};">
+        {{ s.qte_unite or 0 }} unités
+        {% if s.qte_colis %}<span style="font-size:10px;color:var(--gris3);">({{ s.qte_colis }} colis)</span>{% endif %}
+      </td>
+      <td style="text-align:right;"><a href="/stock" class="btn btn-sec btn-sm">Voir →</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<!-- ── Fournisseurs ── -->
+{% if results.fournisseurs %}
+<div class="result-section">
+  <div class="result-section-header">
+    <span>🏭</span><h3>Fournisseurs</h3><span class="result-count">{{ results.fournisseurs|length }}</span>
+  </div>
+  <table class="result-table">
+    {% for f in results.fournisseurs %}
+    <tr>
+      <td style="font-weight:700;color:var(--bleu);">{{ f.nom or '—' }}</td>
+      <td style="color:var(--gris3);font-size:12px;">{{ f.telephone or '—' }}</td>
+      <td style="font-size:11px;color:var(--gris3);">{{ f.ville or '' }}</td>
+      <td style="text-align:right;"><a href="/fournisseurs" class="btn btn-sec btn-sm">Voir →</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<!-- ── Employés ── -->
+{% if results.employes %}
+<div class="result-section">
+  <div class="result-section-header">
+    <span>👷</span><h3>Personnel</h3><span class="result-count">{{ results.employes|length }}</span>
+  </div>
+  <table class="result-table">
+    {% for e in results.employes %}
+    <tr>
+      <td>
+        <div style="font-weight:700;color:var(--bleu);">{{ e.nom or '—' }} {{ e.prenom or '' }}</div>
+        <div style="font-size:10px;color:var(--bleu2);">{{ e.matricule }}</div>
+      </td>
+      <td style="font-size:12px;">{{ e.poste }}</td>
+      <td style="color:var(--gris3);font-size:11px;">{{ e.telephone or '—' }}</td>
+      <td>
+        {% if e.statut == 'actif' %}
+        <span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;">Actif</span>
+        {% else %}
+        <span style="background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;">{{ e.statut }}</span>
+        {% endif %}
+      </td>
+      <td style="text-align:right;"><a href="/employes" class="btn btn-sec btn-sm">Voir →</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<!-- ── Dépenses ── -->
+{% if results.depenses %}
+<div class="result-section">
+  <div class="result-section-header">
+    <span>💸</span><h3>Dépenses</h3><span class="result-count">{{ results.depenses|length }}</span>
+  </div>
+  <table class="result-table">
+    {% for d in results.depenses %}
+    <tr>
+      <td style="font-size:11px;color:var(--gris3);">{{ d.date_depense or '—' }}</td>
+      <td><span class="badge badge-info">{{ d.categorie }}</span></td>
+      <td style="font-size:12px;">{{ d.description or '—' }}</td>
+      <td style="font-weight:700;color:var(--rouge);">{{ d.montant | fcfa }} FCFA</td>
+      <td style="text-align:right;"><a href="/depenses" class="btn btn-sec btn-sm">Voir →</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% else %}
+<!-- État vide -->
+<div style="text-align:center;padding:48px;background:white;border-radius:12px;border:1px solid var(--gris2);box-shadow:var(--ombre);">
+  <div style="font-size:40px;margin-bottom:12px;">📦</div>
+  <div style="font-size:14px;font-weight:600;color:var(--texte);">Tapez votre recherche ci-dessus</div>
+  <div style="font-size:12px;color:var(--gris3);margin-top:6px;max-width:380px;margin-left:auto;margin-right:auto;line-height:1.6;">
+    Recherchez par <strong>désignation d'article</strong>, <strong>nom de client</strong>, <strong>référence facture</strong> ou <strong>nom de fournisseur</strong>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

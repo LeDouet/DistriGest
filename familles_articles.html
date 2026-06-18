@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Familles d'articles — DISTRIGEST{% endblock %}
+{% block topbar_title %}🏷️ Familles d'articles{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>🏷️ Familles d'articles</h1>
+    <div class="sub" style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap;">
+      <span style="display:flex;align-items:center;gap:7px;padding:6px 14px;border-radius:20px;background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--ombre);font-size:12px;font-weight:600;color:var(--texte);"><span style="width:8px;height:8px;border-radius:50%;background:var(--bleu);flex-shrink:0;"></span><strong style="color:var(--bleu);">{{ familles|length }}</strong>&nbsp;famille{{ 's' if familles|length > 1 }}</span>
+      <span style="display:flex;align-items:center;gap:7px;padding:6px 14px;border-radius:20px;background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--ombre);font-size:12px;font-weight:600;color:var(--texte);"><span style="width:8px;height:8px;border-radius:50%;background:var(--vert);flex-shrink:0;"></span><strong style="color:var(--vert);">{{ familles|sum(attribute='nb_articles') }}</strong>&nbsp;article{{ 's' if familles|sum(attribute='nb_articles') > 1 }} classés</span>
+    </div>
+  </div>
+  <button onclick="openModal('modalAddFamille')" class="btn btn-primary">➕ Nouvelle famille</button>
+</div>
+
+<!-- Grille familles -->
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:24px;">
+{% for f in familles %}
+<div class="table-card" style="padding:0;overflow:hidden;border-top:4px solid {{ f.couleur }};">
+  <div style="padding:16px 18px 12px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:38px;height:38px;border-radius:9px;background:{{ f.couleur }}22;border:2px solid {{ f.couleur }}44;
+             display:flex;align-items:center;justify-content:center;font-size:18px;">🏷️</div>
+        <div>
+          <div style="font-size:14px;font-weight:800;color:var(--bleu);">{{ f.nom }}</div>
+          <div style="font-size:10px;color:var(--gris3);font-family:monospace;">{{ f.code }}</div>
+        </div>
+      </div>
+      <div style="width:22px;height:22px;border-radius:50%;background:{{ f.couleur }};border:2px solid white;
+           box-shadow:0 0 0 2px {{ f.couleur }}44;flex-shrink:0;"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg-card);border-radius:8px;border:1px solid var(--border);">
+      <span style="font-size:20px;font-weight:800;color:var(--bleu);">{{ f.nb_articles }}</span>
+      <span style="font-size:11px;color:var(--gris3);">article{{ 's' if f.nb_articles != 1 }}</span>
+      <a href="{{ url_for('articles_list') }}?famille={{ f.id }}"
+         style="margin-left:auto;font-size:10px;color:var(--bleu2);font-weight:700;text-decoration:none;">Voir →</a>
+    </div>
+  </div>
+  <div style="display:flex;border-top:1px solid var(--gris2);">
+    <button class="btn btn-sec btn-sm" style="flex:1;border-radius:0;border:none;border-right:1px solid var(--gris2);"
+      data-id="{{ f.id }}" data-nom="{{ f.nom|e }}" data-couleur="{{ f.couleur }}" data-ordre="{{ f.ordre or 0 }}"
+      onclick="openEditFamille(this)">✏️ Modifier</button>
+    <a href="{{ url_for('famille_delete', id=f.id) }}"
+       onclick="return confirm('Supprimer la famille {{ f.nom }} ?')"
+       class="btn btn-danger btn-sm" style="flex:1;border-radius:0;border:none;justify-content:center;">🗑 Supprimer</a>
+  </div>
+</div>
+{% else %}
+<div style="grid-column:1/-1;text-align:center;padding:60px;background:var(--bg-card);border-radius:12px;border:1px solid var(--border);">
+  <div style="font-size:40px;margin-bottom:12px;">🏷️</div>
+  <div style="font-weight:700;">Aucune famille enregistrée</div>
+  <button onclick="openModal('modalAddFamille')" class="btn btn-primary" style="margin-top:14px;">➕ Créer la première famille</button>
+</div>
+{% endfor %}
+</div>
+
+<!-- MODAL Ajouter -->
+<div id="modalAddFamille" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>🏷️ Nouvelle famille</h3>
+      <button class="modal-close" onclick="closeModal('modalAddFamille')">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('famille_add') }}">
+      <input type="hidden" name="_redirect" value="familles_list">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Nom de la famille *</label>
+            <input name="nom" required placeholder="Bières, Sodas, Eaux, Vins…"
+              oninput="this.value=this.value.charAt(0).toUpperCase()+this.value.slice(1)">
+          </div>
+          <div class="form-group">
+            <label>Code</label>
+            <input name="code" placeholder="BRE, SOD… (auto si vide)" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div class="form-group">
+            <label>Couleur</label>
+            <input name="couleur" type="color" value="#2563eb" style="height:36px;padding:2px 4px;border:1.5px solid var(--gris2);border-radius:6px;cursor:pointer;width:100%;">
+          </div>
+          <div class="form-group full">
+            <label>Ordre d'affichage</label>
+            <input name="ordre" type="number" min="0" value="0">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalAddFamille')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL Modifier -->
+<div id="modalEditFamille" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>✏️ Modifier la famille</h3>
+      <button class="modal-close" onclick="closeModal('modalEditFamille')">✕</button>
+    </div>
+    <form method="POST" id="formEditFamille" action="">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Nom *</label>
+            <input name="nom" id="ef_nom" required>
+          </div>
+          <div class="form-group">
+            <label>Couleur</label>
+            <input name="couleur" id="ef_couleur" type="color" style="height:36px;padding:2px 4px;border:1.5px solid var(--gris2);border-radius:6px;cursor:pointer;width:100%;">
+          </div>
+          <div class="form-group">
+            <label>Ordre</label>
+            <input name="ordre" id="ef_ordre" type="number" min="0">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalEditFamille')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openEditFamille(btn) {
+  document.getElementById('formEditFamille').action = '{{ url_for("famille_edit", id=0) }}'.replace('/0', '/' + btn.dataset.id);
+  document.getElementById('ef_nom').value    = btn.dataset.nom;
+  document.getElementById('ef_couleur').value= btn.dataset.couleur;
+  document.getElementById('ef_ordre').value  = btn.dataset.ordre;
+  openModal('modalEditFamille');
+}
+</script>
+
+{# ── Patch thème sombre — familles_articles ── #}
+<style>
+/* Cards famille */
+[data-theme="dark"] .table-card      { background:var(--bg-card) !important; }
+/* La card famille elle-même est un div inline style */
+[data-theme="dark"] [style*="overflow:hidden;border-top:4px solid"] { background:var(--bg-card) !important; }
+/* Stats internes (nb articles) */
+[data-theme="dark"] [style*="background:var(--bg-card)"][style*="border-radius:8px"] { background:var(--bg-card) !important; border-color:var(--border) !important; }
+/* Pied de card (boutons Modifier / Supprimer) */
+[data-theme="dark"] [style*="display:flex;border-top:1px solid var(--gris2)"] { border-top-color:var(--border) !important; }
+/* Texte code famille */
+[data-theme="dark"] [style*="font-family:monospace"] { color:var(--gris3) !important; }
+/* Boutons */
+[data-theme="dark"] .btn-sec         { background:#1c2128 !important; color:#8b949e !important; border-color:var(--border) !important; }
+[data-theme="dark"] .btn-danger      { background:#dc2626 !important; color:white !important; }
+/* Inputs / selects */
+[data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
+  background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+}
+/* Modal */
+[data-theme="dark"] .modal           { background:var(--modal-bg) !important; }
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer    { border-color:var(--border) !important; }
+@media (prefers-color-scheme:dark) {
+  [data-theme="system"] [style*="overflow:hidden;border-top:4px solid"] { background:var(--bg-card) !important; }
+  [data-theme="system"] [style*="background:var(--bg-card)"][style*="border-radius:8px"] { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .btn-sec     { background:#1c2128 !important; color:#8b949e !important; }
+  [data-theme="system"] input, [data-theme="system"] select, [data-theme="system"] textarea {
+    background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+  }
+  [data-theme="system"] .modal       { background:var(--modal-bg) !important; }
+}
+</style>
+{% endblock %}

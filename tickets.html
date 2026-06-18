@@ -1,0 +1,974 @@
+{% extends "base.html" %}
+{% block title %}Tickets — DISTRIGEST{% endblock %}
+{% block topbar_title %}🎫 Tickets de réparation{% endblock %}
+{% block content %}
+
+<style>
+.ticket-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.tkt-card {
+  background:var(--bg-card);
+  border-radius: 12px;
+  box-shadow: var(--ombre);
+  overflow: hidden;
+  border:1px solid var(--border);
+  transition: box-shadow .18s, transform .18s;
+  display: flex; flex-direction: column;
+}
+.tkt-card:hover { box-shadow: var(--ombre2); transform: translateY(-2px); }
+.tkt-top-band { height: 4px; width: 100%; flex-shrink: 0; }
+.tkt-body { padding: 14px 16px 10px; flex: 1; }
+.tkt-ref { font-size: 11px; font-weight: 700; color: var(--bleu2); letter-spacing: .3px; }
+.tkt-client { font-size: 15px; font-weight: 700; color: var(--texte); margin-top: 4px; }
+.tkt-tel { font-size: 11px; color: var(--gris3); }
+.tkt-appareil {
+  margin-top: 8px; padding: 7px 10px; background: var(--gris);
+  border-radius: 7px; font-size: 11px; font-weight: 600; color: var(--texte);
+  display: flex; align-items: center; gap: 5px;
+}
+.tkt-panne { margin-top: 8px; font-size: 11px; color: var(--gris3); line-height: 1.45;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.tkt-meta { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+.tkt-meta-item { display:flex; align-items:center; gap:4px; font-size:10px; color:var(--gris3); }
+.tkt-foot {
+  display:flex; gap:6px; padding:10px 12px;
+  border-top: 1px solid var(--gris2); background: #fafbfc;
+  flex-wrap: wrap;
+}
+.tkt-foot .btn { flex:1; justify-content:center; min-width: 60px; }
+
+/* Filtres */
+.filter-bar {
+  display: flex; gap: 8px; align-items: center; margin-bottom: 18px; flex-wrap: wrap;
+}
+.filter-btn {
+  padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  border:1.5px solid var(--border); background:var(--bg-card); cursor: pointer;
+  text-decoration: none; color: var(--gris3); transition: all .15s;
+}
+.filter-btn:hover, .filter-btn.active { background: var(--bleu2); color: white; border-color: var(--bleu2); }
+
+/* Vue liste vs grille */
+.view-toggle { display:flex; gap:4px; }
+.view-toggle button {
+  padding: 6px 10px; border-radius: 6px; border:1.5px solid var(--border);
+  background:var(--bg-card); cursor: pointer; font-size: 13px; color: var(--gris3);
+}
+.view-toggle button.active { background: var(--bleu2); color: white; border-color: var(--bleu2); }
+</style>
+
+<div class="page-header">
+  <div>
+    <h1>🎫 Tickets réparation</h1>
+    <div class="sub">{{ tickets|length }} ticket(s) affiché(s)</div>
+  </div>
+  <button onclick="openModal('modalAddTicket')" class="btn btn-primary">➕ Nouveau ticket</button>
+</div>
+
+<!-- Filtres statut -->
+<div class="filter-bar">
+  <a href="{{ url_for('tickets_list') }}" class="filter-btn {{ 'active' if not statut_filtre }}">🔹 Tous</a>
+  {% for key, (icon, color, label) in STATUTS_TICKET.items() %}
+  <a href="{{ url_for('tickets_list') }}?statut={{ key }}" class="filter-btn {{ 'active' if statut_filtre==key }}"
+     style="{% if statut_filtre==key %}background:{{ color }};border-color:{{ color }};{% else %}border-color:{{ color }}40;{% endif %}">
+    {{ icon }} {{ label }}
+  </a>
+  {% endfor %}
+
+</div>
+
+<!-- Grille tickets -->
+<div class="ticket-grid" id="ticketGrid">
+{% for t in tickets %}
+{% set st = STATUTS_TICKET.get(t.statut, ('📥','#3b82f6','Reçu')) %}
+{% set pr = PRIORITES.get(t.priorite, ('#6b7280','●')) %}
+<div class="tkt-card" data-id="{{ t.id }}">
+  <div class="tkt-top-band" style="background:{{ st[1] }};"></div>
+  <div class="tkt-body">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+      <div>
+        <div class="tkt-ref">{{ t.reference }}</div>
+        <div class="tkt-client">{{ t.client_nom }}</div>
+        <div class="tkt-tel">{{ t.client_tel or '' }}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <span class="tkt-badge" style="background:{{ st[1] }}22;color:{{ st[1] }};display:block;margin-bottom:4px;">{{ st[0] }} {{ st[2] }}</span>
+        <span style="font-size:10px;font-weight:700;color:{{ pr[0] }};">{{ pr[1] }} {{ t.priorite|capitalize }}</span>
+      </div>
+    </div>
+
+    {% if t.appareil_label and t.appareil_label.strip() %}
+    <div class="tkt-appareil">💻 {{ t.type_appareil or '' }} {{ t.appareil_label }}</div>
+    {% elif t.type_panne %}
+    <div class="tkt-appareil">🔧 {{ t.type_panne }}</div>
+    {% endif %}
+
+    {% if t.description_panne %}
+    <div class="tkt-panne">{{ t.description_panne }}</div>
+    {% endif %}
+
+    {% set _cout  = t.cout_final or t.cout_estime or 0 %}
+    {% set _regle = t.montant_regle or 0 %}
+    {% set _reste = [_cout - _regle, 0] | max %}
+    <div class="tkt-meta">
+      <div class="tkt-meta-item">📅 {{ t.date_reception }}</div>
+      {% if t.date_prevue %}
+      <div class="tkt-meta-item" style="{% if t.date_prevue < today %}color:var(--rouge);font-weight:600;{% endif %}">
+        ⏱ {{ t.date_prevue }}
+      </div>
+      {% endif %}
+      {% if t.technicien_nom %}
+      <div class="tkt-meta-item">👷 {{ t.technicien_nom }}</div>
+      {% endif %}
+      {% if t.cout_final and t.cout_final > 0 %}
+      <div class="tkt-meta-item" style="color:var(--vert);font-weight:700;">
+        💰 {{ t.cout_final | fcfa }} {{ cfg.devise if cfg else 'FCFA' }}
+      </div>
+      {% elif t.cout_estime and t.cout_estime > 0 %}
+      <div class="tkt-meta-item">≈ {{ t.cout_estime | fcfa }}</div>
+      {% endif %}
+      {% if _cout > 0 %}
+        {% if _reste <= 0 %}
+      <div class="tkt-meta-item" style="color:var(--vert);font-weight:700;background:#dcfce7;padding:2px 8px;border-radius:20px;">
+        ✅ Soldé
+      </div>
+        {% else %}
+      <div class="tkt-meta-item" style="color:var(--rouge);font-weight:700;">
+        ⏳ Reste : {{ _reste | fcfa }} {{ cfg.devise if cfg else 'FCFA' }}
+      </div>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="tkt-foot">
+    <!-- Changer statut -->
+    <div style="position:relative;display:inline-block;flex:1;">
+      <button class="btn btn-sec btn-sm" style="width:100%;"
+        onclick="toggleStatutMenu({{ t.id }})">⚡ Statut</button>
+      <div id="statut-menu-{{ t.id }}"
+        style="display:none;position:absolute;bottom:calc(100% + 4px);left:0;background:var(--bg-card);
+          border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.15);border:1px solid var(--border);
+          z-index:50;min-width:170px;overflow:hidden;">
+        {% for key, (icon, color, label) in STATUTS_TICKET.items() %}
+        <a href="{{ url_for('ticket_statut', id=t.id, statut=key) }}"
+           style="display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:12px;
+             color:var(--texte);text-decoration:none;border-bottom:1px solid var(--border);
+             {% if key == t.statut %}background:{{ color }}15;font-weight:700;{% endif %}">
+          <span style="color:{{ color }};">{{ icon }}</span> {{ label }}
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    <!-- Bouton Régler : visible uniquement si reste à payer > 0 -->
+    {% if _cout > _regle %}
+    <button class="btn btn-sm"
+      style="background:linear-gradient(135deg,#16a34a,#22c55e);color:white;border:none;font-weight:700;white-space:nowrap;"
+      onclick="ouvrirRegler({{ t.id }},'{{ t.reference }}','{{ t.client_nom|e }}',{{ _cout }},{{ _regle }},{{ t.client_id }})">
+      💳 Régler
+    </button>
+    {% endif %}
+    {% if _cout > 0 and _regle >= _cout %}
+    <button class="btn btn-sec btn-sm" disabled title="Ticket réglé — modification impossible"
+      style="opacity:.4;cursor:not-allowed;">✏️</button>
+    {% else %}
+    <button class="btn btn-sec btn-sm" onclick="openEditTicketById({{ t.id }})" title="Modifier">✏️</button>
+    {% endif %}
+    <a href="{{ url_for('ticket_pdf', id=t.id) }}" target="_blank" class="btn btn-sec btn-sm" title="Télécharger PDF">🖨️</a>
+    <a href="{{ url_for('ticket_delete', id=t.id) }}"
+       onclick="return confirm('Supprimer ce ticket ?')" class="btn btn-danger btn-sm">🗑</a>
+  </div>
+</div>
+{% else %}
+<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--gris3);">
+  <div style="font-size:48px;margin-bottom:12px;">🎫</div>
+  <div style="font-size:15px;font-weight:700;">Aucun ticket trouvé</div>
+  <div style="font-size:12px;margin-top:6px;">
+    {% if statut_filtre %}Aucun ticket avec ce statut.{% else %}
+    Cliquez sur <strong>Nouveau ticket</strong> pour commencer.{% endif %}
+  </div>
+</div>
+{% endfor %}
+</div>
+
+
+<!-- ════ MODAL : Nouveau ticket ════ -->
+<div id="modalAddTicket" class="modal-overlay">
+  <div class="modal modal-lg" style="max-width:860px;max-height:90vh;">
+    <div class="modal-header">
+      <h3>🎫 Nouveau ticket de réparation</h3>
+      <button class="modal-close" onclick="closeModal('modalAddTicket')">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('ticket_add') }}" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+      <div class="modal-body" style="overflow-y:auto;max-height:calc(90vh - 120px);padding:18px 22px;">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Client *</label>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <select name="client_id" id="add_client_id" required onchange="loadEquipements(this.value,'add_eq_id')" style="flex:1;min-width:0;">
+                <option value="">— Sélectionner —</option>
+                {% for c in clients_all %}
+                <option value="{{ c.id }}">{{ c.label }}</option>
+                {% endfor %}
+              </select>
+              <button type="button" title="Créer un nouveau client" onclick="openModal('modalQuickAddClient')"
+                style="flex-shrink:0;width:30px;height:30px;border-radius:50%;border:none;background:var(--bleu2);color:white;font-size:17px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;box-shadow:0 2px 6px rgba(37,99,235,.35);transition:background .15s;"
+                onmouseover="this.style.background='var(--bleu)'" onmouseout="this.style.background='var(--bleu2)'">+</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Équipement</label>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <select name="equipement_id" id="add_eq_id" style="flex:1;min-width:0;">
+                <option value="">— Sélectionner client d'abord —</option>
+              </select>
+              <button type="button" title="Ajouter un équipement" onclick="openQuickAddEq()"
+                style="flex-shrink:0;width:30px;height:30px;border-radius:50%;border:none;background:var(--bleu2);color:white;font-size:17px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;box-shadow:0 2px 6px rgba(37,99,235,.35);transition:background .15s;"
+                onmouseover="this.style.background='var(--bleu)'" onmouseout="this.style.background='var(--bleu2)'">+</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Type de panne / appareil</label>
+            <input name="type_panne" placeholder="Écran cassé, ne démarre pas…">
+          </div>
+          <div class="form-group">
+            <label>Technicien</label>
+            <select name="technicien_id">
+              <option value="">— Non assigné —</option>
+              {% for emp in techniciens %}
+              <option value="{{ emp.id }}">{{ emp.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Date réception *</label>
+            <input name="date_reception" type="date" value="{{ today }}" required>
+          </div>
+          <div class="form-group">
+            <label>Date prévue rendu</label>
+            <input name="date_prevue" type="date">
+          </div>
+          <div class="form-group">
+            <label>Statut</label>
+            <select name="statut">
+              {% for key, (icon, color, label) in STATUTS_TICKET.items() %}
+              <option value="{{ key }}">{{ icon }} {{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Priorité</label>
+            <select name="priorite">
+              {% for key, (color, dots) in PRIORITES.items() %}
+              <option value="{{ key }}">{{ dots }} {{ key|capitalize }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Coût estimé ({{ cfg.devise if cfg else 'FCFA' }})</label>
+            <input name="cout_estime" type="number" step="500" min="0" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label>Accessoires remis</label>
+            <input name="accessoires" placeholder="Chargeur, souris, housse…">
+          </div>
+          <div class="form-group">
+            <label>Mot de passe appareil</label>
+            <input name="mot_de_passe" placeholder="Si communiqué par le client">
+          </div>
+          <div class="form-group full">
+            <label>Description de la panne *</label>
+            <textarea name="description_panne" rows="2" required placeholder="Décrire le problème signalé par le client…"></textarea>
+          </div>
+
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalAddTicket')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Créer le ticket</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- ════ MODAL : Modifier ticket ════ -->
+<div id="modalEditTicket" class="modal-overlay">
+  <div class="modal modal-lg" style="max-width:860px;max-height:90vh;">
+    <div class="modal-header">
+      <h3>✏️ Modifier ticket <span id="editTktRef" style="color:var(--bleu2);"></span></h3>
+      <button class="modal-close" onclick="closeModal('modalEditTicket')">✕</button>
+    </div>
+    <form method="POST" id="editTktForm" action="" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+      <div class="modal-body" style="overflow-y:auto;max-height:calc(90vh - 120px);padding:18px 22px;">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Client *</label>
+            <select name="client_id" id="edit_client_id" required>
+              {% for c in clients_all %}
+              <option value="{{ c.id }}">{{ c.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Équipement</label>
+            <select name="equipement_id" id="edit_eq_id">
+              <option value="">— Aucun —</option>
+              {% for e in equipements_all %}
+              <option value="{{ e.id }}" data-client="{{ e.client_id }}">
+                [{{ e.client_nom }}] {{ e.label }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Type de panne</label>
+            <input name="type_panne" id="edit_type_panne">
+          </div>
+          <div class="form-group">
+            <label>Technicien</label>
+            <select name="technicien_id" id="edit_technicien_id">
+              <option value="">— Non assigné —</option>
+              {% for emp in techniciens %}
+              <option value="{{ emp.id }}">{{ emp.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Date réception *</label>
+            <input name="date_reception" id="edit_date_reception" type="date" required>
+          </div>
+          <div class="form-group">
+            <label>Date prévue rendu</label>
+            <input name="date_prevue" id="edit_date_prevue" type="date">
+          </div>
+          <div class="form-group">
+            <label>Statut</label>
+            <select name="statut" id="edit_statut">
+              {% for key, (icon, color, label) in STATUTS_TICKET.items() %}
+              <option value="{{ key }}">{{ icon }} {{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Priorité</label>
+            <select name="priorite" id="edit_priorite">
+              {% for key, (color, dots) in PRIORITES.items() %}
+              <option value="{{ key }}">{{ dots }} {{ key|capitalize }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Coût estimé</label>
+            <input name="cout_estime" id="edit_cout_estime" type="number" step="500" min="0">
+          </div>
+          <div class="form-group">
+            <label>Coût final ({{ cfg.devise if cfg else 'FCFA' }})</label>
+            <input name="cout_final" id="edit_cout_final" type="number" step="500" min="0">
+          </div>
+          <div class="form-group">
+            <label>Accessoires</label>
+            <input name="accessoires" id="edit_accessoires">
+          </div>
+          <div class="form-group">
+            <label>Mot de passe</label>
+            <input name="mot_de_passe" id="edit_mdp">
+          </div>
+          <div class="form-group full">
+            <label>Description panne</label>
+            <textarea name="description_panne" id="edit_desc_panne" rows="2"></textarea>
+          </div>
+          <div class="form-group full">
+            <label>Diagnostic</label>
+            <textarea name="diagnostic" id="edit_diagnostic" rows="2" placeholder="Résultat du diagnostic technique…"></textarea>
+          </div>
+          <div class="form-group full">
+            <label>Travaux effectués</label>
+            <textarea name="travaux_effectues" id="edit_travaux" rows="2" placeholder="Pièces remplacées, actions effectuées…"></textarea>
+          </div>
+          <div class="form-group full">
+            <label>Notes</label>
+            <textarea name="notes" id="edit_notes" rows="2"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalEditTicket')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ MODAL RÈGLEMENT TICKET ═══ -->
+<div id="modalReglerTicket" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>💳 Règlement ticket</h3>
+      <button class="modal-close" onclick="closeModal('modalReglerTicket')">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('ticket_regler') }}">
+      <input type="hidden" name="ticket_id"  id="rgl_tkt_id">
+      <input type="hidden" name="client_id"  id="rgl_tkt_client_id">
+      <div class="modal-body">
+
+        <!-- Récap ticket -->
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:9px;padding:12px 16px;margin-bottom:16px;">
+          <div style="font-size:13px;font-weight:800;color:var(--bleu);" id="rgl_tkt_ref">—</div>
+          <div style="font-size:12px;color:var(--gris3);margin-top:2px;" id="rgl_tkt_client">—</div>
+          <div style="display:flex;gap:20px;margin-top:10px;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:9px;color:var(--gris3);text-transform:uppercase;font-weight:700;">Montant dû</div>
+              <div style="font-size:16px;font-weight:800;color:var(--bleu);" id="rgl_tkt_du">—</div>
+            </div>
+            <div>
+              <div style="font-size:9px;color:var(--gris3);text-transform:uppercase;font-weight:700;">Déjà réglé</div>
+              <div style="font-size:16px;font-weight:800;color:var(--vert);" id="rgl_tkt_regle">—</div>
+            </div>
+            <div>
+              <div style="font-size:9px;color:var(--gris3);text-transform:uppercase;font-weight:700;">Reste</div>
+              <div style="font-size:16px;font-weight:800;color:var(--rouge);" id="rgl_tkt_reste">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Date + Montant -->
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Date règlement</label>
+            <input type="date" name="date_reglement" id="rgl_tkt_date">
+          </div>
+          <div class="form-group">
+            <label>Montant *</label>
+            <input type="number" name="montant" id="rgl_tkt_montant" required min="0" step="any" placeholder="0">
+          </div>
+        </div>
+
+        <!-- Mode de paiement -->
+        <div class="form-group full">
+          <label>Mode de paiement</label>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:6px;">
+            {% for val, ico, lbl in [('especes','💵','Espèces'),('wave','📱','Wave'),('orange_money','🟠','Orange'),('mtn_money','🟡','MTN'),('moov_money','🔵','Moov'),('carte_bancaire','💳','Carte'),('virement','🏦','Virement'),('cheque','📄','Chèque')] %}
+            <button type="button"
+              class="sage-mode-btn {% if loop.first %}active{% endif %}"
+              data-val="{{ val }}" onclick="selectRglTktMode(this)">
+              <span style="font-size:16px;">{{ ico }}</span>
+              <span style="font-size:8px;font-weight:700;color:var(--gris3);">{{ lbl }}</span>
+            </button>
+            {% endfor %}
+          </div>
+          <input type="hidden" name="mode_paiement" id="rgl_tkt_mode" value="especes">
+        </div>
+
+        <div class="form-group full">
+          <label>Notes</label>
+          <textarea name="notes" rows="2" placeholder="Référence reçu, remarques…" style="resize:vertical;"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sec" onclick="closeModal('modalReglerTicket')">Annuler</button>
+        <button type="submit" class="btn btn-primary" style="background:linear-gradient(135deg,#16a34a,#22c55e);">💾 Enregistrer le règlement</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+.sage-mode-btn {
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:6px 2px;border-radius:7px;
+  border:1.5px solid #dde3ec;background:var(--bg-card);
+  cursor:pointer;transition:all .12s;font-family:inherit;
+}
+.sage-mode-btn:hover { border-color:#2563eb;background:#dbeafe; }
+.sage-mode-btn.active { border-color:#16a34a;background:#dcfce7;box-shadow:0 0 0 2px rgba(22,163,74,.2); }
+.sage-mode-btn.active span:last-child { color:#15803d; }
+</style>
+
+<!-- ════ MODAL RAPIDE : Nouveau client ════ -->
+<div id="modalQuickAddClient" class="modal-overlay">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <h3>👤 Nouveau client rapide</h3>
+      <button class="modal-close" onclick="closeModal('modalQuickAddClient')">✕</button>
+    </div>
+    <form id="quickClientForm" onsubmit="submitQuickClient(event)">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Nom *</label>
+            <input id="qc_nom" name="nom" required placeholder="NOM CLIENT"
+              style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div class="form-group">
+            <label>Prénom</label>
+            <input id="qc_prenom" name="prenom" placeholder="Prénom">
+          </div>
+          <div class="form-group">
+            <label>Téléphone *</label>
+            <input id="qc_tel" name="telephone" required placeholder="07 00 00 00 00">
+          </div>
+          <div class="form-group">
+            <label>Ville</label>
+            <input id="qc_ville" name="ville" value="Abidjan">
+          </div>
+          <div class="form-group">
+            <label>Type client</label>
+            <select id="qc_type" name="type_client">
+              {% for v,l in [('particulier','👤 Particulier'),('entreprise','🏢 Entreprise'),('revendeur','🏪 Revendeur'),('grossiste','📦 Grossiste')] %}
+              <option value="{{ v }}">{{ l }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div id="qc_error" style="display:none;color:var(--rouge);font-size:12px;margin-top:8px;padding:8px 12px;background:#fef2f2;border-radius:7px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sec" onclick="closeModal('modalQuickAddClient')">Annuler</button>
+        <button type="submit" class="btn btn-primary" id="qc_submit">💾 Créer & sélectionner</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ════ MODAL RAPIDE : Nouvel équipement ════ -->
+<div id="modalQuickAddEq" class="modal-overlay">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <h3>💻 Nouvel équipement rapide</h3>
+      <button class="modal-close" onclick="closeModal('modalQuickAddEq')">✕</button>
+    </div>
+    <form id="quickEqForm" onsubmit="submitQuickEq(event)">
+      <div class="modal-body">
+        <div id="qe_client_info" style="padding:8px 12px;background:var(--bleu3);border-radius:8px;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--bleu);"></div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Type d'appareil *</label>
+            <select id="qe_type" name="type_appareil" required>
+              {% for t in ['Ordinateur portable','PC fixe','Téléphone','Tablette','Imprimante','Écran','Disque dur','Serveur','Autre'] %}
+              <option>{{ t }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Marque</label>
+            <input id="qe_marque" name="marque" placeholder="HP, Dell, Samsung, Apple…">
+          </div>
+          <div class="form-group">
+            <label>Modèle</label>
+            <input id="qe_modele" name="modele" placeholder="EliteBook 840, Galaxy S21…">
+          </div>
+          <div class="form-group">
+            <label>Numéro de série</label>
+            <input id="qe_serie" name="numero_serie" placeholder="SN / IMEI">
+          </div>
+          <div class="form-group">
+            <label>Couleur</label>
+            <input id="qe_couleur" name="couleur" placeholder="Noir, Argent…">
+          </div>
+          <div class="form-group full">
+            <label>Description / état visuel</label>
+            <textarea id="qe_desc" name="description" rows="2" placeholder="Rayures, écran fissuré…"></textarea>
+          </div>
+        </div>
+        <div id="qe_error" style="display:none;color:var(--rouge);font-size:12px;margin-top:8px;padding:8px 12px;background:#fef2f2;border-radius:7px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sec" onclick="closeModal('modalQuickAddEq')">Annuler</button>
+        <button type="submit" class="btn btn-primary" id="qe_submit">💾 Créer & sélectionner</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+/* ── Charger équipements via API ── */
+function loadEquipements(clientId, selectId) {
+  var sel = document.getElementById(selectId);
+  sel.innerHTML = '<option value="">Chargement…</option>';
+  if (!clientId) { sel.innerHTML = '<option value="">— Aucun —</option>'; return; }
+  fetch('/api/equipements/' + clientId)
+    .then(r => r.json())
+    .then(data => {
+      sel.innerHTML = '<option value="">— Aucun équipement —</option>';
+      data.forEach(e => {
+        sel.innerHTML += `<option value="${e.id}">${e.label}</option>`;
+      });
+    });
+}
+
+/* ── Menu statut rapide ── */
+function toggleStatutMenu(id) {
+  var el = document.getElementById('statut-menu-'+id);
+  document.querySelectorAll('[id^="statut-menu-"]').forEach(m => {
+    if (m.id !== 'statut-menu-'+id) m.style.display='none';
+  });
+  el.style.display = el.style.display==='none' ? 'block' : 'none';
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('[id^="statut-menu-"]') && !e.target.textContent.includes('Statut'))
+    document.querySelectorAll('[id^="statut-menu-"]').forEach(m => m.style.display='none');
+});
+
+/* ── Ouvrir modal édition ── */
+/* ── Données tickets pour l'édition ── */
+var _ticketsData = {
+  {% for t in tickets %}
+  {{ t.id }}: {
+    id: {{ t.id }},
+    reference: {{ t.reference | tojson }},
+    client_id: {{ t.client_id or 'null' }},
+    equipement_id: {{ t.equipement_id or 'null' }},
+    type_panne: {{ (t.type_panne or '') | tojson }},
+    technicien_id: {{ t.technicien_id or 'null' }},
+    date_reception: {{ (t.date_reception or '') | tojson }},
+    date_prevue: {{ (t.date_prevue or '') | tojson }},
+    statut: {{ (t.statut or 'recu') | tojson }},
+    priorite: {{ (t.priorite or 'normale') | tojson }},
+    cout_estime: {{ t.cout_estime or 'null' }},
+    cout_final: {{ t.cout_final or 'null' }},
+    accessoires: {{ (t.accessoires or '') | tojson }},
+    mot_de_passe: {{ (t.mot_de_passe or '') | tojson }},
+    description_panne: {{ (t.description_panne or '') | tojson }},
+    diagnostic: {{ (t.diagnostic or '') | tojson }},
+    travaux_effectues: {{ (t.travaux_effectues or '') | tojson }},
+    notes: {{ (t.notes or '') | tojson }}
+  }{% if not loop.last %},{% endif %}
+  {% endfor %}
+};
+
+function openEditTicketById(id) {
+  var t = _ticketsData[id];
+  if(!t){ console.error('Ticket introuvable:', id); return; }
+  openEditTicket(t);
+}
+
+function openEditTicket(t) {
+  document.getElementById('editTktRef').textContent = t.reference;
+  document.getElementById('editTktForm').action = '/tickets/edit/' + t.id;
+  setVal('edit_client_id',        t.client_id);
+  setVal('edit_eq_id',            t.equipement_id || '');
+  setVal('edit_type_panne',       t.type_panne || '');
+  setVal('edit_technicien_id',    t.technicien_id || '');
+  setVal('edit_date_reception',   t.date_reception || '');
+  setVal('edit_date_prevue',      t.date_prevue || '');
+  setVal('edit_statut',           t.statut || 'recu');
+  setVal('edit_priorite',         t.priorite || 'normale');
+  setVal('edit_cout_estime',      t.cout_estime || '');
+  setVal('edit_cout_final',       t.cout_final || '');
+  setVal('edit_accessoires',      t.accessoires || '');
+  setVal('edit_mdp',              t.mot_de_passe || '');
+  setVal('edit_desc_panne',       t.description_panne || '');
+  setVal('edit_diagnostic',       t.diagnostic || '');
+  setVal('edit_travaux',          t.travaux_effectues || '');
+  setVal('edit_notes',            t.notes || '');
+  openModal('modalEditTicket');
+}
+function setVal(id, val) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.value = val;
+}
+
+/* Ouvrir directement la modale si ?nouveau=1 dans l'URL */
+if(new URLSearchParams(window.location.search).get('nouveau')==='1'){
+  openModal('modalAddTicket');
+}
+
+/* ── Modal Régler ticket ── */
+function fmtM(n){ return Number(n||0).toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+
+function ouvrirRegler(id, ref, client, cout, regle, clientId){
+  document.getElementById('rgl_tkt_id').value        = id;
+  document.getElementById('rgl_tkt_client_id').value  = clientId;
+  document.getElementById('rgl_tkt_ref').textContent  = ref;
+  document.getElementById('rgl_tkt_client').textContent = client;
+  var devise = '{{ cfg.devise if cfg else "FCFA" }}';
+  var reste  = Math.max(0, cout - regle);
+  document.getElementById('rgl_tkt_du').textContent     = fmtM(cout)  + ' ' + devise;
+  document.getElementById('rgl_tkt_regle').textContent  = fmtM(regle) + ' ' + devise;
+  document.getElementById('rgl_tkt_reste').textContent  = fmtM(reste) + ' ' + devise;
+  document.getElementById('rgl_tkt_montant').value      = Math.round(reste) || Math.round(cout);
+  document.getElementById('rgl_tkt_date').value         = new Date().toISOString().split('T')[0];
+  /* reset mode paiement */
+  document.querySelectorAll('#modalReglerTicket .sage-mode-btn').forEach(function(b){ b.classList.remove('active'); });
+  var first = document.querySelector('#modalReglerTicket .sage-mode-btn');
+  if(first){ first.classList.add('active'); document.getElementById('rgl_tkt_mode').value = first.dataset.val; }
+  openModal('modalReglerTicket');
+}
+
+function selectRglTktMode(btn){
+  document.querySelectorAll('#modalReglerTicket .sage-mode-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  document.getElementById('rgl_tkt_mode').value = btn.dataset.val;
+}
+
+/* ══ QUICK ADD CLIENT ══ */
+async function submitQuickClient(e) {
+  e.preventDefault();
+  var errEl = document.getElementById('qc_error');
+  var btn   = document.getElementById('qc_submit');
+  errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = '⏳ Création…';
+  var fd = new FormData();
+  fd.append('nom',        document.getElementById('qc_nom').value);
+  fd.append('prenom',     document.getElementById('qc_prenom').value);
+  fd.append('telephone',  document.getElementById('qc_tel').value);
+  fd.append('ville',      document.getElementById('qc_ville').value);
+  fd.append('type_client',document.getElementById('qc_type').value);
+  fd.append('categorie_client', 'standard');
+  fd.append('remise_pct', '0');
+  fd.append('delai_paiement', '0');
+  fd.append('encours_autorise', '0');
+  fd.append('mode_paiement', 'especes');
+  try {
+    var r = await fetch('/api/client/add', { method:'POST', body: fd });
+    if (!r.ok) throw new Error('Erreur serveur ' + r.status);
+    var data = await r.json();
+    if (data.error) throw new Error(data.error);
+    /* Ajouter l'option dans le select et la sélectionner */
+    var sel = document.getElementById('add_client_id');
+    var opt = new Option(data.label || (data.nom + ' ' + (data.prenom||'')).trim(), data.id, true, true);
+    sel.add(opt);
+    sel.value = data.id;
+    sel.dispatchEvent(new Event('change')); /* déclenche loadEquipements */
+    closeModal('modalQuickAddClient');
+    document.getElementById('quickClientForm').reset();
+  } catch(err) {
+    errEl.textContent = err.message; errEl.style.display = 'block';
+  }
+  btn.disabled = false; btn.textContent = '💾 Créer & sélectionner';
+}
+
+/* ══ QUICK ADD ÉQUIPEMENT ══ */
+function openQuickAddEq() {
+  var sel   = document.getElementById('add_client_id');
+  var label = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+  if (!sel.value) {
+    alert('Veuillez d\'abord sélectionner un client.');
+    return;
+  }
+  var info = document.getElementById('qe_client_info');
+  info.textContent = '👤 Client : ' + label;
+  openModal('modalQuickAddEq');
+}
+
+async function submitQuickEq(e) {
+  e.preventDefault();
+  var errEl = document.getElementById('qe_error');
+  var btn   = document.getElementById('qe_submit');
+  var clientId = document.getElementById('add_client_id').value;
+  errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = '⏳ Création…';
+  var fd = new FormData();
+  fd.append('client_id',    clientId);
+  fd.append('type_appareil',document.getElementById('qe_type').value);
+  fd.append('marque',       document.getElementById('qe_marque').value);
+  fd.append('modele',       document.getElementById('qe_modele').value);
+  fd.append('numero_serie', document.getElementById('qe_serie').value);
+  fd.append('couleur',      document.getElementById('qe_couleur').value);
+  fd.append('description',  document.getElementById('qe_desc').value);
+  fd.append('redirect_url', window.location.href);
+  try {
+    var r = await fetch('/api/equipement/add', { method:'POST', body: fd });
+    if (!r.ok) throw new Error('Erreur serveur ' + r.status);
+    var data = await r.json();
+    if (data.error) throw new Error(data.error);
+    /* Recharger les équipements du client et sélectionner le nouveau */
+    var sel = document.getElementById('add_eq_id');
+    sel.innerHTML = '<option value="">Chargement…</option>';
+    fetch('/api/equipements/' + clientId)
+      .then(res => res.json())
+      .then(list => {
+        sel.innerHTML = '<option value="">— Aucun équipement —</option>';
+        list.forEach(function(eq) {
+          var opt = new Option(eq.label, eq.id, eq.id == data.id, eq.id == data.id);
+          sel.add(opt);
+        });
+      });
+    closeModal('modalQuickAddEq');
+    document.getElementById('quickEqForm').reset();
+  } catch(err) {
+    errEl.textContent = err.message; errEl.style.display = 'block';
+  }
+  btn.disabled = false; btn.textContent = '💾 Créer & sélectionner';
+}
+</script>
+
+{# ── Patch thème sombre : éléments inline de cette page ── #}
+<style>
+/* ════════ DARK MODE — patch page ════════ */
+
+/* ── Inputs / selects / textareas ── */
+[data-theme="dark"] input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=hidden]):not([type=range]),
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: var(--bg-input) !important;
+  color: var(--texte) !important;
+  border-color: var(--border) !important;
+}
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder { color: var(--gris3) !important; opacity:1; }
+
+/* ── Fonds colorés sémantiques (info, success, warning, danger) ── */
+/* On assombrit les backgrounds pastel pour lisibilité sur fond sombre */
+[data-theme="dark"] [style*="background:#f0f7ff"],
+[data-theme="dark"] [style*="background: #f0f7ff"] { background:#0d1d38 !important; color:#93c5fd !important; }
+[data-theme="dark"] [style*="background:#eff6ff"],
+[data-theme="dark"] [style*="background: #eff6ff"] { background:#0d1d38 !important; }
+[data-theme="dark"] [style*="background:#dbeafe"],
+[data-theme="dark"] [style*="background: #dbeafe"] { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] [style*="background:#bfdbfe"]  { background:#1d3461 !important; }
+
+[data-theme="dark"] [style*="background:#f0fdf4"],
+[data-theme="dark"] [style*="background: #f0fdf4"] { background:#052e16 !important; color:#4ade80 !important; }
+[data-theme="dark"] [style*="background:#dcfce7"],
+[data-theme="dark"] [style*="background: #dcfce7"] { background:#052e16 !important; color:#4ade80 !important; }
+[data-theme="dark"] [style*="background:#bbf7d0"]  { background:#052e16 !important; }
+
+[data-theme="dark"] [style*="background:#fef9c3"],
+[data-theme="dark"] [style*="background: #fef9c3"] { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] [style*="background:#fefce8"],
+[data-theme="dark"] [style*="background: #fefce8"] { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] [style*="background:#fffbeb"],
+[data-theme="dark"] [style*="background: #fffbeb"] { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] [style*="background:#fef3c7"],
+[data-theme="dark"] [style*="background: #fef3c7"] { background:#3d2e00 !important; }
+[data-theme="dark"] [style*="background:#fde68a"]  { background:#3d2e00 !important; }
+
+[data-theme="dark"] [style*="background:#fee2e2"],
+[data-theme="dark"] [style*="background: #fee2e2"] { background:#3d0f0f !important; color:#fca5a5 !important; }
+[data-theme="dark"] [style*="background:#fff1f2"],
+[data-theme="dark"] [style*="background: #fff1f2"] { background:#3d0f0f !important; }
+[data-theme="dark"] [style*="background:#fff5f5"],
+[data-theme="dark"] [style*="background: #fff5f5"] { background:#3d0f0f !important; }
+[data-theme="dark"] [style*="background:#fecaca"]  { background:#3d0f0f !important; }
+[data-theme="dark"] [style*="background:#fecdd3"]  { background:#3d0f0f !important; }
+
+[data-theme="dark"] [style*="background:#f5f3ff"],
+[data-theme="dark"] [style*="background: #f5f3ff"] { background:#1e1040 !important; }
+[data-theme="dark"] [style*="background:#ede9fe"]  { background:#1e1040 !important; }
+
+[data-theme="dark"] [style*="background:#fff7ed"],
+[data-theme="dark"] [style*="background: #fff7ed"] { background:#3d1500 !important; color:#fb923c !important; }
+[data-theme="dark"] [style*="background:#ffedd5"]  { background:#3d1500 !important; }
+
+[data-theme="dark"] [style*="background:#f0f9ff"],
+[data-theme="dark"] [style*="background: #f0f9ff"] { background:#0a1e33 !important; }
+
+/* ── Badges ── */
+[data-theme="dark"] .badge-sec     { background:#1c2128 !important; color:#8b949e !important; }
+[data-theme="dark"] .badge-info    { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] .badge-success { background:#052e16 !important; color:#4ade80 !important; }
+[data-theme="dark"] .badge-warning { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] .badge-danger  { background:#3d0f0f !important; color:#fca5a5 !important; }
+
+/* ── Cards & tableaux ── */
+[data-theme="dark"] .kpi-card      { background:var(--bg-card) !important; }
+[data-theme="dark"] .kpi-card .label,
+[data-theme="dark"] .kpi-card .sub { color:var(--gris3) !important; }
+[data-theme="dark"] .table-card    { background:var(--bg-card) !important; }
+[data-theme="dark"] .table-card .thead { background:var(--bg-card) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] thead th       { background:var(--bg-thead) !important; color:var(--gris3) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody td       { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody tr:last-child td { border-bottom:none !important; }
+[data-theme="dark"] tbody tr:hover td { background:var(--row-hover) !important; }
+
+/* ── Boutons secondaires / actions ── */
+[data-theme="dark"] .btn-sec       { background:#1c2128 !important; color:#8b949e !important; border-color:var(--border) !important; }
+[data-theme="dark"] .btn-sec:hover { background:#30363d !important; color:var(--texte) !important; }
+[data-theme="dark"] .hist-action-btn { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+
+/* ── Modales ── */
+[data-theme="dark"] .modal         { background:var(--modal-bg) !important; }
+[data-theme="dark"] .modal-header  { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .modal-footer  { border-top-color:var(--border) !important; }
+[data-theme="dark"] .modal-body    { background:var(--modal-body-bg) !important; }
+
+/* ── Éléments spécifiques ── */
+[data-theme="dark"] .pcart         { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .pcart-head    { background:var(--bg-thead) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .pcart-body    { background:var(--bg-card) !important; }
+[data-theme="dark"] .result-section { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .result-section-header { background:var(--bg-thead) !important; }
+[data-theme="dark"] .result-table td { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .result-table tr:hover td { background:var(--row-hover) !important; }
+[data-theme="dark"] .sage-mode-btn { background:var(--bg-input) !important; border-color:var(--border) !important; color:var(--texte) !important; }
+[data-theme="dark"] .sage-mode-btn.active { background:var(--bleu2) !important; color:#fff !important; }
+[data-theme="dark"] .liv-select    { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+
+/* inv rows */
+[data-theme="dark"] .inv-row-ok  td { background:#052e16 !important; }
+[data-theme="dark"] .inv-row-pos td { background:#3d2e00 !important; }
+[data-theme="dark"] .inv-row-neg td { background:#3d0f0f !important; }
+
+/* ════════ SYSTEM AUTO ════════ */
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=hidden]):not([type=range]),
+  [data-theme="system"] select,
+  [data-theme="system"] textarea {
+    background:var(--bg-input) !important;
+    color:var(--texte) !important;
+    border-color:var(--border) !important;
+  }
+  [data-theme="system"] input::placeholder,
+  [data-theme="system"] textarea::placeholder { color:var(--gris3) !important; opacity:1; }
+
+  [data-theme="system"] [style*="background:#f0f7ff"],
+  [data-theme="system"] [style*="background: #f0f7ff"]  { background:#0d1d38 !important; color:#93c5fd !important; }
+  [data-theme="system"] [style*="background:#eff6ff"],
+  [data-theme="system"] [style*="background: #eff6ff"]  { background:#0d1d38 !important; }
+  [data-theme="system"] [style*="background:#dbeafe"],
+  [data-theme="system"] [style*="background: #dbeafe"]  { background:#1d3461 !important; color:#93c5fd !important; }
+  [data-theme="system"] [style*="background:#f0fdf4"],
+  [data-theme="system"] [style*="background: #f0fdf4"]  { background:#052e16 !important; color:#4ade80 !important; }
+  [data-theme="system"] [style*="background:#dcfce7"],
+  [data-theme="system"] [style*="background: #dcfce7"]  { background:#052e16 !important; color:#4ade80 !important; }
+  [data-theme="system"] [style*="background:#fef9c3"],
+  [data-theme="system"] [style*="background: #fef9c3"]  { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] [style*="background:#fefce8"],
+  [data-theme="system"] [style*="background: #fefce8"]  { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] [style*="background:#fffbeb"],
+  [data-theme="system"] [style*="background: #fffbeb"]  { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] [style*="background:#fee2e2"],
+  [data-theme="system"] [style*="background: #fee2e2"]  { background:#3d0f0f !important; color:#fca5a5 !important; }
+  [data-theme="system"] [style*="background:#fff1f2"],
+  [data-theme="system"] [style*="background: #fff1f2"]  { background:#3d0f0f !important; }
+  [data-theme="system"] [style*="background:#fff5f5"],
+  [data-theme="system"] [style*="background: #fff5f5"]  { background:#3d0f0f !important; }
+  [data-theme="system"] [style*="background:#fff7ed"],
+  [data-theme="system"] [style*="background: #fff7ed"]  { background:#3d1500 !important; color:#fb923c !important; }
+  [data-theme="system"] [style*="background:#f5f3ff"],
+  [data-theme="system"] [style*="background: #f5f3ff"]  { background:#1e1040 !important; }
+
+  [data-theme="system"] .badge-sec     { background:#1c2128 !important; color:#8b949e !important; }
+  [data-theme="system"] .badge-info    { background:#1d3461 !important; color:#93c5fd !important; }
+  [data-theme="system"] .badge-success { background:#052e16 !important; color:#4ade80 !important; }
+  [data-theme="system"] .badge-warning { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] .badge-danger  { background:#3d0f0f !important; color:#fca5a5 !important; }
+  [data-theme="system"] .kpi-card      { background:var(--bg-card) !important; }
+  [data-theme="system"] .table-card    { background:var(--bg-card) !important; }
+  [data-theme="system"] .table-card .thead { background:var(--bg-card) !important; border-bottom-color:var(--border) !important; }
+  [data-theme="system"] thead th       { background:var(--bg-thead) !important; color:var(--gris3) !important; border-bottom-color:var(--border) !important; }
+  [data-theme="system"] tbody td       { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] tbody tr:hover td { background:var(--row-hover) !important; }
+  [data-theme="system"] .btn-sec       { background:#1c2128 !important; color:#8b949e !important; border-color:var(--border) !important; }
+  [data-theme="system"] .hist-action-btn { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .modal         { background:var(--modal-bg) !important; }
+  [data-theme="system"] .modal-header  { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] .modal-footer  { border-top-color:var(--border) !important; }
+  [data-theme="system"] .pcart         { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .sage-mode-btn { background:var(--bg-input) !important; border-color:var(--border) !important; color:var(--texte) !important; }
+  [data-theme="system"] .inv-row-ok  td { background:#052e16 !important; }
+  [data-theme="system"] .inv-row-pos td { background:#3d2e00 !important; }
+  [data-theme="system"] .inv-row-neg td { background:#3d0f0f !important; }
+  [data-theme="system"] .result-section { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .result-section-header { background:var(--bg-thead) !important; }
+}
+</style>
+
+{% endblock %}

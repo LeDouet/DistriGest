@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+{% block title %}Paie — DISTRIGEST{% endblock %}
+{% block topbar_title %}💰 Gestion de la Paie{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>💰 Gestion de la Paie</h1>
+    <div class="sub" style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap;">
+      <span style="display:flex;align-items:center;gap:7px;padding:6px 14px;border-radius:20px;background:white;border:1px solid var(--gris2);box-shadow:var(--ombre);font-size:12px;font-weight:600;">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--vert);flex-shrink:0;"></span>
+        <strong style="color:var(--vert);">{{ kpi.nb_paye }}</strong>&nbsp;payées
+      </span>
+      <span style="display:flex;align-items:center;gap:7px;padding:6px 14px;border-radius:20px;background:white;border:1px solid var(--gris2);box-shadow:var(--ombre);font-size:12px;font-weight:600;">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--bleu2);flex-shrink:0;"></span>
+        <strong style="color:var(--bleu2);">{{ kpi.nb_valide }}</strong>&nbsp;validées
+      </span>
+      <span style="display:flex;align-items:center;gap:7px;padding:6px 14px;border-radius:20px;background:white;border:1px solid var(--gris2);box-shadow:var(--ombre);font-size:12px;font-weight:600;">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--orange);flex-shrink:0;"></span>
+        <strong style="color:var(--orange);">{{ kpi.nb_brouillon }}</strong>&nbsp;brouillons
+      </span>
+    </div>
+  </div>
+  <button onclick="openModal('modalAddPaie')" class="btn btn-primary">➕ Nouvelle fiche de paie</button>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom:18px;">
+  <div class="kpi-card vert">
+    <div class="label">Total net du mois</div>
+    <div class="value" style="color:var(--vert);font-size:18px;">{{ (kpi.total_net or 0) | fcfa }}</div>
+    <div class="sub">{{ cfg.devise if cfg else 'FCFA' }} — masse salariale</div><div class="icon-bg">💰</div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Total payé</div>
+    <div class="value" style="font-size:18px;">{{ (kpi.total_paye or 0) | fcfa }}</div>
+    <div class="sub">Salaires versés</div><div class="icon-bg">✅</div>
+  </div>
+  <div class="kpi-card or">
+    <div class="label">Fiches créées</div>
+    <div class="value" style="color:var(--or);">{{ kpi.nb_total or 0 }}</div>
+    <div class="sub">Toutes périodes</div><div class="icon-bg">🧾</div>
+  </div>
+  <div class="kpi-card orange">
+    <div class="label">En attente</div>
+    <div class="value" style="color:var(--orange);">{{ (kpi.nb_brouillon or 0) + (kpi.nb_valide or 0) }}</div>
+    <div class="sub">À valider / payer</div><div class="icon-bg">⏳</div>
+  </div>
+</div>
+
+<!-- Filtres -->
+<div class="table-card" style="margin-bottom:14px;">
+  <form method="GET" action="{{ url_for('paie_list') }}">
+    <div style="padding:10px 16px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+      <div>
+        <label style="font-size:10px;font-weight:700;color:var(--gris3);text-transform:uppercase;display:block;margin-bottom:3px;">Mois</label>
+        <select name="mois" style="height:32px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+          <option value="">Tous les mois</option>
+          {% for m in mois_dispo %}
+          <option value="{{ m.mois }}" {{ 'selected' if mois_f==m.mois }}>{{ m.mois }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label style="font-size:10px;font-weight:700;color:var(--gris3);text-transform:uppercase;display:block;margin-bottom:3px;">Statut</label>
+        <select name="statut" style="height:32px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+          <option value="">Tous</option>
+          <option value="brouillon" {{ 'selected' if statut_f=='brouillon' }}>📝 Brouillon</option>
+          <option value="valide"    {{ 'selected' if statut_f=='valide' }}>✅ Validée</option>
+          <option value="paye"      {{ 'selected' if statut_f=='paye' }}>💰 Payée</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm">🔍 Filtrer</button>
+      <a href="{{ url_for('paie_list') }}" class="btn btn-sec btn-sm">✕</a>
+      <span style="margin-left:auto;font-size:12px;color:var(--gris3);font-weight:600;">{{ fiches|length }} fiche(s)</span>
+    </div>
+  </form>
+</div>
+
+<!-- Tableau -->
+<div class="table-card">
+  <div class="thead"><h3>💰 Fiches de paie</h3></div>
+  <table>
+    <thead>
+      <tr>
+        <th>Employé</th><th>Poste</th><th>Mois</th>
+        <th>Salaire base</th><th>Primes</th><th>Retenues</th>
+        <th>Net à payer</th><th>Mode</th><th>Statut</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for f in fiches %}
+    <tr>
+      <td>
+        <div style="font-weight:700;">{{ f.nom }} {{ f.prenom or '' }}</div>
+        <div style="font-size:10px;color:var(--bleu2);font-family:monospace;">{{ f.matricule }}</div>
+      </td>
+      <td style="font-size:11px;color:var(--gris3);">{{ f.poste or '—' }}</td>
+      <td><span class="badge badge-info">{{ f.mois }}</span></td>
+      <td style="font-weight:600;">{{ (f.salaire_base or 0) | fcfa }}</td>
+      <td style="color:var(--vert);font-weight:600;">
+        +{{ ((f.prime_transport or 0)+(f.prime_anciennete or 0)+(f.autres_primes or 0)) | fcfa }}
+      </td>
+      <td style="color:var(--rouge);font-weight:600;">
+        −{{ ((f.retenue_absence or 0)+(f.autres_retenues or 0)) | fcfa }}
+      </td>
+      <td style="font-weight:800;color:var(--bleu);font-size:14px;">{{ (f.salaire_net or 0) | fcfa }}</td>
+      <td style="font-size:11px;color:var(--gris3);">
+        {% set modes={'especes':'💵 Espèces','wave':'📱 Wave','virement':'🏦 Virement','cheque':'📄 Chèque','orange_money':'🟠 Orange','mtn_money':'🟡 MTN'} %}
+        {{ modes.get(f.mode_paiement, f.mode_paiement or '—') }}
+      </td>
+      <td>
+        {% if f.statut == 'paye' %}
+          <span class="badge badge-success">💰 Payée</span>
+        {% elif f.statut == 'valide' %}
+          <span class="badge" style="background:#dbeafe;color:#1d4ed8;">✅ Validée</span>
+        {% else %}
+          <span class="badge badge-warning">📝 Brouillon</span>
+        {% endif %}
+      </td>
+      <td style="white-space:nowrap;">
+        <div style="display:inline-flex;gap:4px;">
+          {% if f.statut == 'brouillon' %}
+          <form method="POST" action="{{ url_for('paie_valider', id=f.id) }}" style="display:inline;">
+            <button type="submit" class="hist-action-btn hist-btn-valider">✅ <span>Valider</span></button>
+          </form>
+          {% endif %}
+          {% if f.statut == 'valide' %}
+          <form method="POST" action="{{ url_for('paie_payer', id=f.id) }}" style="display:inline;" onsubmit="return confirm('Confirmer le paiement du salaire de {{ f.nom }} ?')">
+            <button type="submit" class="hist-action-btn hist-btn-payer">💰 <span>Payer</span></button>
+          </form>
+          {% endif %}
+          {% if f.statut == 'paye' %}
+          <a href="{{ url_for('paie_print', id=f.id) }}" target="_blank"
+             class="hist-action-btn hist-btn-imprimer" title="Imprimer le bulletin">🖨️ <span>Bulletin</span></a>
+          {% endif %}
+          {% if f.statut != 'paye' %}
+          <a href="{{ url_for('paie_delete', id=f.id) }}" onclick="return confirm('Supprimer cette fiche ?')" class="hist-action-btn hist-btn-supprimer">🗑️ <span>Supprimer</span></a>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="10" style="text-align:center;padding:48px;color:var(--gris3);">
+      <div style="font-size:36px;margin-bottom:10px;">💰</div>
+      Aucune fiche de paie — <button onclick="openModal('modalAddPaie')" style="background:none;border:none;color:var(--bleu2);cursor:pointer;font-weight:700;">Créer la première</button>
+    </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- MODAL Ajouter fiche de paie -->
+<div id="modalAddPaie" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>💰 Nouvelle fiche de paie</h3>
+      <button class="modal-close" onclick="closeModal('modalAddPaie')">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('paie_add') }}">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Employé *</label>
+            <select name="employe_id" id="paie_emp" required onchange="chargerSalaire(this)"
+              style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="">— Sélectionner —</option>
+              {% for e in employes %}
+              <option value="{{ e.id }}" data-salaire="{{ e.salaire_base or 0 }}">
+                {{ e.nom }} {{ e.prenom or '' }} — {{ e.poste or '' }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Mois *</label>
+            <input type="month" name="mois" id="paie_mois" required value="{{ mois_courant }}">
+          </div>
+          <div class="form-group">
+            <label>Salaire de base ({{ cfg.devise if cfg else 'FCFA' }})</label>
+            <input type="number" name="salaire_base" id="paie_base" step="500" min="0" value="0" oninput="calcNetPaie()">
+          </div>
+          <div class="form-group">
+            <label>Prime transport</label>
+            <input type="number" name="prime_transport" id="paie_transp" step="500" min="0" value="0" oninput="calcNetPaie()">
+          </div>
+          <div class="form-group">
+            <label>Prime ancienneté</label>
+            <input type="number" name="prime_anciennete" id="paie_ancien" step="500" min="0" value="0" oninput="calcNetPaie()">
+          </div>
+          <div class="form-group">
+            <label>Autres primes</label>
+            <input type="number" name="autres_primes" id="paie_autres_p" step="500" min="0" value="0" oninput="calcNetPaie()">
+          </div>
+          <div class="form-group">
+            <label>Retenue absence</label>
+            <input type="number" name="retenue_absence" id="paie_ret_abs" step="500" min="0" value="0" oninput="calcNetPaie()">
+          </div>
+          <div class="form-group">
+            <label>Autres retenues</label>
+            <input type="number" name="autres_retenues" id="paie_ret_aut" step="500" min="0" value="0" oninput="calcNetPaie()">
+          </div>
+          <!-- Résumé calculé -->
+          <div class="form-group full" style="background:linear-gradient(135deg,#f0f7ff,#e0f2fe);border:1.5px solid #bae6fd;border-radius:10px;padding:14px 16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-size:10px;color:#0369a1;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Salaire Brut</div>
+                <div style="font-size:18px;font-weight:800;color:#0369a1;" id="disp_brut">0 {{ cfg.devise if cfg else 'FCFA' }}</div>
+              </div>
+              <div style="font-size:24px;color:#94a3b8;">→</div>
+              <div>
+                <div style="font-size:10px;color:#1a3a6c;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Net à Payer</div>
+                <div style="font-size:22px;font-weight:900;color:var(--bleu);" id="disp_net">0 {{ cfg.devise if cfg else 'FCFA' }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Mode de paiement</label>
+            <select name="mode_paiement" style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="especes">💵 Espèces</option>
+              <option value="virement">🏦 Virement</option>
+              <option value="wave">📱 Wave</option>
+              <option value="orange_money">🟠 Orange Money</option>
+              <option value="mtn_money">🟡 MTN Money</option>
+              <option value="cheque">📄 Chèque</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Notes</label>
+            <input name="notes" placeholder="Observations…">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalAddPaie')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Créer la fiche</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<style>
+/* ── Boutons d'action tableau ── */
+.hist-action-btn {
+  display:inline-flex;align-items:center;gap:4px;
+  padding:5px 10px;border-radius:7px;
+  font-size:11px;font-weight:700;font-family:inherit;
+  border:1.5px solid transparent;cursor:pointer;
+  transition:all .15s;white-space:nowrap;line-height:1;
+  text-decoration:none;
+}
+.hist-action-btn span { font-size:11px; }
+.hist-btn-edit      { background:#f5f3ff;color:#7c3aed;border-color:#ddd6fe; }
+.hist-btn-edit:hover { background:#7c3aed;color:white;border-color:#7c3aed;box-shadow:0 2px 8px rgba(124,58,237,.25); }
+.hist-btn-fiche     { background:#eff6ff;color:#2563eb;border-color:#bfdbfe; }
+.hist-btn-fiche:hover { background:#2563eb;color:white;border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.25); }
+.hist-btn-imprimer  { background:#f0f7ff;color:#2563eb;border-color:#bfdbfe; }
+.hist-btn-imprimer:hover { background:#2563eb;color:white;border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.25); }
+.hist-btn-valider   { background:#eff6ff;color:#2563eb;border-color:#bfdbfe; }
+.hist-btn-valider:hover { background:#2563eb;color:white;border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.25); }
+.hist-btn-payer     { background:#f0fdf4;color:#16a34a;border-color:#86efac; }
+.hist-btn-payer:hover { background:#16a34a;color:white;border-color:#16a34a;box-shadow:0 2px 8px rgba(22,163,74,.25); }
+.hist-btn-approuver { background:#f0fdf4;color:#16a34a;border-color:#86efac; }
+.hist-btn-approuver:hover { background:#16a34a;color:white;border-color:#16a34a;box-shadow:0 2px 8px rgba(22,163,74,.25); }
+.hist-btn-refuser   { background:#fff1f2;color:#dc2626;border-color:#fca5a5; }
+.hist-btn-refuser:hover { background:#dc2626;color:white;border-color:#dc2626;box-shadow:0 2px 8px rgba(220,38,38,.25); }
+.hist-btn-cloturer  { background:#f8fafc;color:#475569;border-color:#cbd5e1; }
+.hist-btn-cloturer:hover { background:#475569;color:white;border-color:#475569;box-shadow:0 2px 8px rgba(71,85,105,.25); }
+.hist-btn-supprimer { background:#fff1f2;color:#dc2626;border-color:#fca5a5; }
+.hist-btn-supprimer:hover { background:#dc2626;color:white;border-color:#dc2626;box-shadow:0 2px 8px rgba(220,38,38,.25); }
+</style>
+
+<script>
+var DEVISE = "{{ cfg.devise if cfg else 'FCFA' }}";
+
+function chargerSalaire(sel) {
+  var opt = sel.options[sel.selectedIndex];
+  var sal = parseFloat(opt.dataset.salaire || 0);
+  document.getElementById('paie_base').value = sal;
+  calcNetPaie();
+}
+
+function calcNetPaie() {
+  var base   = parseFloat(document.getElementById('paie_base').value)||0;
+  var transp = parseFloat(document.getElementById('paie_transp').value)||0;
+  var ancien = parseFloat(document.getElementById('paie_ancien').value)||0;
+  var autres = parseFloat(document.getElementById('paie_autres_p').value)||0;
+  var rAbs   = parseFloat(document.getElementById('paie_ret_abs').value)||0;
+  var rAut   = parseFloat(document.getElementById('paie_ret_aut').value)||0;
+  var brut   = base + transp + ancien + autres;
+  var net    = Math.max(0, brut - rAbs - rAut);
+  function fmt(n){ return Math.round(n).toLocaleString('fr-FR') + ' ' + DEVISE; }
+  document.getElementById('disp_brut').textContent = fmt(brut);
+  document.getElementById('disp_net').textContent  = fmt(net);
+}
+</script>
+{% endblock %}

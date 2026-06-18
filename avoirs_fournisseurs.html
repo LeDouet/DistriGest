@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Avoirs Fournisseurs — DISTRIGEST{% endblock %}
+{% block topbar_title %}↩️ Avoirs Fournisseurs{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>↩️ Avoirs Fournisseurs</h1><div class="sub">Retours, crédits et rectifications fournisseurs</div></div>
+  <button onclick="openModal('modalAddAVF')" class="btn btn-primary">➕ Nouvel avoir</button>
+</div>
+
+<div class="table-card">
+  <div class="thead"><h3>{{ avoirs|length }} avoir(s) fournisseur</h3></div>
+  <table>
+    <thead><tr><th>Référence</th><th>Date</th><th>Fournisseur</th><th>Facture liée</th><th>Type</th><th>Montant TTC</th><th>Statut</th><th>Action</th></tr></thead>
+    <tbody>
+    {% for a in avoirs %}
+    <tr>
+      <td><code style="color:var(--bleu2);font-size:10px;font-weight:700;">{{ a.reference }}</code></td>
+      <td style="font-size:11px;color:var(--gris3);">{{ a.date_avoir or '—' }}</td>
+      <td style="font-weight:600;">{{ a.fourn_nom or '—' }}</td>
+      <td>{% if a.facture_ref %}<span class="badge badge-info">{{ a.facture_ref or '—' }}</span>{% else %}—{% endif %}</td>
+      <td><span class="badge badge-sec">{{ a.type_avoir or '—' }}</span></td>
+      <td style="font-weight:800;color:var(--or);">{{ (a.total_ttc or 0)|fcfa }} FCFA</td>
+      <td>{% if a.statut=='en_attente' %}<span class="badge" style="background:#fef9c3;color:#a16207;">⏳</span>{% else %}<span class="badge badge-success">✅</span>{% endif %}</td>
+      <td><a href="/avoirs_fournisseurs/delete/{{ a.id }}" onclick="return confirm('Supprimer l\'avoir {{ a.reference }} ? Cette action est irréversible.')" class="hist-action-btn hist-btn-supprimer">🗑️ <span>Supprimer</span></a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" style="text-align:center;color:var(--gris3);padding:40px;">
+      <div style="font-size:36px;margin-bottom:8px;">↩️</div>Aucun avoir fournisseur
+    </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div id="modalAddAVF" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header"><h3>↩️ Nouvel avoir fournisseur</h3><button class="modal-close" onclick="closeModal('modalAddAVF')">✕</button></div>
+    <form method="POST" action="/avoirs_fournisseurs/add">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full"><label>Fournisseur *</label>
+            <select name="fournisseur_id" required style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="">— Sélectionner —</option>
+              {% for f in fournisseurs %}<option value="{{ f.id }}">{{ f.nom }}</option>{% endfor %}
+            </select></div>
+          <div class="form-group full"><label>Facture fournisseur liée</label>
+            <select name="facture_fourn_id" id="avfFactureSelect" style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="">— Sans document —</option>
+              {% if factures_fourn %}
+              <optgroup label="🧾 Factures fournisseurs">
+                {% for f in factures_fourn %}
+                <option value="ff:{{ f.id }}" data-ht="{{ f.total_ht or 0 }}" data-ttc="{{ f.total_ttc or 0 }}" data-reste="{{ f.reste or 0 }}" data-fourn="{{ f.fournisseur_id }}">{{ f.reference }}</option>
+                {% endfor %}
+              </optgroup>
+              {% endif %}
+              {% if commandes_achat %}
+              <optgroup label="🛒 Commandes achat">
+                {% for c in commandes_achat %}
+                <option value="da:{{ c.id }}" data-ht="{{ c.total_ht or 0 }}" data-ttc="{{ c.total_ttc or 0 }}" data-reste="{{ c.reste or 0 }}" data-fourn="{{ c.fournisseur_id }}">{{ c.reference }}</option>
+                {% endfor %}
+              </optgroup>
+              {% endif %}
+            </select></div>
+          <div class="form-group"><label>Date avoir</label><input type="date" name="date_avoir" id="avfDate"></div>
+          <div class="form-group"><label>Type avoir</label>
+            <select name="type_avoir" style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="retour">↩️ Retour marchandise</option>
+              <option value="erreur">❌ Erreur facturation</option>
+              <option value="remise">🏷️ Remise commerciale</option>
+            </select></div>
+          <div class="form-group"><label>Montant HT (FCFA) *</label><input type="number" name="total_ht" id="avfMontantHT" step="1" min="0" required placeholder="0"></div>
+          <div id="avfMontantInfo" style="display:none;font-size:11px;color:var(--gris3);padding:4px 0 0 2px;grid-column:1/-1;"></div>
+          <div class="form-group full"><label>Motif *</label><input name="motif" required placeholder="Raison de l'avoir…"></div>
+          <div class="form-group full"><label>Notes</label><textarea name="notes" rows="2" style="width:100%;padding:8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalAddAVF')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary" style="background:linear-gradient(135deg,#92400e,#f59e0b);">💾 Créer l'avoir</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+/* ── Boutons d'action tableau ── */
+.hist-action-btn {
+  display:inline-flex;align-items:center;gap:4px;
+  padding:5px 10px;border-radius:7px;
+  font-size:11px;font-weight:700;font-family:inherit;
+  border:1.5px solid transparent;cursor:pointer;
+  transition:all .15s;white-space:nowrap;line-height:1;
+  text-decoration:none;
+}
+.hist-action-btn span { font-size:11px; }
+.hist-btn-supprimer { background:#fff1f2;color:#dc2626;border-color:#fca5a5; }
+.hist-btn-supprimer:hover { background:#dc2626;color:white;border-color:#dc2626;box-shadow:0 2px 8px rgba(220,38,38,.25); }
+</style>
+
+<script>
+document.getElementById('avfDate').value = new Date().toISOString().split('T')[0];
+
+// ── Pré-remplissage montant selon facture liée ──
+document.getElementById('avfFactureSelect').addEventListener('change', function() {
+  var sel  = this.options[this.selectedIndex];
+  var htInput   = document.getElementById('avfMontantHT');
+  var infoBox   = document.getElementById('avfMontantInfo');
+
+  if (!this.value) {
+    htInput.value = '';
+    htInput.removeAttribute('max');
+    infoBox.style.display = 'none';
+    return;
+  }
+
+  var ht    = parseFloat(sel.dataset.ht)    || 0;
+  var ttc   = parseFloat(sel.dataset.ttc)   || 0;
+  var reste = parseFloat(sel.dataset.reste)  || 0;
+
+  // Pré-remplir avec le montant HT de la facture (ou le reste si paiement partiel)
+  var montantSuggere = ht > 0 ? ht : ttc;
+  htInput.value = Math.round(montantSuggere);
+  htInput.max   = Math.round(ht > 0 ? ht : ttc);
+
+  // Info contextuelle
+  var fmt = function(v){ return new Intl.NumberFormat('fr-CI').format(Math.round(v)); };
+  infoBox.innerHTML = '📄 Facture : <strong>' + fmt(ttc) + ' FCFA TTC</strong>'
+    + ' &nbsp;·&nbsp; Reste dû : <strong style="color:var(--rouge);">' + fmt(reste) + ' FCFA</strong>';
+  infoBox.style.display = 'block';
+});
+</script>
+{% endblock %}

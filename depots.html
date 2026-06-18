@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+{% block title %}Dépôts — DISTRIGEST{% endblock %}
+{% block topbar_title %}🏭 Gestion des Dépôts{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div><h1>🏭 Dépôts</h1><div class="sub">Gestion des sites de stockage boissons</div></div>
+  <button onclick="openModal('modalAddDepot')" class="btn btn-primary">➕ Nouveau dépôt</button>
+</div>
+
+<!-- KPIs dépôts -->
+<div class="kpi-grid" style="margin-bottom:18px;">
+  <div class="kpi-card">
+    <div class="label">Dépôts actifs</div>
+    <div class="value">{{ depots|selectattr('actif')|list|length }}</div>
+    <div class="sub">Sites de stockage</div><div class="icon-bg">🏭</div>
+  </div>
+  <div class="kpi-card vert">
+    <div class="label">Total articles stockés</div>
+    <div class="value" style="color:var(--vert)">{{ total_articles }}</div>
+    <div class="sub">Références distinctes</div><div class="icon-bg">📦</div>
+  </div>
+  <div class="kpi-card or">
+    <div class="label">Valeur totale stock</div>
+    <div class="value" style="color:var(--or);font-size:18px">{{ valeur_totale | fcfa }}</div>
+    <div class="sub">FCFA</div><div class="icon-bg">💰</div>
+  </div>
+  <div class="kpi-card rouge">
+    <div class="label">Alertes ruptures</div>
+    <div class="value" style="color:var(--rouge)">{{ total_alertes }}</div>
+    <div class="sub">Articles à réapprovisionner</div><div class="icon-bg">⚠️</div>
+  </div>
+</div>
+
+<!-- Grille dépôts -->
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:24px;">
+{% for d in depots %}
+<div class="table-card" style="padding:0;overflow:hidden;border-top:4px solid {{ 'var(--vert)' if d.actif else 'var(--gris3)' }};">
+  <div style="padding:16px 18px 12px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+      <div>
+        <div style="font-size:15px;font-weight:800;color:var(--bleu);">🏭 {{ d.nom }}</div>
+        <div style="font-size:11px;color:var(--gris3);margin-top:2px;">{{ d.adresse or 'Adresse non renseignée' }}</div>
+      </div>
+      <form method="POST" action="/depots/{{ d.id }}/toggle_actif" style="display:inline;">
+        <button type="submit"
+          class="depot-toggle {{ 'depot-toggle-actif' if d.actif else 'depot-toggle-inactif' }}"
+          title="{{ 'Cliquer pour désactiver' if d.actif else 'Cliquer pour activer' }}">
+          {{ '✅ Actif' if d.actif else '⏸ Inactif' }}
+        </button>
+      </form>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      {% if d.responsable %}
+      <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--gris3);">
+        👤 {{ d.responsable or '—' }}
+      </div>
+      {% endif %}
+      {% if d.telephone %}
+      <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--gris3);">
+        📞 {{ d.telephone or '—' }}
+      </div>
+      {% endif %}
+    </div>
+    <!-- Stats stock de ce dépôt -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;background:var(--bg-card);border-radius:8px;border:1px solid var(--border);">
+      <div style="text-align:center;">
+        <div style="font-size:18px;font-weight:800;color:var(--bleu);">{{ d.nb_articles or 0 }}</div>
+        <div style="font-size:10px;color:var(--gris3);">Articles</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:14px;font-weight:800;color:var(--or);">{{ (d.valeur_stock or 0) | fcfa }}</div>
+        <div style="font-size:10px;color:var(--gris3);">Valeur</div>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;gap:0;border-top:1px solid var(--gris2);">
+    <button class="hist-action-btn hist-btn-edit" style="flex:1;border-radius:0;border:none;border-right:1px solid var(--gris2);justify-content:center;"
+      data-id="{{ d.id }}"
+      data-nom="{{ d.nom|e }}"
+      data-adresse="{{ d.adresse or ''|e }}"
+      data-responsable="{{ d.responsable or ''|e }}"
+      data-telephone="{{ d.telephone or ''|e }}"
+      data-actif="{{ '1' if d.actif else '0' }}"
+      onclick="openEditDepot(this)">✏️ <span>Modifier</span></button>
+    <form method="POST" action="/depots/destroy/{{ d.id }}" style="flex:1;display:flex;" onsubmit="return confirm('⚠️ Supprimer définitivement le dépôt {{ d.nom }} ?\nTous les stocks associés seront effacés. Cette action est irréversible.')">
+      <button type="submit" class="hist-action-btn hist-btn-supprimer" style="flex:1;border-radius:0;border:none;justify-content:center;">🗑️ <span>Supprimer</span></button>
+    </form>
+  </div>
+</div>
+{% else %}
+<div style="grid-column:1/-1;text-align:center;padding:60px;background:var(--bg-card);border-radius:12px;border:1px solid var(--border);">
+  <div style="font-size:40px;margin-bottom:12px;">🏭</div>
+  <div style="font-weight:700;font-size:14px;">Aucun dépôt enregistré</div>
+  <div style="font-size:12px;color:var(--gris3);margin-top:4px;">Créez votre premier dépôt pour commencer</div>
+</div>
+{% endfor %}
+</div>
+
+<!-- MODAL Ajouter dépôt -->
+<div id="modalAddDepot" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>🏭 Nouveau dépôt</h3>
+      <button class="modal-close" onclick="closeModal('modalAddDepot')">✕</button>
+    </div>
+    <form method="POST" action="/depots/add">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Nom du dépôt *</label>
+            <input name="nom" required placeholder="DÉPÔT CENTRAL, Entrepôt Zone 4…"
+              style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div class="form-group full">
+            <label>Adresse</label>
+            <input name="adresse" placeholder="Quartier, commune, Abidjan…">
+          </div>
+          <div class="form-group">
+            <label>Responsable</label>
+            <input name="responsable" placeholder="Nom du responsable de dépôt">
+          </div>
+          <div class="form-group">
+            <label>Téléphone</label>
+            <input name="telephone" placeholder="+225 07 XX XX XX XX">
+          </div>
+          <div class="form-group full" style="display:flex;align-items:center;gap:10px;">
+            <input type="checkbox" name="actif" id="addDepotActif" checked style="width:16px;height:16px;cursor:pointer;">
+            <label for="addDepotActif" style="cursor:pointer;font-weight:600;">Dépôt actif</label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalAddDepot')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL Modifier dépôt -->
+<div id="modalEditDepot" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>✏️ Modifier le dépôt</h3>
+      <button class="modal-close" onclick="closeModal('modalEditDepot')">✕</button>
+    </div>
+    <form method="POST" id="editDepotForm" action="">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Nom du dépôt *</label>
+            <input name="nom" id="ed_nom" required style="text-transform:uppercase;"
+              oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div class="form-group full">
+            <label>Adresse</label>
+            <input name="adresse" id="ed_adresse">
+          </div>
+          <div class="form-group">
+            <label>Responsable</label>
+            <input name="responsable" id="ed_responsable">
+          </div>
+          <div class="form-group">
+            <label>Téléphone</label>
+            <input name="telephone" id="ed_telephone">
+          </div>
+          <div class="form-group full" style="display:flex;align-items:center;gap:10px;">
+            <input type="checkbox" name="actif" id="ed_actif" style="width:16px;height:16px;cursor:pointer;">
+            <label for="ed_actif" style="cursor:pointer;font-weight:600;">Dépôt actif</label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalEditDepot')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<style>
+/* ── Boutons d'action dépôt ── */
+.hist-action-btn {
+  display:inline-flex;align-items:center;gap:4px;
+  padding:5px 10px;border-radius:7px;
+  font-size:11px;font-weight:700;font-family:inherit;
+  border:1.5px solid transparent;cursor:pointer;
+  transition:all .15s;white-space:nowrap;line-height:1;
+  text-decoration:none;
+}
+.hist-btn-edit { background:var(--bg-input);color:#7c3aed;border-color:#ddd6fe; }
+.hist-btn-edit:hover { background:#7c3aed;color:white;border-color:#7c3aed;box-shadow:0 2px 8px rgba(124,58,237,.25); }
+.hist-btn-supprimer { background:var(--bg-input);color:#dc2626;border-color:#fca5a5; }
+.hist-btn-supprimer:hover { background:#dc2626;color:white;border-color:#dc2626;box-shadow:0 2px 8px rgba(220,38,38,.25); }
+
+/* ── Toggle Actif / Inactif ── */
+.depot-toggle {
+  display:inline-flex;align-items:center;gap:6px;
+  padding:5px 12px;border-radius:20px;
+  font-size:11px;font-weight:700;font-family:inherit;
+  border:1.5px solid transparent;cursor:pointer;
+  transition:all .2s;white-space:nowrap;line-height:1;
+  text-decoration:none;
+}
+.depot-toggle-actif {
+  background:var(--bg-input);color:#15803d;border-color:#86efac;
+}
+.depot-toggle-actif:hover {
+  background:#15803d;color:white;border-color:#15803d;
+  box-shadow:0 2px 8px rgba(21,128,61,.25);
+}
+.depot-toggle-actif:hover::after { content:' → Désactiver'; font-size:10px; opacity:.8; }
+.depot-toggle-inactif {
+  background:var(--bg-input);color:var(--gris3);border-color:var(--border);
+}
+.depot-toggle-inactif:hover {
+  background:#16a34a;color:white;border-color:#16a34a;
+  box-shadow:0 2px 8px rgba(22,163,74,.25);
+}
+.depot-toggle-inactif:hover::after { content:' → Activer'; font-size:10px; opacity:.8; }
+</style>
+
+<script>
+function openEditDepot(btn) {
+  document.getElementById('editDepotForm').action = '/depots/edit/' + btn.dataset.id;
+  document.getElementById('ed_nom').value         = btn.dataset.nom;
+  document.getElementById('ed_adresse').value     = btn.dataset.adresse;
+  document.getElementById('ed_responsable').value = btn.dataset.responsable;
+  document.getElementById('ed_telephone').value   = btn.dataset.telephone;
+  document.getElementById('ed_actif').checked     = btn.dataset.actif === '1';
+  openModal('modalEditDepot');
+}
+</script>
+
+{# ── Patch thème sombre — depots ── #}
+<style>
+/* KPI cards */
+[data-theme="dark"] .kpi-card         { background:var(--bg-card) !important; }
+[data-theme="dark"] .kpi-card .label,
+[data-theme="dark"] .kpi-card .sub    { color:var(--gris3) !important; }
+
+/* Cards dépôt (.table-card avec padding:0) */
+[data-theme="dark"] .table-card       { background:var(--bg-card) !important; border-color:var(--border) !important; }
+/* Pied de card */
+[data-theme="dark"] [style*="display:flex;gap:0;border-top"] { border-top-color:var(--border) !important; }
+/* Stats stock inline */
+[data-theme="dark"] [style*="background:var(--bg-card)"][style*="border-radius:8px"] {
+  background:var(--bg-card) !important; border-color:var(--border) !important;
+}
+
+/* Boutons toggle actif/inactif */
+[data-theme="dark"] .depot-toggle-actif   { background:#052e16 !important; color:#4ade80 !important; border-color:#14532d !important; }
+[data-theme="dark"] .depot-toggle-inactif { background:var(--bg-input) !important; color:var(--gris3) !important; border-color:var(--border) !important; }
+
+/* Boutons action */
+[data-theme="dark"] .hist-btn-edit      { background:#1e1040 !important; color:#c084fc !important; border-color:#4c1d95 !important; }
+[data-theme="dark"] .hist-btn-supprimer { background:#3d0f0f !important; color:#fca5a5 !important; border-color:#7f1d1d !important; }
+
+/* Inputs / selects */
+[data-theme="dark"] input:not([type=checkbox]),
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+}
+
+/* Modal */
+[data-theme="dark"] .modal            { background:var(--modal-bg) !important; }
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer     { border-color:var(--border) !important; }
+[data-theme="dark"] .btn-sec          { background:#1c2128 !important; color:#8b949e !important; border-color:var(--border) !important; }
+
+@media (prefers-color-scheme:dark) {
+  [data-theme="system"] .kpi-card       { background:var(--bg-card) !important; }
+  [data-theme="system"] .table-card     { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .depot-toggle-actif   { background:#052e16 !important; color:#4ade80 !important; border-color:#14532d !important; }
+  [data-theme="system"] .depot-toggle-inactif { background:var(--bg-input) !important; color:var(--gris3) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .hist-btn-edit      { background:#1e1040 !important; color:#c084fc !important; border-color:#4c1d95 !important; }
+  [data-theme="system"] .hist-btn-supprimer { background:#3d0f0f !important; color:#fca5a5 !important; border-color:#7f1d1d !important; }
+  [data-theme="system"] input:not([type=checkbox]), [data-theme="system"] select, [data-theme="system"] textarea {
+    background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+  }
+  [data-theme="system"] .modal          { background:var(--modal-bg) !important; }
+  [data-theme="system"] .btn-sec        { background:#1c2128 !important; color:#8b949e !important; }
+}
+</style>
+{% endblock %}

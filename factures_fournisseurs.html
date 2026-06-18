@@ -1,0 +1,449 @@
+{% extends "base.html" %}
+{% block title %}Factures Fournisseurs — DISTRIGEST{% endblock %}
+{% block topbar_title %}📄 Factures Fournisseurs{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>📄 Factures Fournisseurs</h1><div class="sub">Rapprochement BL/Facture · Règlements · Historique</div></div>
+  <button onclick="openModal('modalAddFF')" class="btn btn-primary" style="background:linear-gradient(135deg,#92400e,#f59e0b);">➕ Nouvelle facture fourn.</button>
+</div>
+
+<div class="kpi-grid" style="margin-bottom:18px;">
+  <div class="kpi-card rouge">
+    <div class="label">Total dû fournisseurs</div>
+    <div class="value" style="color:var(--rouge);font-size:18px;">{{ (stats.total_du or 0)|fcfa }} FCFA</div>
+    <div class="sub">Reste à payer</div><div class="icon-bg">⚠️</div>
+  </div>
+  <div class="kpi-card or">
+    <div class="label">Factures en attente</div>
+    <div class="value" style="color:var(--or);">{{ stats.nb_attente or 0 }}</div>
+    <div class="sub">Non encore réglées</div><div class="icon-bg">⏳</div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Total facturé</div>
+    <div class="value" style="font-size:18px;">{{ (stats.total_global or 0)|fcfa }} FCFA</div>
+    <div class="sub">Toutes périodes</div><div class="icon-bg">💰</div>
+  </div>
+  <div class="kpi-card vert">
+    <div class="label">Payé ce mois</div>
+    <div class="value" style="color:var(--vert);font-size:18px;">{{ (stats.paye_mois or 0)|fcfa }} FCFA</div>
+    <div class="sub">Paiements du mois</div><div class="icon-bg">✅</div>
+  </div>
+</div>
+
+<!-- Filtres -->
+<div class="table-card" style="margin-bottom:14px;">
+  <form method="GET" action="/factures_fournisseurs">
+    <div style="padding:10px 16px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+      <div><label style="font-size:10px;font-weight:700;color:var(--gris3);display:block;margin-bottom:3px;">Recherche</label>
+        <input type="text" name="q" value="{{ q }}" placeholder="Réf., fournisseur…" style="height:30px;padding:0 10px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;width:180px;"></div>
+      <div><label style="font-size:10px;font-weight:700;color:var(--gris3);display:block;margin-bottom:3px;">Statut</label>
+        <select name="statut" style="height:30px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+          <option value="">Tous</option>
+          <option value="en_attente" {{ 'selected' if statut_f=='en_attente' }}>⏳ En attente</option>
+          <option value="partielle" {{ 'selected' if statut_f=='partielle' }}>◑ Partielle</option>
+          <option value="reglee" {{ 'selected' if statut_f=='reglee' }}>✅ Réglée</option>
+        </select></div>
+      <button type="submit" class="btn btn-primary btn-sm">🔍 Filtrer</button>
+      <a href="/factures_fournisseurs" class="btn btn-sec btn-sm">✕</a>
+    </div>
+  </form>
+</div>
+
+<div class="table-card">
+  <div class="thead"><h3>{{ factures|length }} facture(s) fournisseur</h3></div>
+  <table>
+    <thead><tr><th>Notre Réf.</th><th>Réf. Fourn.</th><th>Date</th><th>Fournisseur</th><th>Commande</th><th>Échéance</th><th>TTC</th><th>Reste</th><th>Statut</th><th>Actions</th></tr></thead>
+    <tbody>
+    {% for f in factures %}
+    <tr>
+      <td><code style="color:var(--bleu2);font-size:10px;font-weight:700;">{{ f.reference }}</code></td>
+      <td style="font-size:11px;color:var(--gris3);">{{ f.ref_fournisseur or '—' }}</td>
+      <td style="font-size:11px;color:var(--gris3);">{{ f.date_facture }}</td>
+      <td style="font-weight:600;">{{ f.fourn_nom }}</td>
+      <td style="font-size:11px;">{% if f.commande_ref %}<a href="/achats?q={{ f.commande_ref }}" title="Voir la commande achat source" style="text-decoration:none;"><span class="badge badge-sec">🔗 {{ f.commande_ref }}</span></a>{% else %}—{% endif %}</td>
+      <td style="font-size:11px;font-weight:600;color:{{ 'var(--rouge)' if f.statut!='reglee' and f.date_echeance else 'var(--gris3)' }};">{{ f.date_echeance or '—' }}</td>
+      <td style="font-weight:700;color:var(--or);">{{ (f.total_ttc or 0)|fcfa }}</td>
+      <td style="font-weight:700;color:{{ 'var(--rouge)' if (f.reste or 0)>0 else 'var(--vert)' }};">{{ (f.reste or 0)|fcfa }}</td>
+      <td>{% if f.statut=='reglee' %}<span class="badge badge-success">✅ Réglée</span>{% elif f.statut=='partielle' %}<span class="badge" style="background:#dbeafe;color:#1d4ed8;">◑ Partielle</span>{% else %}<span class="badge" style="background:#fef9c3;color:#a16207;">⏳</span>{% endif %}</td>
+      <td style="white-space:nowrap;vertical-align:middle;"><div style="display:inline-flex;gap:4px;align-items:center;">
+        {% if f.statut != 'reglee' %}
+        <button class="hist-action-btn hist-btn-action-green"
+          data-id="{{ f.id }}"
+          data-ref="{{ f.reference }}"
+          data-fourn="{{ f.fourn_nom }}"
+          data-ttc="{{ f.total_ttc or 0 }}"
+          data-regle="{{ (f.total_ttc or 0) - (f.reste or 0) }}"
+          data-mode="especes"
+          title="Régler"
+          onclick="openReglementFF(this)">💳 <span>Régler</span></button>
+        {% endif %}
+        {% if f.statut == 'en_attente' %}
+        <button class="hist-action-btn hist-btn-modifier"
+          data-id="{{ f.id }}"
+          data-ref="{{ f.reference|e }}"
+          data-fourn="{{ f.fournisseur_id }}"
+          data-ref-fourn="{{ f.ref_fournisseur or '' }}"
+          data-date="{{ f.date_facture or '' }}"
+          data-echeance="{{ f.date_echeance or '' }}"
+          data-mode="{{ f.mode_paiement or 'virement' }}"
+          data-notes="{{ f.notes or '' }}"
+          onclick="openEditFF(this)">✏️ <span>Modifier</span></button>
+        {% endif %}
+        <a href="/factures_fournisseurs/{{ f.id }}/print" target="_blank" class="hist-action-btn hist-btn-imprimer" title="Imprimer">🖨️ <span>Imprimer</span></a>
+        <a href="/factures_fournisseurs/delete/{{ f.id }}"
+           onclick="return confirm('Supprimer la facture {{ f.reference }} ?{% if f.commande_ref %}\n\n⚠️ Cette facture est issue de la commande {{ f.commande_ref }}.\nLa commande repassera en statut « En attente ».{% endif %}')"
+           class="hist-action-btn hist-btn-supprimer" title="Supprimer">🗑 <span>Supprimer</span></a>
+      </div></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="10" style="text-align:center;color:var(--gris3);padding:40px;"><div style="font-size:36px;margin-bottom:8px;">📄</div>Aucune facture fournisseur</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- MODAL Nouvelle facture fournisseur -->
+<div id="modalAddFF" class="modal-overlay">
+  <div class="modal" style="max-width:860px;width:98%;">
+    <div class="modal-header"><h3>📄 Nouvelle facture fournisseur</h3><button class="modal-close" onclick="closeModal('modalAddFF')">✕</button></div>
+    <form method="POST" action="/factures_fournisseurs/add" id="formAddFF" onsubmit="ffPreSubmit()">
+      <input type="hidden" name="lignes_json" id="ff_lignes_json">
+      <div class="modal-body" style="max-height:78vh;overflow-y:auto;">
+        <div class="form-grid">
+          <div class="form-group"><label>Fournisseur *</label>
+            <select name="fournisseur_id" required style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="">—</option>{% for f in fournisseurs %}<option value="{{ f.id }}">{{ f.nom }}</option>{% endfor %}
+            </select></div>
+          <div class="form-group"><label>Réf. fournisseur</label><input name="ref_fournisseur" placeholder="Référence sur leur facture"></div>
+          <div class="form-group"><label>Date facture</label><input type="date" name="date_facture" id="ffDate"></div>
+          <div class="form-group"><label>Date échéance</label><input type="date" name="date_echeance"></div>
+          <div class="form-group full"><label>Commande liée</label>
+            <select name="commande_id" style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="">— Sans commande —</option>
+              {% for c in commandes %}<option value="{{ c.id }}">{{ c.reference }}</option>{% endfor %}
+            </select></div>
+          <div class="form-group"><label>Mode paiement</label>
+            <select name="mode_paiement" style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="virement">🏦 Virement</option><option value="cheque">📄 Chèque</option><option value="especes">💵 Espèces</option>
+            </select></div>
+          <div class="form-group full"><label>Notes</label><input name="notes" placeholder="Remarques…"></div>
+        </div>
+
+        <!-- ── Lignes d'articles ── -->
+        <div style="margin-top:18px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <label style="font-weight:700;font-size:12px;color:var(--bleu);">📦 Lignes d'articles</label>
+            <button type="button" onclick="ffAddLigne()" class="btn btn-sm" style="background:linear-gradient(135deg,#92400e,#f59e0b);color:white;border:none;padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">➕ Ajouter une ligne</button>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;" id="ff_lignes_table">
+            <thead>
+              <tr style="background:#f1f5f9;">
+                <th style="padding:6px 8px;text-align:left;border:1px solid var(--gris2);width:35%;">Désignation *</th>
+                <th style="padding:6px 8px;text-align:right;border:1px solid var(--gris2);width:12%;">Qté</th>
+                <th style="padding:6px 8px;text-align:right;border:1px solid var(--gris2);width:15%;">PU HT (FCFA)</th>
+                <th style="padding:6px 8px;text-align:right;border:1px solid var(--gris2);width:10%;">TVA %</th>
+                <th style="padding:6px 8px;text-align:right;border:1px solid var(--gris2);width:15%;">Total HT</th>
+                <th style="padding:6px 8px;text-align:right;border:1px solid var(--gris2);width:10%;">Total TTC</th>
+                <th style="padding:6px 4px;text-align:center;border:1px solid var(--gris2);width:3%;"></th>
+              </tr>
+            </thead>
+            <tbody id="ff_lignes_body">
+              <!-- lignes dynamiques -->
+            </tbody>
+            <tfoot>
+              <tr style="background:#f8fafc;font-weight:700;">
+                <td colspan="4" style="padding:7px 8px;border:1px solid var(--gris2);text-align:right;font-size:12px;color:var(--gris3);">TOTAL</td>
+                <td style="padding:7px 8px;border:1px solid var(--gris2);text-align:right;color:var(--bleu);" id="ff_total_ht_display">0 FCFA</td>
+                <td style="padding:7px 8px;border:1px solid var(--gris2);text-align:right;color:var(--or);font-size:13px;" id="ff_total_ttc_display">0 FCFA</td>
+                <td style="border:1px solid var(--gris2);"></td>
+              </tr>
+            </tfoot>
+          </table>
+          <div id="ff_no_lignes" style="text-align:center;color:var(--gris3);font-size:12px;padding:14px;border:1.5px dashed var(--gris2);border-radius:7px;margin-top:4px;">
+            Aucune ligne — cliquez sur <strong>➕ Ajouter une ligne</strong>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" onclick="closeModal('modalAddFF')" class="btn btn-sec">Annuler</button><button type="submit" class="btn btn-primary" style="background:linear-gradient(135deg,#92400e,#f59e0b);">💾 Enregistrer</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL Règlement fournisseur – style factures.html -->
+<div id="modalReglementFF" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>💳 Règlement fournisseur</h3>
+      <button class="modal-close" onclick="closeModal('modalReglementFF')">✕</button>
+    </div>
+    <form method="POST" id="formReglementFF" action="">
+      <div class="modal-body">
+        <div style="background:#f8fafc;border:1px solid var(--gris2);border-radius:9px;padding:12px 16px;margin-bottom:14px;">
+          <div style="font-size:13px;font-weight:700;color:var(--bleu);" id="rff_ref">—</div>
+          <div style="font-size:12px;color:var(--gris3);" id="rff_fourn">—</div>
+          <div style="display:flex;gap:16px;margin-top:8px;">
+            <div><div style="font-size:9px;color:var(--gris3);text-transform:uppercase;font-weight:700;">Total TTC</div>
+              <div style="font-size:16px;font-weight:800;color:var(--bleu);" id="rff_ttc">—</div></div>
+            <div><div style="font-size:9px;color:var(--gris3);text-transform:uppercase;font-weight:700;">Déjà réglé</div>
+              <div style="font-size:16px;font-weight:800;color:var(--vert);" id="rff_deja">—</div></div>
+            <div><div style="font-size:9px;color:var(--gris3);text-transform:uppercase;font-weight:700;">Reste</div>
+              <div style="font-size:16px;font-weight:800;color:var(--rouge);" id="rff_reste">—</div></div>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Montant à régler *</label>
+            <input type="number" name="montant" id="rff_montant" step="1" min="0" required>
+          </div>
+          <div class="form-group full">
+            <label>Mode de paiement *</label>
+            <select name="mode_paiement" id="rff_mode" required>
+              <option value="especes">💵 Espèces</option>
+              <option value="wave">📱 Wave</option>
+              <option value="orange_money">🟠 Orange Money</option>
+              <option value="mtn_money">🟡 MTN Money</option>
+              <option value="moov_money">🔵 Moov Money</option>
+              <option value="carte_bancaire">💳 Carte bancaire</option>
+              <option value="virement">🏦 Virement</option>
+              <option value="cheque">📄 Chèque</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalReglementFF')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💳 Confirmer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- MODAL Modifier facture fournisseur -->
+<div id="modalEditFF" class="modal-overlay">
+  <div class="modal" style="max-width:640px;width:98%;">
+    <div class="modal-header">
+      <h3>✏️ Modifier la facture fournisseur</h3>
+      <button class="modal-close" onclick="closeModal('modalEditFF')">✕</button>
+    </div>
+    <form method="POST" id="formEditFF" action="">
+      <div class="modal-body">
+        <div style="padding:10px 14px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:8px;margin-bottom:14px;font-size:12px;color:#92400e;">
+          ⚠️ Seules les factures <strong>en attente</strong> (non réglées) peuvent être modifiées.
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Fournisseur *</label>
+            <select name="fournisseur_id" id="eff_fourn" required style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="">—</option>
+              {% for f in fournisseurs %}<option value="{{ f.id }}">{{ f.nom }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Réf. fournisseur</label>
+            <input name="ref_fournisseur" id="eff_ref_fourn" placeholder="Référence sur leur facture">
+          </div>
+          <div class="form-group">
+            <label>Date facture</label>
+            <input type="date" name="date_facture" id="eff_date">
+          </div>
+          <div class="form-group">
+            <label>Date échéance</label>
+            <input type="date" name="date_echeance" id="eff_echeance">
+          </div>
+          <div class="form-group">
+            <label>Mode paiement</label>
+            <select name="mode_paiement" id="eff_mode" style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="virement">🏦 Virement</option>
+              <option value="cheque">📄 Chèque</option>
+              <option value="especes">💵 Espèces</option>
+              <option value="wave">📱 Wave</option>
+              <option value="orange_money">🟠 Orange Money</option>
+              <option value="mtn_money">🟡 MTN Money</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label>Notes</label>
+            <input name="notes" id="eff_notes" placeholder="Remarques…">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalEditFF')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary" style="background:linear-gradient(135deg,#92400e,#f59e0b);">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+.hist-action-btn {
+  display:inline-flex;align-items:center;gap:4px;
+  padding:5px 10px;border-radius:7px;
+  font-size:11px;font-weight:700;font-family:inherit;
+  border:1.5px solid transparent;cursor:pointer;
+  transition:all .15s;white-space:nowrap;line-height:1;
+  text-decoration:none;
+}
+.hist-action-btn span { font-size:11px; }
+.hist-btn-imprimer { background:#f0f7ff;color:#2563eb;border-color:#bfdbfe; }
+.hist-btn-imprimer:hover { background:#2563eb;color:white;border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.25); }
+.hist-btn-convertir { background:#fffbeb;color:#d97706;border-color:#fcd34d; }
+.hist-btn-convertir:hover { background:#d97706;color:white;border-color:#d97706;box-shadow:0 2px 8px rgba(217,119,6,.25); }
+.hist-btn-dupliquer { background:#ecfeff;color:#0891b2;border-color:#a5f3fc; }
+.hist-btn-dupliquer:hover { background:#0891b2;color:white;border-color:#0891b2;box-shadow:0 2px 8px rgba(8,145,178,.25); }
+.hist-btn-supprimer { background:#fff1f2;color:#dc2626;border-color:#fca5a5; }
+.hist-btn-supprimer:hover { background:#dc2626;color:white;border-color:#dc2626;box-shadow:0 2px 8px rgba(220,38,38,.25); }
+.hist-btn-action-green { background:#f0fdf4;color:#16a34a;border-color:#86efac; }
+.hist-btn-action-green:hover { background:#16a34a;color:white;border-color:#16a34a;box-shadow:0 2px 8px rgba(22,163,74,.25); }
+.hist-btn-modifier { background:#fefce8;color:#ca8a04;border-color:#fde047; }
+.hist-btn-modifier:hover { background:#ca8a04;color:white;border-color:#ca8a04;box-shadow:0 2px 8px rgba(202,138,4,.25); }
+
+/* Bouton ✕ annuler ligne (saisie facture fournisseur) */
+.ff-del-btn {
+  background: none; border: none; cursor: pointer;
+  color: #e2e8f0; font-size: 14px; font-weight: 700;
+  border-radius: 4px; transition: color .12s, background .12s;
+  width: 26px; height: 26px; margin: auto;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Inter', sans-serif; line-height: 1;
+}
+.ff-del-btn:hover { color: #ef4444; background: #fee2e2; }
+@media (hover: none) and (pointer: coarse) {
+  .ff-del-btn { width: 36px; height: 36px; font-size: 16px; }
+}
+</style>
+
+<script>
+document.getElementById('ffDate').value = new Date().toISOString().split('T')[0];
+
+function fmtFF(v){ return new Intl.NumberFormat('fr-CI').format(Math.round(v))+' FCFA'; }
+
+var ff_lignes = [];
+var ff_seq = 0;
+
+function ffAddLigne(){
+  ff_seq++;
+  var id = ff_seq;
+  ff_lignes.push({id:id, designation:'', quantite:1, prix_ht:0, tva:0, total_ht:0, total_tva:0, total_ttc:0});
+  ffRender();
+  setTimeout(function(){ var el=document.getElementById('ff_des_'+id); if(el) el.focus(); },50);
+}
+
+function ffRemove(id){
+  ff_lignes = ff_lignes.filter(function(l){ return l.id!==id; });
+  ffRender();
+}
+
+function ffCalc(id){
+  var l = ff_lignes.find(function(x){ return x.id===id; });
+  if(!l) return;
+  l.designation = document.getElementById('ff_des_'+id).value;
+  l.quantite = parseFloat(document.getElementById('ff_qte_'+id).value||0)||0;
+  l.prix_ht  = parseFloat(document.getElementById('ff_pu_'+id).value||0)||0;
+  l.tva      = parseFloat(document.getElementById('ff_tva_'+id).value||0)||0;
+  l.total_ht  = Math.round(l.quantite * l.prix_ht);
+  l.total_tva = Math.round(l.total_ht * l.tva / 100);
+  l.total_ttc = l.total_ht + l.total_tva;
+  var eHT  = document.getElementById('ff_tht_'+id);
+  var eTTC = document.getElementById('ff_tttc_'+id);
+  if(eHT)  eHT.textContent  = new Intl.NumberFormat('fr-CI').format(l.total_ht);
+  if(eTTC) eTTC.textContent = new Intl.NumberFormat('fr-CI').format(l.total_ttc);
+  ffTotaux();
+}
+
+function ffTotaux(){
+  var ht  = ff_lignes.reduce(function(s,l){return s+l.total_ht;},0);
+  var ttc = ff_lignes.reduce(function(s,l){return s+l.total_ttc;},0);
+  document.getElementById('ff_total_ht_display').textContent  = fmtFF(ht);
+  document.getElementById('ff_total_ttc_display').textContent = fmtFF(ttc);
+}
+
+function escH(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function ffRender(){
+  var tbody = document.getElementById('ff_lignes_body');
+  var noMsg = document.getElementById('ff_no_lignes');
+  var table = document.getElementById('ff_lignes_table');
+  if(!ff_lignes.length){
+    tbody.innerHTML=''; noMsg.style.display='block'; table.style.display='none'; ffTotaux(); return;
+  }
+  noMsg.style.display='none'; table.style.display='table';
+  tbody.innerHTML = ff_lignes.map(function(l){
+    return '<tr>'
+      +'<td style="padding:4px 6px;border:1px solid var(--gris2);">'
+        +'<input id="ff_des_'+l.id+'" value="'+escH(l.designation)+'" placeholder="Designation..." oninput="ffCalc('+l.id+')"'
+        +' style="width:100%;height:30px;padding:0 6px;border:1px solid var(--gris2);border-radius:5px;font-size:11px;font-family:inherit;"></td>'
+      +'<td style="padding:4px 6px;border:1px solid var(--gris2);">'
+        +'<input id="ff_qte_'+l.id+'" type="number" value="'+l.quantite+'" min="0" step="0.001" oninput="ffCalc('+l.id+')"'
+        +' style="width:100%;height:30px;padding:0 6px;border:1px solid var(--gris2);border-radius:5px;font-size:11px;text-align:right;font-family:inherit;"></td>'
+      +'<td style="padding:4px 6px;border:1px solid var(--gris2);">'
+        +'<input id="ff_pu_'+l.id+'" type="number" value="'+l.prix_ht+'" min="0" step="1" oninput="ffCalc('+l.id+')"'
+        +' style="width:100%;height:30px;padding:0 6px;border:1px solid var(--gris2);border-radius:5px;font-size:11px;text-align:right;font-family:inherit;"></td>'
+      +'<td style="padding:4px 6px;border:1px solid var(--gris2);">'
+        +'<input id="ff_tva_'+l.id+'" type="number" value="'+l.tva+'" min="0" max="100" step="0.1" oninput="ffCalc('+l.id+')"'
+        +' style="width:100%;height:30px;padding:0 6px;border:1px solid var(--gris2);border-radius:5px;font-size:11px;text-align:right;font-family:inherit;"></td>'
+      +'<td style="padding:4px 8px;border:1px solid var(--gris2);text-align:right;font-weight:600;color:var(--bleu);font-size:12px;" id="ff_tht_'+l.id+'">'
+        +new Intl.NumberFormat('fr-CI').format(l.total_ht)+'</td>'
+      +'<td style="padding:4px 8px;border:1px solid var(--gris2);text-align:right;font-weight:700;color:var(--or);font-size:12px;" id="ff_tttc_'+l.id+'">'
+        +new Intl.NumberFormat('fr-CI').format(l.total_ttc)+'</td>'
+      +'<td style="padding:4px;text-align:center;border:1px solid var(--gris2);">'
+        +'<button type="button" class="ff-del-btn" onclick="ffRemove('+l.id+')" title="Annuler la ligne">✕</button></td>'
+      +'</tr>';
+  }).join('');
+  ffTotaux();
+}
+
+function ffPreSubmit(){
+  ff_lignes.forEach(function(l){
+    var d=document.getElementById('ff_des_'+l.id);
+    var q=document.getElementById('ff_qte_'+l.id);
+    var p=document.getElementById('ff_pu_'+l.id);
+    var t=document.getElementById('ff_tva_'+l.id);
+    if(d) l.designation=d.value;
+    if(q) l.quantite=parseFloat(q.value||0)||0;
+    if(p) l.prix_ht=parseFloat(p.value||0)||0;
+    if(t) l.tva=parseFloat(t.value||0)||0;
+    l.total_ht=Math.round(l.quantite*l.prix_ht);
+    l.total_tva=Math.round(l.total_ht*l.tva/100);
+    l.total_ttc=l.total_ht+l.total_tva;
+  });
+  document.getElementById('ff_lignes_json').value = JSON.stringify(ff_lignes);
+}
+
+ffRender();
+
+function openReglementFF(btn){
+  var ttc   = parseFloat(btn.dataset.ttc)  || 0;
+  var regle = parseFloat(btn.dataset.regle)|| 0;
+  document.getElementById('formReglementFF').action = '/factures_fournisseurs/' + btn.dataset.id + '/payer';
+  document.getElementById('rff_ref').textContent   = btn.dataset.ref;
+  document.getElementById('rff_fourn').textContent = btn.dataset.fourn;
+  document.getElementById('rff_ttc').textContent   = fmtFF(ttc);
+  document.getElementById('rff_deja').textContent  = fmtFF(regle);
+  document.getElementById('rff_reste').textContent = fmtFF(ttc - regle);
+  document.getElementById('rff_montant').value     = (ttc - regle).toFixed(0);
+  document.getElementById('rff_mode').value        = btn.dataset.mode || 'especes';
+  openModal('modalReglementFF');
+}
+
+function openEditFF(btn) {
+  document.getElementById('formEditFF').action = '/factures_fournisseurs/' + btn.dataset.id + '/edit';
+  // Fournisseur
+  var selFourn = document.getElementById('eff_fourn');
+  for (var i = 0; i < selFourn.options.length; i++) {
+    if (selFourn.options[i].value == btn.dataset.fourn) { selFourn.selectedIndex = i; break; }
+  }
+  document.getElementById('eff_ref_fourn').value = btn.dataset.refFourn || '';
+  document.getElementById('eff_date').value      = btn.dataset.date     || '';
+  document.getElementById('eff_echeance').value  = btn.dataset.echeance || '';
+  document.getElementById('eff_notes').value     = btn.dataset.notes    || '';
+  // Mode paiement
+  var selMode = document.getElementById('eff_mode');
+  for (var i = 0; i < selMode.options.length; i++) {
+    if (selMode.options[i].value == btn.dataset.mode) { selMode.selectedIndex = i; break; }
+  }
+  openModal('modalEditFF');
+}
+</script>
+{% endblock %}

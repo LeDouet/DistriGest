@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Erreur {{ code }} — DISTRIGEST</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #0a1628 0%, #0f2347 40%, #1a3a6c 100%);
+      position: relative; overflow: hidden; padding: 16px;
+    }
+    /* Cercles décoratifs — cohérents avec la page de connexion */
+    body::after {
+      content: '';
+      position: fixed; width: 600px; height: 600px;
+      border-radius: 50%; border: 1px solid rgba(37,99,235,.12);
+      top: -200px; right: -200px; pointer-events: none;
+    }
+    body::before {
+      content: '';
+      position: fixed; width: 420px; height: 420px;
+      border-radius: 50%; border: 1px solid rgba(37,99,235,.10);
+      bottom: -160px; left: -160px; pointer-events: none;
+    }
+    .err-wrap { position: relative; z-index: 1; width: 100%; max-width: 520px; }
+    .err-card {
+      background: rgba(255,255,255,.07);
+      backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+      border-radius: 20px; border: 1px solid rgba(255,255,255,.13);
+      box-shadow: 0 12px 48px rgba(0,0,0,.45), 0 0 0 1px rgba(37,99,235,.2);
+      padding: 36px 40px 28px; text-align: center;
+      border-top: 4px solid {{ couleur }};
+    }
+    .err-icon {
+      width: 84px; height: 84px; border-radius: 22px;
+      background: linear-gradient(135deg, {{ couleur }}33, {{ couleur }}18);
+      border: 2px solid {{ couleur }}55;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 18px; font-size: 40px;
+      animation: float 3s ease-in-out infinite;
+    }
+    @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+    .err-code {
+      font-size: 56px; font-weight: 900; line-height: 1;
+      color: {{ couleur }}; letter-spacing: 2px;
+      text-shadow: 0 4px 24px {{ couleur }}66;
+      margin-bottom: 8px;
+    }
+    .err-titre  { font-size: 19px; font-weight: 800; color: #fff; margin-bottom: 10px; }
+    .err-msg    { font-size: 13px; color: rgba(255,255,255,.65); line-height: 1.65; margin-bottom: 6px; }
+    .err-detail {
+      font-size: 11.5px; color: rgba(255,255,255,.45); line-height: 1.6;
+      background: rgba(0,0,0,.18); border: 1px solid rgba(255,255,255,.08);
+      border-radius: 10px; padding: 10px 14px; margin-top: 12px;
+      word-break: break-word;
+    }
+    .err-actions {
+      display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+      margin-top: 24px;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 11px 22px; border-radius: 10px;
+      font-size: 13px; font-weight: 700; font-family: inherit;
+      cursor: pointer; text-decoration: none; border: none;
+      transition: all .18s;
+    }
+    .btn-home {
+      background: linear-gradient(135deg, #1a3a6c, #2563eb); color: #fff;
+      box-shadow: 0 4px 18px rgba(37,99,235,.45);
+    }
+    .btn-home:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(37,99,235,.55); }
+    .btn-back {
+      background: rgba(255,255,255,.09); color: rgba(255,255,255,.85);
+      border: 1px solid rgba(255,255,255,.18);
+    }
+    .btn-back:hover { background: rgba(255,255,255,.16); transform: translateY(-2px); }
+    .btn-retry {
+      background: rgba(255,255,255,.09); color: rgba(255,255,255,.85);
+      border: 1px solid rgba(255,255,255,.18);
+    }
+    .btn-retry:hover { background: rgba(255,255,255,.16); transform: translateY(-2px); }
+    .err-footer {
+      border-top: 1px solid rgba(255,255,255,.08);
+      margin-top: 26px; padding-top: 14px;
+      font-size: 11px; color: rgba(255,255,255,.30); line-height: 1.7;
+    }
+    .err-footer strong { color: rgba(255,255,255,.5); }
+    .err-footer a { color: rgba(96,165,250,.75); text-decoration: none; font-weight: 600; }
+    .err-footer a:hover { text-decoration: underline; }
+    .err-ref {
+      display: inline-block; margin-top: 6px;
+      font-family: 'Consolas', monospace; font-size: 10px;
+      color: rgba(255,255,255,.35); letter-spacing: .5px;
+      background: rgba(0,0,0,.20); padding: 3px 10px; border-radius: 20px;
+    }
+  </style>
+</head>
+<body>
+<div class="err-wrap">
+  <div class="err-card">
+    <div class="err-icon">{{ icone }}</div>
+    <div class="err-code">{{ code }}</div>
+    <div class="err-titre">{{ titre }}</div>
+    <div class="err-msg">{{ message }}</div>
+    {% if detail %}
+    <div class="err-detail">{{ detail }}</div>
+    {% endif %}
+
+    <div class="err-actions">
+      <button class="btn btn-back" onclick="history.length > 1 ? history.back() : window.location='/'">← Retour</button>
+      {% if code >= 500 %}
+      <button class="btn btn-retry" onclick="window.location.reload()">🔄 Réessayer</button>
+      {% endif %}
+      <a class="btn btn-home" href="/">🏠 Accueil</a>
+    </div>
+
+    <div class="err-footer">
+      <strong>DISTRIGEST</strong> · STiNAUG TECHNOLOGIE · Abidjan, CI<br>
+      Besoin d'aide ? <a href="mailto:contact@stinaugtech.ci">contact@stinaugtech.ci</a>
+      {% if ref %}<br><span class="err-ref">Réf. incident : {{ ref }}</span>{% endif %}
+    </div>
+  </div>
+</div>
+</body>
+</html>

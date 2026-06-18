@@ -1,0 +1,52 @@
+╔══════════════════════════════════════════════════════════════════╗
+║          DISTRIGEST-CI — CODES DE LICENCE                       ║
+║          STiNAUG TECHNOLOGIE · Abidjan, Côte d'Ivoire           ║
+║          contact@stinaugtech.ci · 07 88 44 92 03                ║
+╚══════════════════════════════════════════════════════════════════╝
+
+Date de génération : 17/04/2026
+Application        : DISTRIGEST-CI v1.0
+Algorithme         : SHA-256 + sel secret
+
+──────────────────────────────────────────────────────────────────
+
+🔓 PLAN DEMO
+   Durée      : 5 jours (essai gratuit)
+   Prix       : 0 FCFA
+   Code       : —
+   Activation : /activation → cliquer directement sur "Gratuit — 5 jours"
+
+──────────────────────────────────────────────────────────────────
+
+🚀 PLAN PRO
+   Durée      : 12 mois
+   Prix       : 250 000 FCFA
+   Code       : PP-FIB1-PRO-67V016B1
+   Expiration : 2027-04-17
+   Activation : /activation → saisir le code → 🚀 Activer la licence
+
+──────────────────────────────────────────────────────────────────
+
+👑 PLAN BUSINESS
+   Durée      : Illimité (à vie)
+   Prix       : Sur devis — contacter STiNAUG TECH
+   Code       : PP-J6HA-BUS-7BOD064E
+   Expiration : 9999-12-31 (permanente)
+   Activation : /activation → saisir le code → 🚀 Activer la licence
+
+──────────────────────────────────────────────────────────────────
+
+PROCÉDURE D'ACTIVATION
+  1. Lancer DISTRIGEST-CI
+  2. Aller sur http://localhost:1436/activation
+  3. Saisir le code dans le champ 🔑 Code d'activation
+  4. Cliquer sur 🚀 Activer la licence
+  5. Redirection automatique vers le tableau de bord
+
+NOTE : Ces codes sont liés à l'algorithme de validation interne
+de DISTRIGEST-CI. Ils ne peuvent pas être réutilisés sur une
+autre application. Conservez ce fichier en lieu sûr.
+
+══════════════════════════════════════════════════════════════════
+STiNAUG TECHNOLOGIE · DISTRIGEST-CI · Tous droits réservés 2026
+══════════════════════════════════════════════════════════════════

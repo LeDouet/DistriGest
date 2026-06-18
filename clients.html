@@ -1,0 +1,428 @@
+{% extends "base.html" %}
+{% block title %}Clients — DISTRIGEST{% endblock %}
+{% block topbar_title %}👤 Clients{% endblock %}
+{% block content %}
+
+<style>
+/* ── Grid cards ── */
+.cli-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.cli-card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  box-shadow: var(--ombre);
+  overflow: hidden;
+  border: 1px solid var(--gris2);
+  transition: box-shadow .18s, transform .18s;
+  display: flex; flex-direction: column;
+}
+.cli-card:hover { box-shadow: var(--ombre2); transform: translateY(-2px); }
+.cli-top-band { height: 4px; width: 100%; flex-shrink: 0; }
+.cli-body { padding: 14px 16px 10px; flex: 1; }
+.cli-code { font-size: 11px; font-weight: 700; color: var(--bleu2); letter-spacing: .3px; }
+.cli-nom { font-size: 15px; font-weight: 700; color: var(--texte); margin-top: 4px; }
+.cli-tel { font-size: 11px; color: var(--gris3); }
+.cli-type {
+  margin-top: 8px; padding: 7px 10px; background: var(--gris);
+  border-radius: 7px; font-size: 11px; font-weight: 600; color: var(--texte);
+  display: flex; align-items: center; gap: 5px;
+}
+.cli-ville { margin-top: 6px; font-size: 11px; color: var(--gris3); }
+.cli-meta { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+.cli-meta-item { display:flex; align-items:center; gap:4px; font-size:10px; color:var(--gris3); }
+.cli-foot {
+  display:flex; gap:6px; padding:10px 12px;
+  border-top: 1px solid var(--border); background: var(--bg-card);
+  flex-wrap: wrap;
+}
+.cli-foot .btn { flex:1; justify-content:center; min-width: 60px; }
+.cli-foot .btn-fiche { flex:2; }
+
+/* Filtres */
+.filter-bar {
+  display: flex; gap: 8px; align-items: center; margin-bottom: 18px; flex-wrap: wrap;
+}
+.filter-btn {
+  padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  border: 1.5px solid var(--border); background: var(--bg-card); cursor: pointer;
+  text-decoration: none; color: var(--gris3); transition: all .15s;
+}
+.filter-btn:hover, .filter-btn.active { background: var(--bleu2); color: white; border-color: var(--bleu2); }
+
+/* Recherche */
+.search-wrap { flex: 1; min-width: 180px; max-width: 280px; position: relative; }
+.search-wrap input {
+  width: 100%; padding: 6px 12px 6px 30px; border-radius: 20px;
+  border: 1.5px solid var(--gris2); font-size: 11px; outline: none;
+  font-family: inherit; transition: border-color .15s;
+}
+.search-wrap input:focus { border-color: var(--bleu2); }
+.search-wrap::before { content:'🔍'; position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:11px; }
+
+/* Badge catégorie */
+.cli-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 20px;
+  font-size: 10px; font-weight: 700;
+}
+
+/* Carte client système (CLI000 passager) */
+.cli-card-systeme { border: 2px dashed var(--gris2); opacity: .85; }
+.cli-card-systeme .cli-top-band { background: repeating-linear-gradient(45deg,#94a3b8,#94a3b8 4px,#e2e8f0 4px,#e2e8f0 10px) !important; }
+
+.modal-body .form-grid input,
+.modal-body .form-grid select,
+.modal-body .form-grid textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.modal-body .form-grid select {
+  height: 36px; padding: 0 8px;
+  font-size: 12px; font-family: inherit;
+}
+.modal-body .form-group { min-width: 0; }
+/* Section interne (col gauche / col droite) : empêche le grid parent de déborder */
+.modal-body > div[style*="grid-template-columns"] > div { min-width: 0; }
+</style>
+
+<div class="page-header">
+  <div>
+    <h1>👤 Clients</h1>
+    <div class="sub">{{ clients|length }} client(s) affiché(s)</div>
+  </div>
+  <button onclick="openModal('modalAddClient')" class="btn btn-primary">➕ Nouveau client</button>
+</div>
+
+<!-- Bandeau CLI000 si le client par défaut existe -->
+{% if client_defaut %}
+<div style="display:flex;align-items:center;gap:12px;padding:12px 18px;background:linear-gradient(135deg,#1e3a5f,#2563eb);border-radius:12px;margin-bottom:16px;box-shadow:0 4px 16px rgba(37,99,235,.18);">
+  <div style="width:42px;height:42px;flex-shrink:0;filter:drop-shadow(0 2px 6px rgba(0,0,0,.3));"><svg viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="18" width="48" height="32" rx="4" fill="#fbbf24" stroke="rgba(255,255,255,.4)" stroke-width="1.5"/><path d="M4 20 Q4 14 10 14 L22 14 Q26 14 27 18 L4 18 Z" fill="#fde68a" stroke="rgba(255,255,255,.4)" stroke-width="1.5"/><rect x="4" y="20" width="48" height="30" rx="3" fill="#fde68a" stroke="rgba(255,255,255,.4)" stroke-width="1.5"/><rect x="12" y="34" width="22" height="2.5" rx="1.2" fill="rgba(255,255,255,.7)"/><rect x="12" y="39" width="15" height="2.5" rx="1.2" fill="rgba(255,255,255,.5)"/></svg></div>
+  <div style="flex:1;">
+    <div style="color:white;font-weight:800;font-size:13px;">⚡ Client par défaut — {{ client_defaut.nom }}</div>
+    <div style="color:rgba(255,255,255,.7);font-size:11px;margin-top:2px;">Code <code style="background:rgba(255,255,255,.15);color:#bfdbfe;padding:1px 6px;border-radius:4px;">{{ client_defaut.code }}</code> · Utilisé pour toutes les ventes comptoir sans identification</div>
+  </div>
+  <a href="/clients/{{ client_defaut.id }}/fiche" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:white;border:1.5px solid rgba(255,255,255,.3);font-size:11px;white-space:nowrap;">📋 Ouvrir la fiche →</a>
+</div>
+{% endif %}
+
+<!-- Barre recherche -->
+<div class="filter-bar">
+  <div class="search-wrap">
+    <input type="text" id="searchInput" placeholder="Nom, tél, ville…" value="{{ q or '' }}" oninput="filterCards(this.value)">
+  </div>
+</div>
+
+<!-- Grille clients -->
+<div class="cli-grid" id="clientGrid">
+{% set TYPES = {'particulier':('👤','var(--bleu)'),'entreprise':('🏢','var(--bleu2)'),'revendeur':('🏪','var(--vert)'),'grossiste':('📦','var(--or)')} %}
+{% set CATS  = {'standard':('#6b7280','Standard'),'prioritaire':('#f59e0b','Prioritaire'),'vip':('#7c3aed','VIP'),'partenaire':('#0891b2','Partenaire'),'risque':('#dc2626','Risque')} %}
+{% for c in clients %}
+{% set tp  = TYPES.get(c.type_client, ('👤','var(--bleu)')) %}
+{% set cat = CATS.get(c.categorie_client or 'standard', ('#6b7280','Standard')) %}
+<div class="cli-card{% if c.code == 'CLI000' %} cli-card-systeme{% endif %}" data-search="{{ (c.nom~' '~(c.prenom or '')~' '~(c.telephone or '')~' '~(c.ville or '')~' '~c.code)|lower }}">
+  <div class="cli-top-band" style="background:{{ tp[1] }};"></div>
+  <div class="cli-body">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+      <div style="display:flex;align-items:flex-start;gap:10px;">
+        <div style="flex-shrink:0;width:38px;height:38px;filter:drop-shadow(0 2px 5px rgba(0,0,0,.15));"><svg viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="18" width="48" height="32" rx="4" fill="#f59e0b" stroke="#d97706" stroke-width="1.5"/><path d="M4 20 Q4 14 10 14 L22 14 Q26 14 27 18 L4 18 Z" fill="#fbbf24" stroke="#d97706" stroke-width="1.5"/><rect x="4" y="20" width="48" height="30" rx="3" fill="#fbbf24" stroke="#d97706" stroke-width="1.5"/><rect x="10" y="34" width="22" height="2.5" rx="1.2" fill="#d97706" opacity="0.7"/><rect x="10" y="39" width="14" height="2.5" rx="1.2" fill="#d97706" opacity="0.5"/></svg></div>
+        <div>
+          <div class="cli-code">{{ c.code }}</div>
+          <div class="cli-nom">{{ c.nom }} {{ c.prenom or '' }}</div>
+          <div class="cli-tel">{{ c.telephone or '' }}{% if c.email %} · {{ c.email }}{% endif %}</div>
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <span class="cli-badge" style="background:{{ cat[0] }}22;color:{{ cat[0] }};display:block;margin-bottom:4px;">{{ cat[1] }}</span>
+        {% if c.encours_autorise and c.encours_autorise > 0 %}
+        <span style="font-size:9px;color:var(--gris3);">Plafond {{ c.encours_autorise|fcfa }} F</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="cli-type">{{ tp[0] }} {{ c.type_client|capitalize }}{% if c.secteur %} · {{ c.secteur }}{% endif %}</div>
+
+    {% if c.ville or c.zone_livraison %}
+    <div class="cli-ville">📍 {{ c.ville or '' }}{% if c.zone_livraison %} — {{ c.zone_livraison }}{% endif %}</div>
+    {% endif %}
+
+    <div class="cli-meta">
+      {% if c.remise_pct and c.remise_pct > 0 %}
+      <div class="cli-meta-item" style="color:var(--vert);font-weight:700;">🏷️ -{{ c.remise_pct }}%</div>
+      {% endif %}
+      {% if c.delai_paiement and c.delai_paiement > 0 %}
+      <div class="cli-meta-item">⏳ {{ c.delai_paiement }}j</div>
+      {% endif %}
+      {% if c.mode_paiement %}
+      {% set modes={'especes':'💵','wave':'📱','orange_money':'🟠','mtn_money':'🟡','virement':'🏦','cheque':'📄','credit':'🔄'} %}
+      <div class="cli-meta-item">{{ modes.get(c.mode_paiement,'💳') }} {{ c.mode_paiement|replace('_',' ')|capitalize }}</div>
+      {% endif %}
+      {% if c.date_creation %}
+      <div class="cli-meta-item">📅 {{ c.date_creation[:10] }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="cli-foot">
+    <a href="/clients/{{ c.id }}/fiche" class="btn btn-sm btn-fiche" style="background:linear-gradient(135deg,#16a34a,#22c55e);color:white;border:none;font-weight:700;" title="Dossier client">📋 Fiche</a>
+    {% if c.code != 'CLI000' %}
+    <button class="btn btn-primary btn-sm btn-edit-cli"
+      data-id="{{ c.id }}"
+      data-nom="{{ c.nom|e }}"
+      data-prenom="{{ (c.prenom or '')|e }}"
+      data-tel="{{ (c.telephone or '')|e }}"
+      data-tel2="{{ (c.telephone2 or '')|e }}"
+      data-email="{{ (c.email or '')|e }}"
+      data-adresse="{{ (c.adresse or '')|e }}"
+      data-ville="{{ (c.ville or '')|e }}"
+      data-zone="{{ (c.zone_livraison or '')|e }}"
+      data-notes="{{ (c.notes or '')|e }}"
+      data-type="{{ (c.type_client or 'particulier')|e }}"
+      data-cat="{{ (c.categorie_client or 'standard')|e }}"
+      data-secteur="{{ (c.secteur or '')|e }}"
+      data-remise="{{ c.remise_pct or 0 }}"
+      data-delai="{{ c.delai_paiement or 0 }}"
+      data-encours="{{ c.encours_autorise or 0 }}"
+      data-mode="{{ (c.mode_paiement or 'especes')|e }}">✏️ Modifier</button>
+    <a href="{{ url_for('client_delete', id=c.id) }}"
+       onclick="return confirm('Supprimer ce client ?')" class="btn btn-danger btn-sm" title="Supprimer">🗑</a>
+    {% else %}
+    <span style="font-size:10px;color:var(--gris3);font-style:italic;flex:1;text-align:center;">🔒 Client système</span>
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--gris3);">
+  <div style="font-size:48px;margin-bottom:12px;">👤</div>
+  <div style="font-size:15px;font-weight:700;">Aucun client trouvé</div>
+  <div style="font-size:12px;margin-top:6px;">Cliquez sur <strong>Nouveau client</strong> pour commencer.</div>
+</div>
+{% endfor %}
+</div>
+
+
+<!-- ════ MODAL : Nouveau client ════ -->
+<div id="modalAddClient" class="modal-overlay">
+  <div class="modal modal-lg" style="max-width:820px;max-height:90vh;">
+    <div class="modal-header">
+      <h3>👤 Nouveau client</h3>
+      <button class="modal-close" onclick="closeModal('modalAddClient')">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('client_add') }}" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+      <div class="modal-body" style="overflow-y:auto;max-height:calc(90vh - 120px);padding:18px 22px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+          <!-- Col gauche -->
+          <div>
+            <div style="font-size:11px;font-weight:800;color:var(--bleu);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--bleu3);">📋 Informations</div>
+            <div class="form-grid">
+              <div class="form-group full"><label>Nom *</label><input name="nom" required style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="NOM CLIENT"></div>
+              <div class="form-group"><label>Prénom</label><input name="prenom" placeholder="Prénom"></div>
+              <div class="form-group"><label>Téléphone *</label><input name="telephone" placeholder="07 00 00 00 00"></div>
+              <div class="form-group full"><label>Email</label><input name="email" type="email" placeholder="client@email.com"></div>
+              <div class="form-group full"><label>Adresse</label><input name="adresse" placeholder="Quartier, rue…"></div>
+              <div class="form-group"><label>Ville</label><input name="ville" value="Abidjan"></div>
+              <div class="form-group full"><label>Notes</label><textarea name="notes" rows="2" style="width:100%;padding:8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;" placeholder="Observations…"></textarea></div>
+            </div>
+          </div>
+          <!-- Col droite -->
+          <div>
+            <div style="font-size:11px;font-weight:800;color:var(--bleu);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--bleu3);">🏷️ Classification & Conditions</div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Type client</label>
+                <select name="type_client">
+                  {% for v,l in [('particulier','👤 Particulier'),('entreprise','🏢 Entreprise'),('revendeur','🏪 Revendeur'),('grossiste','📦 Grossiste')] %}
+                  <option value="{{ v }}">{{ l }}</option>{% endfor %}
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Catégorie</label>
+                <select name="categorie_client">
+                  {% for v in ['standard','prioritaire','vip','partenaire','risque'] %}
+                  <option value="{{ v }}">{{ v|capitalize }}</option>{% endfor %}
+                </select>
+              </div>
+              <div class="form-group"><label>Remise (%)</label><input name="remise_pct" type="number" step="0.5" min="0" max="50" value="0"></div>
+              <div class="form-group"><label>Délai paiement (j)</label><input name="delai_paiement" type="number" min="0" value="0"></div>
+              <div class="form-group"><label>Encours autorisé (FCFA)</label><input name="encours_autorise" type="number" step="1000" min="0" value="0"></div>
+              <div class="form-group full">
+                <label>Mode paiement habituel</label>
+                <select name="mode_paiement">
+                  {% for v,l in [('especes','💵 Espèces'),('wave','📱 Wave'),('orange_money','🟠 Orange Money'),('mtn_money','🟡 MTN Money'),('virement','🏦 Virement'),('cheque','📄 Chèque'),('credit','🔄 Crédit')] %}
+                  <option value="{{ v }}">{{ l }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sec" onclick="closeModal('modalAddClient')">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- ════ MODAL : Modifier client ════ -->
+<div id="modalEditClient" class="modal-overlay">
+  <div class="modal modal-lg" style="max-width:820px;max-height:90vh;">
+    <div class="modal-header">
+      <h3>✏️ Modifier — <span id="editCliNom"></span></h3>
+      <button class="modal-close" onclick="closeModal('modalEditClient')">✕</button>
+    </div>
+    <form id="editCliForm" method="POST" action="" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+      <div class="modal-body" style="overflow-y:auto;max-height:calc(90vh - 120px);padding:18px 22px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+          <div>
+            <div style="font-size:11px;font-weight:800;color:var(--bleu);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--bleu3);">📋 Informations</div>
+            <div class="form-grid">
+              <div class="form-group full"><label>Nom *</label><input id="ec_nom" name="nom" required style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+              <div class="form-group"><label>Prénom</label><input id="ec_prenom" name="prenom"></div>
+              <div class="form-group"><label>Téléphone</label><input id="ec_tel" name="telephone"></div>
+              <div class="form-group full"><label>Email</label><input id="ec_email" name="email" type="email"></div>
+              <div class="form-group full"><label>Adresse</label><input id="ec_adresse" name="adresse"></div>
+              <div class="form-group"><label>Ville</label><input id="ec_ville" name="ville"></div>
+              <div class="form-group full"><label>Notes</label><textarea id="ec_notes" name="notes" rows="2" style="width:100%;padding:8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;"></textarea></div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:800;color:var(--bleu);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--bleu3);">🏷️ Classification & Conditions</div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Type client</label>
+                <select id="ec_type" name="type_client">
+                  {% for v,l in [('particulier','👤 Particulier'),('entreprise','🏢 Entreprise'),('revendeur','🏪 Revendeur'),('grossiste','📦 Grossiste')] %}
+                  <option value="{{ v }}">{{ l }}</option>{% endfor %}
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Catégorie</label>
+                <select id="ec_cat" name="categorie_client">
+                  {% for v in ['standard','prioritaire','vip','partenaire','risque'] %}
+                  <option value="{{ v }}">{{ v|capitalize }}</option>{% endfor %}
+                </select>
+              </div>
+              <div class="form-group"><label>Remise (%)</label><input id="ec_remise" name="remise_pct" type="number" step="0.5" min="0" max="50"></div>
+              <div class="form-group"><label>Délai paiement (j)</label><input id="ec_delai" name="delai_paiement" type="number" min="0"></div>
+              <div class="form-group"><label>Encours autorisé (FCFA)</label><input id="ec_encours" name="encours_autorise" type="number" step="1000" min="0"></div>
+              <div class="form-group full">
+                <label>Mode paiement</label>
+                <select id="ec_mode" name="mode_paiement">
+                  {% for v,l in [('especes','💵 Espèces'),('wave','📱 Wave'),('orange_money','🟠 Orange Money'),('mtn_money','🟡 MTN Money'),('virement','🏦 Virement'),('cheque','📄 Chèque'),('credit','🔄 Crédit')] %}
+                  <option value="{{ v }}">{{ l }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sec" onclick="closeModal('modalEditClient')">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+/* ── Recherche temps réel ── */
+function filterCards(q) {
+  q = q.toLowerCase().trim();
+  document.querySelectorAll('.cli-card').forEach(function(card) {
+    card.style.display = (!q || card.dataset.search.includes(q)) ? '' : 'none';
+  });
+}
+
+/* ── Ouvrir modale édition ── */
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('.btn-edit-cli');
+  if (!btn) return;
+  var d = btn.dataset;
+  document.getElementById('editCliNom').textContent = d.nom + (d.prenom ? ' ' + d.prenom : '');
+  document.getElementById('editCliForm').action = '/clients/edit/' + d.id;
+  var f = function(id, val) { var el=document.getElementById(id); if(el) el.value = val||''; };
+  f('ec_nom',     d.nom);
+  f('ec_prenom',  d.prenom);
+  f('ec_tel',     d.tel);
+  f('ec_tel2',    d.tel2);
+  f('ec_email',   d.email);
+  f('ec_adresse', d.adresse);
+  f('ec_ville',   d.ville);
+  f('ec_zone',    d.zone);
+  f('ec_notes',   d.notes);
+  f('ec_type',    d.type);
+  f('ec_cat',     d.cat || 'standard');
+  f('ec_secteur', d.secteur);
+  f('ec_remise',  d.remise || 0);
+  f('ec_delai',   d.delai || 0);
+  f('ec_encours', d.encours || 0);
+  f('ec_mode',    d.mode || 'especes');
+  openModal('modalEditClient');
+});
+
+/* Ouvrir directement si ?nouveau=1 */
+if (new URLSearchParams(window.location.search).get('nouveau') === '1') {
+  openModal('modalAddClient');
+}
+</script>
+
+{# ── Patch thème sombre — clients ── #}
+<style>
+[data-theme="dark"] .cli-card,
+[data-theme="dark"] .four-card       { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .cli-foot,
+[data-theme="dark"] .four-foot       { background:var(--bg-card) !important; border-top-color:var(--border) !important; }
+[data-theme="dark"] .cli-nom,
+[data-theme="dark"] .cli-contact,
+[data-theme="dark"] .cli-ville       { color:var(--texte) !important; }
+[data-theme="dark"] .cli-code        { color:#93c5fd !important; }
+[data-theme="dark"] .cli-type        { background:var(--bg-thead) !important; color:var(--texte) !important; }
+[data-theme="dark"] .filter-btn      { background:var(--bg-card) !important; border-color:var(--border) !important; color:var(--gris3) !important; }
+[data-theme="dark"] .search-wrap input { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+[data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
+  background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+}
+[data-theme="dark"] .modal           { background:var(--modal-bg) !important; }
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer    { border-color:var(--border) !important; }
+[data-theme="dark"] .btn-sec         { background:#1c2128 !important; color:#8b949e !important; border-color:var(--border) !important; }
+[data-theme="dark"] .table-card      { background:var(--bg-card) !important; }
+[data-theme="dark"] thead th         { background:var(--bg-thead) !important; color:var(--gris3) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody td         { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] [style*="background:#f8fafc"],
+[data-theme="dark"] [style*="background: #f8fafc"] { background:var(--bg-card) !important; }
+[data-theme="dark"] .badge-info    { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] .badge-success { background:#052e16 !important; color:#4ade80 !important; }
+[data-theme="dark"] .badge-warning { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] .badge-danger  { background:#3d0f0f !important; color:#fca5a5 !important; }
+[data-theme="dark"] .badge-sec     { background:#1c2128 !important; color:#8b949e !important; }
+@media (prefers-color-scheme:dark) {
+  [data-theme="system"] .cli-card,
+  [data-theme="system"] .four-card   { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .cli-foot,
+  [data-theme="system"] .four-foot   { background:var(--bg-card) !important; border-top-color:var(--border) !important; }
+  [data-theme="system"] .filter-btn  { background:var(--bg-card) !important; border-color:var(--border) !important; color:var(--gris3) !important; }
+  [data-theme="system"] .search-wrap input { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+  [data-theme="system"] input, [data-theme="system"] select, [data-theme="system"] textarea {
+    background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+  }
+  [data-theme="system"] .modal       { background:var(--modal-bg) !important; }
+  [data-theme="system"] .btn-sec     { background:#1c2128 !important; color:#8b949e !important; }
+  [data-theme="system"] .table-card  { background:var(--bg-card) !important; }
+  [data-theme="system"] thead th     { background:var(--bg-thead) !important; color:var(--gris3) !important; }
+  [data-theme="system"] tbody td     { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] [style*="background:#f8fafc"] { background:var(--bg-card) !important; }
+  [data-theme="system"] .badge-info  { background:#1d3461 !important; color:#93c5fd !important; }
+  [data-theme="system"] .badge-success { background:#052e16 !important; color:#4ade80 !important; }
+  [data-theme="system"] .badge-warning { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] .badge-danger  { background:#3d0f0f !important; color:#fca5a5 !important; }
+}
+</style>
+{% endblock %}

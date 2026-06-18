@@ -1,0 +1,90 @@
+PROCEDURE - OUVRIR UN PORT SUR LA BOX FIBRE ORANGE (LIVEBOX)
+================================================================
+
+ETAPE 1 : ACCEDER A L'INTERFACE D'ADMINISTRATION
+--------------------------------------------------
+1. Ouvrir un navigateur web sur un appareil connecté au reseau de la box
+   (en wifi ou en cable ethernet).
+2. Aller a l'adresse : 192.168.1.1
+   (adresse par defaut de la plupart des Livebox)
+3. Se connecter avec les identifiants admin.
+   - Souvent indiques sur une etiquette sous la box
+   - Ou ceux definis lors de la configuration initiale
+
+
+ETAPE 2 : FIXER L'ADRESSE IP LOCALE DE L'APPAREIL CIBLE
+--------------------------------------------------------
+Avant de creer la redirection, il faut s'assurer que l'appareil
+qui va recevoir le trafic (PC, serveur, etc.) garde toujours
+la meme adresse IP locale. Deux options :
+
+   a) Configurer une IP statique directement sur l'appareil
+   b) Faire une "reservation DHCP" dans la box :
+      Menu reseau > DHCP > Reservation d'adresse / Bail DHCP
+      -> associer l'adresse MAC de l'appareil a une IP fixe
+         (ex: 192.168.1.50)
+
+
+ETAPE 3 : CREER LA REGLE DE REDIRECTION DE PORT (NAT/PAT)
+------------------------------------------------------------
+1. Dans l'interface de la box, aller dans :
+   Configuration avancee > Reseau > NAT/PAT
+   (peut aussi s'appeler "Redirection de ports" ou "Port forwarding"
+   selon le modele de box)
+
+2. Cliquer sur "Ajouter une regle" / "Nouvelle redirection"
+
+3. Renseigner les champs suivants :
+   - Protocole       : TCP, UDP, ou TCP/UDP selon le besoin
+   - Port externe     : le port que les gens utiliseront depuis internet
+   - Adresse IP locale : l'IP fixe de l'appareil (ex: 192.168.1.50)
+   - Port interne     : generalement le meme que le port externe
+                        (sauf si on veut rediriger vers un port different)
+
+4. Sauvegarder la regle.
+
+
+ETAPE 4 : REDEMARRER / APPLIQUER LES CHANGEMENTS
+---------------------------------------------------
+- Certaines box appliquent la regle immediatement
+- D'autres necessitent un redemarrage de la box pour que la
+  regle soit active
+
+
+ETAPE 5 : VERIFIER QUE LE PORT EST BIEN OUVERT
+--------------------------------------------------
+1. Aller sur un site comme : https://www.canyouseeme.org
+2. Indiquer le numero de port a tester
+3. Lancer le test depuis un reseau EXTERNE
+   (ex: connexion 4G, pas le wifi de la box, sinon le test
+   ne sera pas representatif)
+
+
+ETAPE 6 (OPTIONNEL) : NOM DE DOMAINE STABLE (DDNS)
+------------------------------------------------------
+Si l'adresse IP publique de la box change regulierement
+(pas d'IP fixe souscrite), utiliser un service DDNS
+(No-IP, DuckDNS, etc.) pour avoir un nom de domaine stable
+qui pointe toujours vers la box, meme si l'IP change.
+
+
+ETAPE 7 (IMPORTANT) : VERIFIER LE PARE-FEU DE LA MACHINE
+------------------------------------------------------------
+La redirection sur la box ne suffit pas si le pare-feu de
+l'appareil cible bloque aussi le port en entree.
+
+   - Linux  : verifier/configurer avec ufw
+              (ex: sudo ufw allow 5000/tcp)
+   - Windows: verifier le Pare-feu Windows Defender
+              (regle entrante pour le port concerne)
+
+
+NOTES
+-----
+- Les noms exacts des menus peuvent varier legerement selon
+  le modele de Livebox (Livebox 4, Livebox 5, ou box Huawei
+  utilisee par Orange CI), mais la logique generale reste
+  la meme.
+- Bien choisir un port externe different des ports standards
+  deja utilises (80, 443, etc.) si une autre application
+  tourne deja dessus.

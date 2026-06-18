@@ -1,0 +1,1851 @@
+{% extends "base.html" %}
+{% block title %}Stock — DISTRIGEST{% endblock %}
+{% block topbar_title %}📦 Stock{% endblock %}
+{% block content %}
+
+<style>
+/* ══ ONGLETS ══════════════════════════════════════════════════════════ */
+.stk-tabs {
+  display: flex; gap: 4px;
+  background:var(--bg-card); border:1px solid var(--border);
+  border-radius: 10px; padding: 5px;
+  margin-bottom: 18px; box-shadow: var(--ombre);
+  flex-wrap: wrap;
+}
+.stk-tab {
+  padding: 7px 16px; border-radius: 7px; border:none;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  font-family: inherit; color: var(--gris3);
+  background: transparent; transition: all .15s;
+  display: flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.stk-tab:hover { background: var(--gris); color: var(--bleu); }
+.stk-tab.active {
+  background: var(--bleu); color: white;
+  box-shadow: 0 2px 8px rgba(26,58,108,.3);
+}
+.stk-tab .cnt {
+  font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 800;
+  background: rgba(255,255,255,.25);
+}
+.stk-tab:not(.active) .cnt { background: var(--gris2); color: var(--gris3); }
+.stk-section { display: none; }
+.stk-section.active { display: block; }
+
+
+/* ══ STOCK BAR ═══════════════════════════════════════════════════ */
+.stock-bar-wrap { display: flex; align-items: center; gap: 7px; }
+.stock-bar { height: 5px; border-radius: 3px; background: var(--gris2); flex:1; overflow:hidden; min-width:50px; }
+.stock-bar-fill { height:100%; border-radius:3px; }
+
+/* ══ ALERTE CARD ═════════════════════════════════════════════════ */
+.alerte-card {
+  display:flex; align-items:center; gap:12px;
+  padding:11px 14px; border-radius:10px; border:1px solid #fecaca;
+  background:#fff5f5; margin-bottom:8px;
+}
+.alerte-card.seuil { border-color:#fde68a; background:#fffbeb; }
+.alerte-icon { width:38px; height:38px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.alerte-icon.rupture { background:#fee2e2; }
+.alerte-icon.seuil   { background:#fef3c7; }
+
+
+.mini-lbl { font-size:9px; font-weight:800; color:var(--gris3); text-transform:uppercase; letter-spacing:.5px; display:block; margin-bottom:3px; }
+
+/* ══ BOUTONS ACTION STOCK ═══════════════════════════════════════ */
+.btn-action-transfert,
+.btn-action-inventaire,
+.btn-action-mouvement {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  border:none;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .18s;
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+}
+.btn-action-transfert,
+.btn-action-inventaire,
+.btn-action-mouvement { letter-spacing: .1px; }
+
+/* Transfert — bleu acier */
+.btn-action-transfert {
+  background: linear-gradient(135deg, #1e40af, #3b82f6);
+  color: white;
+  box-shadow: 0 3px 12px rgba(59,130,246,.35), inset 0 1px 0 rgba(255,255,255,.15);
+  border: 1.5px solid rgba(255,255,255,.12);
+}
+.btn-action-transfert:hover {
+  background: linear-gradient(135deg, #1d4ed8, #60a5fa);
+  box-shadow: 0 6px 20px rgba(59,130,246,.5);
+  transform: translateY(-2px);
+}
+.btn-action-transfert:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(59,130,246,.3); }
+
+/* Inventaire — vert émeraude */
+.btn-action-inventaire {
+  background: linear-gradient(135deg, #065f46, #10b981);
+  color: white;
+  box-shadow: 0 3px 12px rgba(16,185,129,.35), inset 0 1px 0 rgba(255,255,255,.15);
+  border: 1.5px solid rgba(255,255,255,.12);
+}
+.btn-action-inventaire:hover {
+  background: linear-gradient(135deg, #047857, #34d399);
+  box-shadow: 0 6px 20px rgba(16,185,129,.5);
+  transform: translateY(-2px);
+}
+.btn-action-inventaire:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(16,185,129,.3); }
+
+/* Mouvement — or ambré (conservé, légèrement upgradé) */
+.btn-action-mouvement {
+  background: linear-gradient(135deg, #92400e, #f59e0b);
+  color: white;
+  box-shadow: 0 3px 12px rgba(245,158,11,.4), inset 0 1px 0 rgba(255,255,255,.15);
+  border: 1.5px solid rgba(255,255,255,.12);
+}
+.btn-action-mouvement:hover {
+  background: linear-gradient(135deg, #b45309, #fbbf24);
+  box-shadow: 0 6px 20px rgba(245,158,11,.55);
+  transform: translateY(-2px);
+}
+.btn-action-mouvement:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(245,158,11,.35); }
+
+.btn-action-transfert .btn-icon,
+.btn-action-inventaire .btn-icon,
+.btn-action-mouvement .btn-icon {
+  font-size: 15px;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.2));
+}
+
+/* ── Boutons d'action par ligne (Mouvement / Modifier qté) ── */
+.row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border:none;
+  border-radius: 9px;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  color: #fff;
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+.btn-row > span { filter: drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
+.btn-row:hover  { transform: translateY(-2px); }
+.btn-row:active { transform: translateY(0); }
+
+.btn-row-mvt {
+  background: linear-gradient(135deg, #b45309, #f59e0b);
+  box-shadow: 0 2px 8px rgba(245,158,11,.40), inset 0 1px 0 rgba(255,255,255,.18);
+}
+.btn-row-mvt:hover  { box-shadow: 0 6px 16px rgba(245,158,11,.55); }
+
+.btn-row-edit {
+  background: linear-gradient(135deg, #1e40af, #3b82f6);
+  box-shadow: 0 2px 8px rgba(59,130,246,.40), inset 0 1px 0 rgba(255,255,255,.18);
+}
+.btn-row-edit:hover { box-shadow: 0 6px 16px rgba(59,130,246,.55); }
+
+/* ── Bouton Réinitialiser (remise à zéro du stock affiché) ── */
+.btn-reset-stock {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border:none;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #fff;
+  background: linear-gradient(135deg, #991b1b, #ef4444);
+  box-shadow: 0 2px 8px rgba(239,68,68,.35), inset 0 1px 0 rgba(255,255,255,.15);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.btn-reset-stock:hover  { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(239,68,68,.5); }
+.btn-reset-stock:active { transform: translateY(0); }
+.btn-reset-stock > span { font-size: 14px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
+</style>
+
+<!-- ══ PAGE HEADER ════════════════════════════════════════════════ -->
+<div class="page-header">
+  <div>
+    <h1>📦 Stock</h1>
+    <div class="sub" style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;">
+      <span style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--ombre);font-size:12px;font-weight:600;">
+        <span style="width:7px;height:7px;border-radius:50%;background:var(--bleu2);flex-shrink:0;"></span>
+        {{ stocks|length }} articles · <strong style="color:var(--bleu);">{{ valeur | fcfa }} {{ cfg.get('devise','FCFA') }}</strong>
+      </span>
+      {% if alertes %}
+      <span style="padding:5px 12px;border-radius:20px;background:#fff5f5;border:1px solid #fecaca;font-size:12px;font-weight:600;color:var(--rouge);">
+        ⚠️ {{ alertes|length }} sous seuil
+      </span>
+      {% endif %}
+
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button onclick="openModal('modalTransfert')" class="btn btn-action-transfert">
+      <span class="btn-icon">🔄</span> Transfert
+    </button>
+    <a href="{{ url_for('inventaire_list') }}" class="btn btn-action-inventaire" style="text-decoration:none;">
+      <span class="btn-icon">📋</span> Inventaire
+    </a>
+    <button onclick="openModal('modalMvt')" class="btn btn-action-mouvement">
+      <span class="btn-icon">📥📤</span> Mouvement
+    </button>
+  </div>
+</div>
+
+<!-- ══ KPIs ═══════════════════════════════════════════════════════ -->
+<div class="kpi-grid" style="margin-bottom:18px;">
+  <div class="kpi-card vert">
+    <div class="label">Valeur stock</div>
+    <div class="value" id="kpi-valeur" style="color:var(--vert);font-size:18px;">{{ valeur | fcfa }}</div>
+    <div class="sub">{{ cfg.get('devise','FCFA') }}</div>
+    <div class="icon-bg">💰</div>
+  </div>
+  <div class="kpi-card rouge">
+    <div class="label">Alertes stock</div>
+    <div class="value" id="kpi-alertes" style="color:var(--rouge);">{{ alertes|length }}</div>
+    <div class="sub">Articles sous seuil</div>
+    <div class="icon-bg">⚠️</div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Références</div>
+    <div class="value" id="kpi-references">{{ stocks|length }}</div>
+    <div class="sub">Articles actifs</div>
+    <div class="icon-bg">📦</div>
+  </div>
+  <div class="kpi-card or">
+    <div class="label">Dépôts</div>
+    <div class="value" style="color:var(--or);">{{ depots_all|length }}</div>
+    <div class="sub">Sites de stockage</div>
+    <div class="icon-bg">🏭</div>
+  </div>
+</div>
+
+<!-- ══ INDICATEUR TEMPS RÉEL ═════════════════════════════════════ -->
+<div id="liveBar" style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:8px 14px;background:linear-gradient(135deg,#ecfdf5,#d1fae5);border:1px solid #6ee7b7;border-radius:9px;font-size:11px;font-family:'Inter',sans-serif;">
+  <span style="display:inline-flex;align-items:center;gap:6px;">
+    <span id="liveDot" style="width:8px;height:8px;background:#10b981;border-radius:50%;animation:livePulse 1.4s infinite;"></span>
+    <b style="color:#065f46;">Temps réel actif</b>
+  </span>
+  <span id="liveStatus" style="color:#047857;font-weight:600;">— en attente de la 1ʳᵉ synchro…</span>
+  <span style="flex:1;"></span>
+  <span style="color:#065f46;font-size:10px;font-weight:700;">Polling 8 s</span>
+  <button type="button" id="liveToggle" onclick="toggleLive()" title="Mettre en pause / reprendre la mise à jour automatique"
+          style="background:#065f46;color:white;border:none;border-radius:6px;padding:4px 10px;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;">⏸ Pause</button>
+</div>
+<style>
+
+/* ══ BOUTON IMPRIMER MOUVEMENTS ════════════════════════════════ */
+.btn-action-imprimer-mvt {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 16px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255,255,255,.12);
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  background: linear-gradient(135deg, #065f46, #10b981);
+  color: white;
+  box-shadow: 0 3px 12px rgba(16,185,129,.35), inset 0 1px 0 rgba(255,255,255,.15);
+  transition: background .18s, box-shadow .18s, transform .18s;
+}
+.btn-action-imprimer-mvt:hover {
+  background: linear-gradient(135deg, #047857, #34d399);
+  box-shadow: 0 6px 20px rgba(16,185,129,.5);
+  transform: translateY(-2px);
+}
+.btn-action-imprimer-mvt:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(16,185,129,.3);
+}
+  @keyframes livePulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.45;transform:scale(1.4);} }
+  @keyframes stkFlash  { 0%{background:#dcfce7;} 100%{background:transparent;} }
+  @keyframes stkFlashOut { 0%{background:#fee2e2;} 100%{background:transparent;} }
+  .stk-flash-in  { animation: stkFlash 1.6s ease-out; }
+  .stk-flash-out { animation: stkFlashOut 1.6s ease-out; }
+</style>
+
+<!-- ══ ONGLETS ════════════════════════════════════════════════════ -->
+<div class="stk-tabs">
+  <button class="stk-tab active" onclick="switchSection('stocks')" id="tab-stocks">
+    📦 Stocks <span class="cnt">{{ stocks|length }}</span>
+  </button>
+  <button class="stk-tab" onclick="switchSection('mouvements')" id="tab-mouvements">
+    🔄 Mouvements <span class="cnt">{{ mvts|length if mvts else 0 }}</span>
+  </button>
+  <button class="stk-tab" onclick="switchSection('transferts')" id="tab-transferts">
+    🏭 Transferts inter-dépôts
+  </button>
+  <button class="stk-tab" onclick="switchSection('alertes')" id="tab-alertes">
+    ⚠️ Alertes <span class="cnt">{{ alertes|length }}</span>
+  </button>
+  <button class="stk-tab" onclick="switchSection('valorisation')" id="tab-valorisation">
+    📊 Valorisation
+  </button>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     SECTION 1 : STOCKS PAR ARTICLE
+══════════════════════════════════════════ -->
+<div class="stk-section active" id="section-stocks">
+
+  <div class="table-card" style="margin-bottom:14px;">
+    <form method="GET" action="{{ url_for('stock_list') }}">
+      <div style="padding:10px 16px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <div>
+          <label class="mini-lbl">Dépôt</label>
+          <select name="depot" style="height:32px;padding:0 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;">
+            <option value="">Tous les dépôts</option>
+            {% for d in depots_all %}
+            <option value="{{ d.id }}" {% if depot_id==d.id|string %}selected{% endif %}>{{ d.code }} — {{ d.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="mini-lbl">Famille</label>
+          <select name="famille" style="height:32px;padding:0 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;">
+            <option value="">Toutes</option>
+            {% for f in familles_all %}
+            <option value="{{ f.id }}" {% if famille_f==f.id|string %}selected{% endif %}>{{ f.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="mini-lbl">Recherche</label>
+          <input type="text" name="q" value="{{ q }}" placeholder="Article, référence…"
+            style="height:32px;padding:0 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;width:200px;">
+        </div>
+        <div>
+          <label class="mini-lbl">Affichage</label>
+          <select name="vue" style="height:32px;padding:0 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;">
+            <option value="">Tout</option>
+            <option value="alertes" {% if vue=='alertes' %}selected{% endif %}>⚠️ Alertes seulement</option>
+            <option value="ruptures" {% if vue=='ruptures' %}selected{% endif %}>❌ Ruptures</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-sm btn-primary">🔍 Filtrer</button>
+        <a href="{{ url_for('stock_list') }}" class="btn btn-sec btn-sm">✕</a>
+      </div>
+    </form>
+  </div>
+
+  {% if alertes %}
+  <div style="background:#fff5f5;border:1px solid #fecaca;border-radius:10px;padding:10px 16px;margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <span style="font-weight:700;color:var(--rouge);white-space:nowrap;font-size:12px;">⚠️ Sous seuil :</span>
+    {% for a in alertes %}
+    <span class="badge badge-danger">{{ a.designation[:18] }} — {{ a.quantite_unite | int }} u.</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="table-card">
+    <div class="thead" style="display:flex;align-items:center;flex-wrap:nowrap;gap:12px;">
+      <h3 style="margin:0;white-space:nowrap;">📦 Stocks par article</h3>
+      {% if stocks and is_admin %}
+      <form method="POST" action="{{ url_for('stock_reinitialiser') }}"
+            onsubmit="return confirmResetStock()" style="margin:0 0 0 auto;">
+        <input type="hidden" name="depot" value="{{ depot_id }}">
+        <input type="hidden" name="q" value="{{ q }}">
+        <button type="submit" class="btn-reset-stock"
+                title="Mettre à zéro le stock de tous les articles affichés">
+          <span>🔄</span> Réinitialiser
+        </button>
+      </form>
+      {% endif %}
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Réf</th><th>Article</th><th>Dépôt</th>
+          <th>Stock (unités)</th><th>Stock (colis)</th><th>Seuil alerte</th>
+          <th>Prix Achat HT</th>
+          <th title="Prix de vente d'un colis entier (prix_vente_ht)">💼 Prix Colis</th>
+          <th title="Prix de vente à l'unité (prix_unitaire depuis articles)">🔹 Prix Unitaire</th>
+          <th title="Valorisation colis = nb_colis × prix_colis">Val. Colis</th>
+          <th title="Valorisation unités = unités restantes × prix_unitaire">Val. Unités</th>
+          <th title="Valorisation totale du stock">Valeur Totale</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in stocks %}
+        {% set alerte = s.quantite_unite <= s.stock_min_unite and s.stock_min_unite > 0 %}
+        {% set rupture = s.quantite_unite <= 0 %}
+        <tr id="stk-row-{{ s.article_id }}-{{ s.depot_id }}"
+            data-art="{{ s.article_id }}" data-dep="{{ s.depot_id }}"
+            data-pv="{{ s.pv_effectif }}" data-colisage="{{ s.colisage or 1 }}"
+            data-unite="{{ s.unite_vente or '' }}"
+            class="js-stk-row {% if alerte %}js-row-alerte{% endif %}"
+            style="{{ 'background:#fff5f5;' if alerte }}">
+          <td><code style="font-size:10px;color:var(--bleu2);">{{ s.reference }}</code></td>
+          <td style="font-weight:600;" class="js-design">
+            {{ s.designation or '—' }}
+            <span class="js-badges">
+            {% if rupture %}<span class="badge badge-danger" style="margin-left:4px;font-size:9px;">❌ Rupture</span>
+            {% elif alerte %}<span class="badge badge-danger" style="margin-left:4px;font-size:9px;">⚠️</span>{% endif %}
+            </span>
+            <div style="font-size:10px;color:var(--gris3);">{{ s.contenance or '' }}</div>
+          </td>
+          <td>
+            <span class="badge badge-sec" style="{% if s.famille_couleur %}background:{{ s.famille_couleur }}22;color:{{ s.famille_couleur }};border:1px solid {{ s.famille_couleur }}44;{% endif %}font-size:10px;">
+              {{ s.depot_code }}
+            </span>
+          </td>
+          <td>
+            <div class="stock-bar-wrap">
+              <span class="js-qte" style="font-size:15px;font-weight:800;color:{{ 'var(--rouge)' if alerte else 'var(--vert)' }};min-width:28px;">
+                {{ s.quantite_unite | int }}
+              </span>
+              <div class="stock-bar">
+                {% set pct = [(s.quantite_unite / ((s.stock_min_unite * 3) or 1) * 100)|int, 100]|min %}
+                <div class="js-bar stock-bar-fill" style="width:{{ pct }}%;background:{{ 'var(--rouge)' if alerte else 'var(--vert)' }};"></div>
+              </div>
+              <span style="font-size:10px;color:var(--gris3);">{{ s.unite_vente }}</span>
+            </div>
+          </td>
+          <td style="color:var(--gris3);font-size:12px;" class="js-colis">
+            {% if s.nb_colis is defined %}
+              {{ s.nb_colis }} colis
+              {% if s.reste_unite > 0 %}<span style="color:var(--gris3);font-size:10px;"> + {{ s.reste_unite }} u.</span>{% endif %}
+            {% elif s.colisage and s.colisage > 0 %}
+              {{ (s.quantite_unite / s.colisage)|int }} colis
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            <form method="POST" action="{{ url_for('stock_seuil', art_id=s.article_id, dep_id=s.depot_id) }}"
+                  style="display:inline-flex;align-items:center;gap:4px;">
+              <input name="stock_min" type="number" min="0" value="{{ s.stock_min_unite }}"
+                     style="width:52px;height:26px;padding:0 5px;border:1.5px solid var(--border);border-radius:5px;font-size:11px;text-align:center;">
+              <button type="submit" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--vert);">✓</button>
+            </form>
+          </td>
+          <td style="font-size:12px;color:var(--gris3);">{{ s.prix_achat_ht | fcfa }}</td>
+          {# ── PRIX COLIS (prix_vente_ht) ── #}
+          <td style="font-weight:700;color:var(--bleu);">
+            {% if (s.prix_vente_ht or 0) > 0 %}
+              {{ s.prix_vente_ht | fcfa }}
+              <div style="font-size:9px;color:var(--gris3);font-weight:500;">{{ s.colisage or 1 }} u./colis</div>
+            {% else %}
+              <span style="color:var(--gris3);">—</span>
+            {% endif %}
+          </td>
+          {# ── PRIX UNITAIRE (prix_unitaire depuis articles) ── #}
+          <td style="font-weight:700;color:var(--vert);">
+            {% if (s.prix_unitaire or 0) > 0 %}
+              {{ s.prix_unitaire | fcfa }}
+              <div style="font-size:9px;color:var(--gris3);font-weight:500;">/ {{ s.unite_vente or 'unité' }}</div>
+            {% else %}
+              <span style="color:var(--gris3);">—</span>
+            {% endif %}
+          </td>
+          {# ── VALORISATION COLIS ── #}
+          <td style="font-size:12px;color:var(--bleu);" class="js-val-colis">
+            {% if s.valeur_colis is defined and s.valeur_colis > 0 %}
+              {{ s.valeur_colis | fcfa }}
+              <div style="font-size:9px;color:var(--gris3);">{{ s.nb_colis }} × {{ s.prix_vente_ht | fcfa }}</div>
+            {% else %}
+              <span style="color:var(--gris3);">—</span>
+            {% endif %}
+          </td>
+          {# ── VALORISATION UNITÉS ── #}
+          <td style="font-size:12px;color:var(--vert);" class="js-val-unite">
+            {% if s.valeur_unite is defined and s.valeur_unite > 0 %}
+              {{ s.valeur_unite | fcfa }}
+              {% if s.valeur_colis is defined and s.valeur_colis > 0 %}
+                <div style="font-size:9px;color:var(--gris3);">{{ s.reste_unite }} × {{ s.prix_unitaire | fcfa }}</div>
+              {% else %}
+                <div style="font-size:9px;color:var(--gris3);">{{ s.quantite_unite | int }} × {{ s.prix_unitaire | fcfa }}</div>
+              {% endif %}
+            {% else %}
+              <span style="color:var(--gris3);">—</span>
+            {% endif %}
+          </td>
+          {# ── VALEUR TOTALE ── #}
+          <td style="font-weight:800;color:var(--bleu2);background:#f0f7ff;border-left:2px solid var(--bleu2)20;" class="js-valeur">
+            {{ s.valeur_stock | fcfa }}
+          </td>
+          <td>
+            <div class="row-actions">
+              <button type="button" class="btn-row btn-row-mvt"
+                      onclick="openMvtPrefill('{{ s.article_id }}','{{ s.depot_id }}')"
+                      title="Mouvement rapide (entrée / sortie)"><span>📥📤</span></button>
+              <button type="button" class="btn-row btn-row-edit" onclick="openModifQte(this)"
+                      data-art="{{ s.article_id }}" data-dep="{{ s.depot_id }}"
+                      data-design="{{ s.designation }}" data-depot="{{ s.depot_nom }}"
+                      data-qte="{{ s.quantite_unite | int }}" data-col="{{ s.colisage or 1 }}"
+                      title="Modifier la quantité en stock"><span>✏️</span></button>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="14" style="text-align:center;color:var(--gris3);padding:40px;">
+          <div style="font-size:36px;margin-bottom:10px;">📦</div>
+          Stock vide — <a href="{{ url_for('articles_list') }}" style="color:var(--bleu2);">Ajouter des articles</a>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     SECTION 2 : MOUVEMENTS
+══════════════════════════════════════════ -->
+<div class="stk-section" id="section-mouvements">
+
+  <div class="table-card" style="margin-bottom:14px;">
+    <form method="GET" action="{{ url_for('stock_list') }}">
+      <input type="hidden" name="section" value="mouvements">
+      <div style="padding:10px 16px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <div>
+          <label class="mini-lbl">Type</label>
+          <select name="type_mvt" style="height:32px;padding:0 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;">
+            <option value="">Tous</option>
+            <option value="entree">📥 Entrées</option>
+            <option value="sortie">📤 Sorties</option>
+            <option value="transfert">🔄 Transferts</option>
+            <option value="ajustement">✏️ Ajustements</option>
+            <option value="inventaire">📋 Inventaire</option>
+          </select>
+        </div>
+        <div>
+          <label class="mini-lbl">Dépôt</label>
+          <select name="depot_mvt" style="height:32px;padding:0 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;">
+            <option value="">Tous</option>
+            {% for d in depots_all %}
+            <option value="{{ d.id }}">{{ d.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="mini-lbl">Du</label>
+          <input type="date" name="mvt_du" style="height:32px;padding:0 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;">
+        </div>
+        <div>
+          <label class="mini-lbl">Au</label>
+          <input type="date" name="mvt_au" style="height:32px;padding:0 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;">
+        </div>
+        <button type="submit" class="btn btn-sm btn-primary">🔍 Filtrer</button>
+        <button type="button" onclick="imprimerEntreesStock()" class="btn-action-imprimer-mvt" style="margin-left:auto;">🖨️ Imprimer</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="table-card">
+    <div class="thead"><h3>🔄 Historique des mouvements</h3></div>
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Article</th><th>Dépôt</th><th>Type</th><th>Quantité</th><th>PU</th><th>Valeur</th><th>Réf. doc</th><th>Notes</th></tr>
+      </thead>
+      <tbody id="mvtsTbody">
+        {% for m in mvts %}
+        {% set type_map = {
+          'entree': ('📥 Entrée','badge-success','var(--vert)','+'),
+          'sortie': ('📤 Sortie','badge-danger','var(--rouge)','-'),
+          'transfert': ('🔄 Transfert','badge-info','var(--bleu2)','→'),
+          'ajustement': ('✏️ Ajustement','badge-warning','var(--or)','±'),
+          'inventaire': ('📋 Inventaire','badge-sec','var(--gris3)','=')
+        } %}
+        {% set lbl,cls,clr,sign = type_map.get(m.type_mvt, (m.type_mvt,'badge-sec','var(--gris3)','+')) %}
+        <tr data-mvt-id="{{ m.id }}">
+          <td style="font-size:11px;color:var(--gris3);">{{ m.date_mvt or '—' }}</td>
+          <td style="font-weight:600;font-size:12px;">{{ m.designation or '—' }}</td>
+          <td style="font-size:11px;">{{ m.depot_nom or '—' }}</td>
+          <td><span class="badge {{ cls }}">{{ lbl }}</span></td>
+          <td style="font-weight:700;color:{{ clr }};">{{ sign }}{{ m.quantite_unite | int }}</td>
+          <td style="font-size:11px;color:var(--gris3);">
+            {{ (m.prix_vente_ht or 0)|fcfa if (m.prix_vente_ht or 0) > 0 else (m.prix_unitaire or 0)|fcfa }}
+            <span style="font-size:9px;color:var(--gris3);display:block;">{{ 'colis' if (m.prix_vente_ht or 0) > 0 else 'unitaire' }}</span>
+          </td>
+          <td style="font-size:11px;font-weight:600;">{{ m.valeur_mvt | fcfa }}</td>
+          <td style="font-size:11px;color:var(--bleu2);">{{ m.doc_ref or '—' }}</td>
+          <td style="font-size:11px;color:var(--gris3);">{{ m.notes or '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" style="text-align:center;color:var(--gris3);padding:40px;">
+          <div style="font-size:32px;margin-bottom:8px;">🔄</div>Aucun mouvement enregistré
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     SECTION 3 : TRANSFERTS INTER-DÉPÔTS
+══════════════════════════════════════════ -->
+<div class="stk-section" id="section-transferts">
+  <div style="display:grid;grid-template-columns:1fr 320px;gap:18px;">
+
+    <div class="table-card">
+      <div class="thead">
+        <h3>🏭 Historique des transferts</h3>
+        <button onclick="openModal('modalTransfert')" class="btn btn-primary btn-sm">➕ Nouveau transfert</button>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Article</th><th>De</th><th>Vers</th><th>Qté</th><th>Statut</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          {% for t in transferts %}
+          <tr>
+            <td style="font-size:11px;color:var(--gris3);">{{ t.date_transfert }}</td>
+            <td style="font-weight:600;font-size:12px;">{{ t.designation }}</td>
+            <td><span class="badge badge-danger" style="font-size:10px;">{{ t.depot_source }}</span></td>
+            <td><span class="badge badge-success" style="font-size:10px;">{{ t.depot_dest }}</span></td>
+            <td style="font-weight:700;color:var(--bleu);">{{ t.quantite | int }}</td>
+            <td>
+              {% if t.statut == 'valide' %}<span class="badge badge-success">✅ Validé</span>
+              {% else %}<span class="badge badge-warning">⏳ En cours</span>{% endif %}
+            </td>
+            <td style="font-size:11px;color:var(--gris3);">{{ t.notes or '—' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" style="text-align:center;color:var(--gris3);padding:40px;">
+            <div style="font-size:32px;margin-bottom:8px;">🏭</div>
+            Aucun transfert — <a href="javascript:void(0)" onclick="openModal('modalTransfert')" style="color:var(--bleu2);">créer le premier</a>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Stock par dépôt -->
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div style="font-size:12px;font-weight:700;color:var(--gris3);text-transform:uppercase;letter-spacing:.5px;">Stock par dépôt</div>
+      {% for d in depots_all %}
+      <div class="table-card" style="padding:14px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div style="font-size:13px;font-weight:800;color:var(--bleu);">🏭 {{ d.nom }}</div>
+          <span class="badge badge-sec">{{ d.code }}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          <div style="text-align:center;padding:8px;background:var(--gris);border-radius:7px;">
+            <div style="font-size:18px;font-weight:800;color:var(--bleu);">{{ d.nb_articles or 0 }}</div>
+            <div style="font-size:9px;color:var(--gris3);">Références</div>
+          </div>
+          <div style="text-align:center;padding:8px;background:var(--gris);border-radius:7px;">
+            <div style="font-size:12px;font-weight:800;color:var(--or);">{{ (d.valeur_stock or 0)|fcfa }}</div>
+            <div style="font-size:9px;color:var(--gris3);">Valeur</div>
+          </div>
+        </div>
+        {% if d.nb_alertes and d.nb_alertes > 0 %}
+        <div style="margin-top:8px;padding:4px 10px;background:#fff5f5;border-radius:6px;font-size:11px;color:var(--rouge);font-weight:700;">
+          ⚠️ {{ d.nb_alertes }} alerte(s)
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+</div>
+
+
+
+
+
+<!-- ══════════════════════════════════════════
+     SECTION 5 : ALERTES
+══════════════════════════════════════════ -->
+<div class="stk-section" id="section-alertes">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+
+    <div>
+      <div style="font-size:13px;font-weight:800;color:var(--rouge);margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+        <span style="width:9px;height:9px;border-radius:50%;background:var(--rouge);display:inline-block;animation:pulse 1.5s infinite;"></span>
+        ❌ Ruptures de stock
+      </div>
+      {% set ruptures = stocks | selectattr('quantite_unite', 'le', 0) | list %}
+      {% if ruptures %}
+        {% for s in ruptures %}
+        <div class="alerte-card">
+          <div class="alerte-icon rupture">❌</div>
+          <div style="flex:1;">
+            <div style="font-weight:700;font-size:13px;">{{ s.designation or '—' }}</div>
+            <div style="font-size:11px;color:var(--gris3);">{{ s.depot_code }} · {{ s.reference }}</div>
+          </div>
+          <div style="text-align:right;margin-right:8px;">
+            <div style="font-size:20px;font-weight:900;color:var(--rouge);">0</div>
+            <div style="font-size:10px;color:var(--gris3);">{{ s.unite_vente }}</div>
+          </div>
+          <button onclick="openMvtPrefill('{{ s.article_id }}','{{ s.depot_id }}')" class="btn btn-sm btn-primary">📥 Appro.</button>
+        </div>
+        {% endfor %}
+      {% else %}
+      <div style="padding:32px;text-align:center;background:var(--bg-card);border-radius:12px;border:1px solid var(--border);">
+        <div style="font-size:28px;margin-bottom:8px;">✅</div>
+        <div style="font-size:12px;color:var(--gris3);">Aucune rupture de stock</div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div>
+      <div style="font-size:13px;font-weight:800;color:var(--or);margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+        <span style="width:9px;height:9px;border-radius:50%;background:var(--or);display:inline-block;"></span>
+        ⚠️ Articles sous seuil de sécurité
+      </div>
+      {% if alertes %}
+        {% for a in alertes %}
+        <div class="alerte-card seuil">
+          <div class="alerte-icon seuil">⚠️</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ a.designation[:28] }}</div>
+            <div style="font-size:11px;color:var(--gris3);">Seuil min : {{ a.stock_min_unite }} {{ a.unite_vente }}</div>
+            <div class="stock-bar" style="margin-top:5px;max-width:120px;">
+              {% set pct_a = [(a.quantite_unite / (a.stock_min_unite or 1) * 100)|int, 100]|min %}
+              <div class="stock-bar-fill" style="width:{{ pct_a }}%;background:var(--or);"></div>
+            </div>
+          </div>
+          <div style="text-align:right;margin-right:8px;">
+            <div style="font-size:20px;font-weight:900;color:var(--or);">{{ a.quantite_unite | int }}</div>
+            <div style="font-size:10px;color:var(--gris3);">/ {{ a.stock_min_unite }} min</div>
+          </div>
+          <button onclick="openMvtPrefill('{{ a.article_id }}','{{ a.depot_id }}')" class="btn btn-sm btn-warning">📥 Réappro.</button>
+        </div>
+        {% endfor %}
+      {% else %}
+      <div style="padding:32px;text-align:center;background:var(--bg-card);border-radius:12px;border:1px solid var(--border);">
+        <div style="font-size:28px;margin-bottom:8px;">✅</div>
+        <div style="font-size:12px;color:var(--gris3);">Tous les articles au-dessus du seuil</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <style>
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  </style>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     SECTION 6 : VALORISATION
+══════════════════════════════════════════ -->
+<div class="stk-section" id="section-valorisation">
+
+  <div class="table-card">
+    <div class="thead">
+      <h3>💰 Valorisation du stock</h3>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Article</th><th>Dépôt</th>
+          <th>Qté (unités)</th><th>Qté (colis)</th>
+          <th>PU Achat HT</th>
+          <th title="Prix d'un colis entier">💼 Prix Colis</th>
+          <th title="Prix d'une unité — depuis articles">🔹 Prix Unitaire</th>
+          <th title="nb_colis × prix_colis">Val. Colis</th>
+          <th title="unités restantes × prix_unitaire">Val. Unités</th>
+          <th>Valeur Totale</th>
+          <th title="Marge par colis = Prix Colis − Prix Achat HT">Marge colis</th>
+          <th title="Marge par unité = Prix Unitaire − (Prix Achat HT ÷ colisage)">Marge unité</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set ns = namespace(tv=0, tm=0) %}
+        {% for s in stocks %}
+        {% set val = s.valeur_stock %}
+        {% set col    = (s.colisage or 1) %}
+        {% set nb_col = (s.quantite_unite / col) if col > 0 else 0 %}
+        {# Marge/colis = prix_unitaire × colisage − prix_achat_ht (PA colis)    #}
+        {# Marge totale = nb_colis × marge_colis                               #}
+        {# Ex : 3X ENERGIE → (11 000×10 − 96 000) × 24 colis = 336 000 ✅    #}
+        {# Si prix_vente_ht (colis) disponible, on l'utilise directement       #}
+        {% set pv_colis = (s.prix_vente_ht or 0) %}
+        {% set pu = (s.prix_unitaire or 0) %}
+        {% set pa_colis = (s.prix_achat_ht or 0) %}
+        {# Marge colis = pv_colis − pa_colis (bénéfice sur 1 colis entier) #}
+        {% if pv_colis > 0 %}
+          {% set marge_colis_val = (pv_colis - pa_colis)|int %}
+        {% elif pu > 0 %}
+          {% set marge_colis_val = ((pu * col) - pa_colis)|int %}
+        {% else %}
+          {% set marge_colis_val = 0 %}
+        {% endif %}
+        {# Marge unité total = (pu − pa_colis/colisage) × quantite_unite #}
+        {% if pu > 0 and col > 0 %}
+          {% set marge_unite_val = ((pu - (pa_colis / col)) * s.quantite_unite)|int %}
+        {% else %}
+          {% set marge_unite_val = 0 %}
+        {% endif %}
+        {# Marge totale stock = nb_colis × marge_colis (pour le total) #}
+        {% set marge = (nb_col * marge_colis_val)|int %}
+        {% set ns.tv = ns.tv + val %}
+        {% set ns.tm = ns.tm + marge %}
+        <tr>
+          <td style="font-weight:600;">{{ s.designation or '—' }}</td>
+          <td><span class="badge badge-sec" style="font-size:10px;">{{ s.depot_code }}</span></td>
+          {# Unités #}
+          <td style="text-align:center;font-weight:700;">{{ s.quantite_unite | int }}</td>
+          {# Colis entiers #}
+          <td style="text-align:center;color:var(--bleu2);font-weight:700;">
+            {% if s.nb_colis is defined %}
+              {{ s.nb_colis }}
+              {% if s.reste_unite > 0 %}
+                <span style="font-size:9px;color:var(--gris3);"> + {{ s.reste_unite }} u.</span>
+              {% endif %}
+            {% else %}
+              {{ (s.quantite_unite / (s.colisage or 1))|int }}
+            {% endif %}
+          </td>
+          <td style="color:var(--rouge);">{{ s.prix_achat_ht | fcfa }}</td>
+          {# Prix Colis #}
+          <td style="font-weight:700;color:var(--bleu);">
+            {% if pv_colis > 0 %}
+              {{ pv_colis | fcfa }}
+              <span style="font-size:9px;color:var(--gris3);font-weight:400;display:block;">{{ col }} u./colis</span>
+            {% else %}
+              <span style="color:var(--gris3);">—</span>
+            {% endif %}
+          </td>
+          {# Prix Unitaire (depuis articles) #}
+          <td style="font-weight:700;color:var(--vert);">
+            {% if pu > 0 %}
+              {{ pu | fcfa }}
+              <span style="font-size:9px;color:var(--gris3);font-weight:400;display:block;">/ {{ s.unite_vente or 'unité' }}</span>
+            {% else %}
+              <span style="color:var(--gris3);">—</span>
+            {% endif %}
+          </td>
+          {# Val Colis #}
+          <td style="color:var(--bleu);font-size:12px;">
+            {% if s.valeur_colis is defined and s.valeur_colis > 0 %}
+              {{ s.valeur_colis | fcfa }}
+              <span style="font-size:9px;color:var(--gris3);font-weight:400;display:block;">
+                {% if s.nb_colis is defined %}{{ s.nb_colis }}{% else %}{{ (s.quantite_unite / col)|int }}{% endif %} × {{ pv_colis | fcfa }}
+              </span>
+            {% else %}
+              <span style="color:var(--gris3);">—</span>
+            {% endif %}
+          </td>
+          {# Val Unités #}
+          <td style="color:var(--vert);font-size:12px;">
+            {% if s.valeur_unite is defined and s.valeur_unite > 0 %}
+              {{ s.valeur_unite | fcfa }}
+              {% if s.valeur_colis is defined and s.valeur_colis > 0 %}
+                <span style="font-size:9px;color:var(--gris3);font-weight:400;display:block;">{{ s.reste_unite }} × {{ pu | fcfa }}</span>
+              {% else %}
+                <span style="font-size:9px;color:var(--gris3);font-weight:400;display:block;">{{ s.quantite_unite | int }} × {{ pu | fcfa }}</span>
+              {% endif %}
+            {% else %}
+              <span style="color:var(--gris3);">—</span>
+            {% endif %}
+          </td>
+          {# Valeur Totale #}
+          <td style="font-weight:900;color:var(--bleu2);background:#f0f7ff;">{{ val|int|fcfa }}</td>
+          {# Marge colis #}
+          <td style="font-weight:700;color:{{ 'var(--vert)' if marge_colis_val >= 0 else 'var(--rouge)' }};">
+            {{ marge_colis_val|fcfa }}
+            <span style="font-size:9px;color:var(--gris3);font-weight:400;display:block;">/colis</span>
+          </td>
+          {# Marge unité (total article) #}
+          <td style="font-weight:700;color:{{ 'var(--vert)' if marge_unite_val >= 0 else 'var(--rouge)' }};">
+            {% if marge_unite_val != 0 %}
+              {{ marge_unite_val|fcfa }}
+              <span style="font-size:9px;color:var(--gris3);font-weight:400;display:block;">{{ s.quantite_unite|int }} {{ s.unite_vente or 'u.' }}</span>
+            {% else %}
+              <span style="color:var(--gris3);">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" style="text-align:center;color:var(--gris3);padding:30px;">Aucun stock</td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr style="background:var(--bleu3);">
+          <td colspan="9" style="padding:10px 14px;font-weight:800;color:var(--bleu);">TOTAL</td>
+          <td style="padding:10px 14px;font-weight:900;color:var(--bleu);font-size:13px;">{{ ns.tv|int|fcfa }}</td>
+          <td style="padding:10px 14px;font-weight:900;color:var(--vert);font-size:13px;">{{ ns.tm|int|fcfa }}</td>
+          <td style="padding:10px 14px;color:var(--gris3);font-size:11px;">—</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     MODALS
+══════════════════════════════════════════ -->
+
+<!-- MODAL : Mouvement -->
+<div id="modalMvt" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>📥📤 Mouvement de stock</h3>
+      <button class="modal-close" onclick="closeModal('modalMvt')">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('stock_mouvement') }}">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Article *</label>
+            <select name="article_id" id="mvtArticle" required>
+              <option value="">— Sélectionner un article —</option>
+              {% for a in articles_all %}
+              <option value="{{ a.id }}" data-vente="{{ a.prix_vente_ht or 0 }}" data-unitaire="{{ a.prix_unitaire or 0 }}">{{ a.designation }} (colisage : {{ a.colisage }})</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Dépôt *</label>
+            <select name="depot_id" id="mvtDepot" required>
+              {% for d in depots_all %}
+              <option value="{{ d.id }}">{{ d.code }} — {{ d.nom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Type *</label>
+            <select name="type_mvt">
+              <option value="entree">📥 Entrée (achat / appro.)</option>
+              <option value="sortie">📤 Sortie (vente / perte)</option>
+              <option value="ajustement">✏️ Ajustement manuel</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Date</label>
+            <input name="date_mvt" id="mvtDate" type="date">
+          </div>
+          <div class="form-group">
+            <label>💰 Prix vente unitaire</label>
+            <input name="prix_unitaire" id="mvtPrixUnitaire" type="number" min="0" step="1" value="0"
+              style="height:36px;padding:0 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;width:100%;font-weight:700;color:var(--bleu);">
+            <span style="font-size:10px;color:var(--gris3);margin-top:3px;display:block;">Auto-rempli selon l'article sélectionné</span>
+          </div>
+          <div class="form-group"><!-- spacer --></div>
+
+          <!-- ── Bloc quantité unifié ── -->
+          <div class="form-group full">
+            <label style="display:flex;align-items:center;gap:6px;">
+              📦 Quantité
+              <span id="mvtColisageInfo" style="font-size:10px;font-weight:600;color:var(--bleu2);padding:2px 8px;border-radius:10px;background:var(--bleu3);display:none;"></span>
+            </label>
+            <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:0;border:2px solid var(--bleu2);border-radius:10px;overflow:hidden;background:var(--bg-card);">
+              <!-- Unités -->
+              <div style="padding:8px 12px;display:flex;flex-direction:column;gap:4px;">
+                <span style="font-size:9px;font-weight:800;color:var(--bleu2);text-transform:uppercase;letter-spacing:.5px;">Unités</span>
+                <input name="quantite_unite" id="mvtQteUnite" type="number" min="0" value="0" step="1"
+                  style="border:none;outline:none;font-size:18px;font-weight:700;color:var(--bleu);width:100%;font-family:inherit;padding:0;"
+                  oninput="syncMvtQte('unite')">
+                <span id="mvtUniteLabel" style="font-size:10px;color:var(--gris3);">bouteille(s)</span>
+              </div>
+              <!-- Séparateur = même stock -->
+              <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bleu3);padding:0 10px;gap:2px;">
+                <span style="font-size:14px;">⇄</span>
+                <span style="font-size:8px;font-weight:700;color:var(--bleu2);text-align:center;line-height:1.2;">même<br>stock</span>
+              </div>
+              <!-- Colis -->
+              <div style="padding:8px 12px;display:flex;flex-direction:column;gap:4px;border-left:2px dashed var(--bleu2);">
+                <span style="font-size:9px;font-weight:800;color:var(--bleu2);text-transform:uppercase;letter-spacing:.5px;">Colis</span>
+                <input name="quantite_colis" id="mvtQteColis" type="number" min="0" value="0" step="1"
+                  style="border:none;outline:none;font-size:18px;font-weight:700;color:var(--bleu);width:100%;font-family:inherit;padding:0;"
+                  oninput="syncMvtQte('colis')">
+                <span id="mvtColisLabel" style="font-size:10px;color:var(--gris3);">colis</span>
+              </div>
+            </div>
+            <!-- Info stock dispo -->
+            <div id="mvtStockDispo" style="display:none;margin-top:6px;padding:6px 12px;background:#f0f7ff;border:1px solid #bfdbfe;border-radius:7px;font-size:11px;display:flex;align-items:center;gap:8px;">
+              <span>📦 Stock disponible :</span>
+              <strong id="mvtStockDispoVal" style="color:var(--bleu);">—</strong>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalMvt')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL : Modifier la quantité d'un article -->
+<div id="modalModifQte" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>✏️ Modifier la quantité</h3>
+      <button class="modal-close" onclick="closeModal('modalModifQte')">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('stock_modifier_qte') }}">
+      <input type="hidden" name="article_id" id="mqArtId">
+      <input type="hidden" name="depot_id"   id="mqDepId">
+      <div class="modal-body">
+        <div style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;margin-bottom:14px;">
+          <div id="mqArtNom" style="font-weight:800;color:var(--bleu);font-size:14px;">—</div>
+          <div id="mqDepNom" style="font-size:11px;color:var(--gris3);margin-top:2px;">—</div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Quantité actuelle</label>
+            <input type="text" id="mqQteActuelle" readonly
+              style="height:36px;padding:0 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;width:100%;background:var(--bg-card);color:var(--gris3);font-weight:700;">
+          </div>
+          <div class="form-group full">
+            <label style="display:flex;align-items:center;gap:6px;">
+              Nouvelle quantité *
+              <span id="mqColisInfo" style="font-size:10px;font-weight:600;color:var(--bleu2);"></span>
+            </label>
+            <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:0;border:2px solid var(--bleu2);border-radius:10px;overflow:hidden;background:var(--bg-card);">
+              <!-- Unités -->
+              <div style="padding:8px 12px;display:flex;flex-direction:column;gap:4px;">
+                <span style="font-size:9px;font-weight:800;color:var(--bleu2);text-transform:uppercase;letter-spacing:.5px;">Unités</span>
+                <input type="number" name="nouvelle_qte" id="mqNouvelle" min="0" step="1" value="0" required
+                  oninput="mqSyncQte('unite')"
+                  style="border:none;outline:none;font-size:18px;font-weight:800;color:var(--bleu);width:100%;font-family:inherit;padding:0;">
+              </div>
+              <!-- Séparateur = même stock -->
+              <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bleu3);padding:0 10px;gap:2px;">
+                <span style="font-size:14px;">⇄</span>
+                <span style="font-size:8px;font-weight:700;color:var(--bleu2);text-align:center;line-height:1.2;">même<br>stock</span>
+              </div>
+              <!-- Colis -->
+              <div style="padding:8px 12px;display:flex;flex-direction:column;gap:4px;border-left:2px dashed var(--bleu2);">
+                <span style="font-size:9px;font-weight:800;color:var(--bleu2);text-transform:uppercase;letter-spacing:.5px;">Colis</span>
+                <input type="number" id="mqNouvelleColis" min="0" step="1" value="0"
+                  oninput="mqSyncQte('colis')"
+                  style="border:none;outline:none;font-size:18px;font-weight:800;color:var(--bleu);width:100%;font-family:inherit;padding:0;">
+              </div>
+            </div>
+          </div>
+          <div class="form-group full">
+            <label>Écart appliqué</label>
+            <div id="mqEcart" style="font-weight:800;font-size:14px;color:var(--gris3);padding:4px 0;">—</div>
+          </div>
+          <div class="form-group full">
+            <label>Motif (facultatif)</label>
+            <input type="text" name="motif" maxlength="120"
+              placeholder="ex : casse, perte, erreur de saisie, inventaire…"
+              style="height:36px;padding:0 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;width:100%;">
+          </div>
+        </div>
+        <p style="font-size:10px;color:var(--gris3);margin-top:10px;line-height:1.4;">
+          ℹ️ La nouvelle valeur remplace le stock actuel. L'écart est enregistré
+          automatiquement comme mouvement d'ajustement dans l'historique.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalModifQte')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Appliquer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL : Transfert inter-dépôts -->
+<div id="modalTransfert" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>🔄 Transfert inter-dépôts</h3>
+      <button class="modal-close" onclick="closeModal('modalTransfert')">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('stock_transfert') }}">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Article *</label>
+            <select name="article_id" required>
+              <option value="">— Sélectionner un article —</option>
+              {% for a in articles_all %}
+              <option value="{{ a.id }}">{{ a.designation }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Dépôt source (départ) *</label>
+            <select name="depot_source" required>
+              <option value="">— Dépôt de départ —</option>
+              {% for d in depots_all %}
+              <option value="{{ d.id }}">🏭 {{ d.nom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Dépôt destination (arrivée) *</label>
+            <select name="depot_dest" required>
+              <option value="">— Dépôt d'arrivée —</option>
+              {% for d in depots_all %}
+              <option value="{{ d.id }}">🏭 {{ d.nom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Quantité (unités) *</label>
+            <input name="quantite" type="number" min="1" step="1" required placeholder="0">
+          </div>
+          <div class="form-group">
+            <label>Date transfert</label>
+            <input name="date_transfert" id="transfertDate" type="date">
+          </div>
+          <div class="form-group full">
+            <label>Notes</label>
+            <input name="notes" placeholder="Raison du transfert…">
+          </div>
+        </div>
+        <div style="padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;margin-top:8px;">
+          ✅ Le transfert débitera le dépôt source et créditera le dépôt destination automatiquement.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalTransfert')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">🔄 Confirmer le transfert</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   MODULE — Mise à jour temps réel des stocks et mouvements
+   ════════════════════════════════════════════════════════════════
+   Mécanisme : polling toutes les 8 s sur /api/stock/live?since=<curseur>
+   - Le curseur = MAX(id) FROM mouvements_stocks (auto-increment).
+   - Si rien de neuf : HTTP 204 (≈ 50 octets, aucune charge UI).
+   - Sinon : snapshot complet, patché in-place + animation flash.
+   - Pause automatique quand l'onglet est en arrière-plan.
+   - Bouton ⏸ Pause / ▶ Reprendre côté utilisateur.
+   ════════════════════════════════════════════════════════════════ */
+
+(function(){
+  var _liveCursor   = 0;        // ID du dernier mouvement vu
+  var _liveTimer    = null;
+  var _liveActive   = true;
+  var _liveInterval = 8000;     // 8 s
+  var _liveFirst    = true;     // 1er tick au chargement
+  var _seenMvts     = {};       // ids déjà affichés dans l'onglet Mouvements
+
+  // Index initial des mouvements déjà rendus côté serveur
+  document.querySelectorAll('#mvtsTbody tr[data-mvt-id]').forEach(function(tr){
+    var id = parseInt(tr.dataset.mvtId);
+    if(id) _seenMvts[id] = true;
+    if(id > _liveCursor) _liveCursor = id;
+  });
+
+  // Formatteur FCFA cohérent avec le rendu Jinja (séparateur espace)
+  function fmtFCFA(n){
+    n = Math.round(n || 0);
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  }
+
+  function patchKpi(id, val){
+    var el = document.getElementById(id);
+    if(!el) return;
+    if(el.textContent.trim() !== String(val)){
+      el.textContent = val;
+      el.style.transition = 'transform .3s';
+      el.style.transform = 'scale(1.18)';
+      setTimeout(function(){ el.style.transform=''; }, 350);
+    }
+  }
+
+  function patchStockRow(s){
+    var tr = document.getElementById('stk-row-' + s.article_id + '-' + s.depot_id);
+    if(!tr) return; // ligne pas dans le DOM (filtre/dépôt différent)
+
+    var pv = parseFloat(tr.dataset.pv) || 0;
+    var unite = tr.dataset.unite || '';
+    var colisage = parseInt(tr.dataset.colisage) || 1;
+
+    // Quantité
+    var qteEl = tr.querySelector('.js-qte');
+    var ancienne = qteEl ? parseInt(qteEl.textContent) || 0 : 0;
+    if(qteEl){
+      qteEl.textContent = s.qu;
+      qteEl.style.color = s.rupture ? 'var(--rouge)' : (s.alerte ? 'var(--rouge)' : 'var(--vert)');
+    }
+
+    // Colis (calcul à partir de la qté)
+    var colisEl = tr.querySelector('.js-colis');
+    if(colisEl){
+      if(colisage > 0){
+        colisEl.textContent = (Math.floor(s.qu / colisage)) + ' colis';
+      } else {
+        colisEl.textContent = '—';
+      }
+    }
+
+    // Valeur ligne
+    var valEl = tr.querySelector('.js-valeur');
+    if(valEl) valEl.textContent = fmtFCFA(s.valeur);
+
+    // Barre de progression (largeur proportionnelle au seuil×3)
+    var barEl = tr.querySelector('.js-bar');
+    if(barEl){
+      var ref = (s.smin * 3) || 1;
+      var pct = Math.min(100, Math.floor((s.qu / ref) * 100));
+      barEl.style.width = pct + '%';
+      barEl.style.background = (s.rupture || s.alerte) ? 'var(--rouge)' : 'var(--vert)';
+    }
+
+    // Badges rupture / alerte
+    var badges = tr.querySelector('.js-badges');
+    if(badges){
+      if(s.rupture){
+        badges.innerHTML = '<span class="badge badge-danger" style="margin-left:4px;font-size:9px;">❌ Rupture</span>';
+      } else if(s.alerte){
+        badges.innerHTML = '<span class="badge badge-danger" style="margin-left:4px;font-size:9px;">⚠️</span>';
+      } else {
+        badges.innerHTML = '';
+      }
+    }
+
+    // Fond de ligne (rouge si alerte)
+    if(s.alerte || s.rupture){
+      tr.style.background = '#fff5f5';
+      tr.classList.add('js-row-alerte');
+    } else {
+      tr.style.background = '';
+      tr.classList.remove('js-row-alerte');
+    }
+
+    // Animation flash : vert si la qté a augmenté, rouge si elle a baissé
+    if(!_liveFirst && s.qu !== ancienne){
+      tr.classList.remove('stk-flash-in', 'stk-flash-out');
+      void tr.offsetWidth; // reset animation
+      tr.classList.add(s.qu > ancienne ? 'stk-flash-in' : 'stk-flash-out');
+    }
+  }
+
+  function prependMvt(m){
+    if(_seenMvts[m.id]) return;
+    _seenMvts[m.id] = true;
+
+    var typeMap = {
+      'entree'    : ['📥 Entrée',    'badge-success', 'var(--vert)',  '+'],
+      'sortie'    : ['📤 Sortie',    'badge-danger',  'var(--rouge)', '-'],
+      'transfert' : ['🔄 Transfert', 'badge-info',    'var(--bleu2)', '→'],
+      'ajustement': ['✏️ Ajustement','badge-warning', 'var(--or)',    '±'],
+      'inventaire': ['📋 Inventaire','badge-sec',     'var(--gris3)', '=']
+    };
+    var t = typeMap[m.type] || [m.type, 'badge-sec', 'var(--gris3)', '+'];
+    var tr = document.createElement('tr');
+    tr.dataset.mvtId = m.id;
+    tr.style.cssText = 'animation:stkFlash 1.6s ease-out;';
+    tr.innerHTML =
+        '<td style="font-size:11px;color:var(--gris3);">' + (m.date || '—') + '</td>'
+      + '<td style="font-weight:600;font-size:12px;">' + (m.art_nom || '—') + '</td>'
+      + '<td style="font-size:11px;">' + (m.dep_nom || '—') + '</td>'
+      + '<td><span class="badge ' + t[1] + '">' + t[0] + '</span></td>'
+      + '<td style="font-weight:700;color:' + t[2] + ';">' + t[3] + m.qte + '</td>'
+      + '<td style="font-size:11px;color:var(--gris3);">' + fmtFCFA(m.pu) + '</td>'
+      + '<td style="font-size:11px;font-weight:600;">' + fmtFCFA(m.valeur) + '</td>'
+      + '<td style="font-size:11px;color:var(--bleu2);">' + (m.doc_ref || '—') + '</td>'
+      + '<td style="font-size:11px;color:var(--gris3);">' + (m.notes || '—') + '</td>';
+
+    var tbody = document.getElementById('mvtsTbody');
+    if(!tbody) return;
+    // Supprimer une éventuelle ligne "Aucun mouvement"
+    var empty = tbody.querySelector('td[colspan]');
+    if(empty) empty.parentElement.remove();
+    tbody.insertBefore(tr, tbody.firstChild);
+
+    // Garder seulement 30 lignes max
+    while(tbody.querySelectorAll('tr').length > 30){
+      tbody.removeChild(tbody.lastChild);
+    }
+  }
+
+  function setLiveStatus(text, color){
+    var el = document.getElementById('liveStatus');
+    if(el){ el.textContent = text; if(color) el.style.color = color; }
+  }
+
+  function liveTick(){
+    if(!_liveActive) return;
+    if(document.hidden) return; // pause si onglet en arrière-plan
+    var url = '/api/stock/live?since=' + _liveCursor;
+    // Conserver les filtres actifs de la page
+    var depot = new URLSearchParams(window.location.search).get('depot');
+    var q     = new URLSearchParams(window.location.search).get('q');
+    if(depot) url += '&depot=' + encodeURIComponent(depot);
+    if(q)     url += '&q=' + encodeURIComponent(q);
+
+    fetch(url, {credentials: 'same-origin'})
+      .then(function(r){
+        if(r.status === 204){
+          setLiveStatus('— synchronisé · ' + new Date().toLocaleTimeString('fr-FR'), '#047857');
+          return null;
+        }
+        if(!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(data){
+        if(!data) return;
+        _liveCursor = data.cursor;
+
+        // KPIs
+        if(data.kpis){
+          patchKpi('kpi-valeur',     fmtFCFA(data.kpis.valeur_totale));
+          patchKpi('kpi-alertes',    data.kpis.nb_alertes);
+          patchKpi('kpi-references', data.kpis.nb_references);
+          // Mettre à jour les compteurs d'onglets
+          var tabS = document.querySelector('#tab-stocks .cnt');
+          var tabA = document.querySelector('#tab-alertes .cnt');
+          if(tabS) tabS.textContent = data.kpis.nb_references;
+          if(tabA) tabA.textContent = data.kpis.nb_alertes;
+        }
+
+        // Lignes stock
+        if(data.stocks){
+          data.stocks.forEach(patchStockRow);
+        }
+
+        // Mouvements (ordre chrono inverse depuis l'API → on prepend du plus ancien au plus récent)
+        if(data.mvts){
+          var nouveaux = data.mvts.filter(function(m){ return !_seenMvts[m.id]; });
+          nouveaux.reverse().forEach(prependMvt);
+        }
+
+        setLiveStatus(
+          '🟢 Synchronisé · ' + (data.ts || new Date().toLocaleTimeString('fr-FR'))
+          + ' · ' + (data.kpis ? data.kpis.nb_references : 0) + ' réf.',
+          '#047857'
+        );
+        _liveFirst = false;
+      })
+      .catch(function(err){
+        setLiveStatus('⚠️ Erreur synchro : ' + err.message, '#b91c1c');
+        var dot = document.getElementById('liveDot');
+        if(dot) dot.style.background = '#ef4444';
+      });
+  }
+
+  function startLive(){
+    if(_liveTimer) return;
+    _liveActive = true;
+    document.getElementById('liveDot').style.background = '#10b981';
+    document.getElementById('liveToggle').textContent = '⏸ Pause';
+    setLiveStatus('🔄 Synchronisation…', '#047857');
+    liveTick();                                  // immédiat
+    _liveTimer = setInterval(liveTick, _liveInterval);
+  }
+
+  function stopLive(){
+    _liveActive = false;
+    if(_liveTimer){ clearInterval(_liveTimer); _liveTimer = null; }
+    document.getElementById('liveDot').style.background = '#94a3b8';
+    document.getElementById('liveToggle').textContent = '▶ Reprendre';
+    setLiveStatus('⏸ En pause', '#64748b');
+  }
+
+  // Exposé global pour le bouton
+  window.toggleLive = function(){
+    if(_liveActive) stopLive();
+    else startLive();
+  };
+
+  // Reprendre quand l'onglet redevient visible
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden && _liveActive) liveTick();
+  });
+
+  // ── BroadcastChannel : réaction immédiate aux événements vente/achat ──
+  // Quand un autre onglet (caisse, ventes, achats) valide une opération
+  // impactant le stock, il publie sur ce canal → liveTick() instantané,
+  // sans attendre le prochain cycle de 8 s.
+  (function initBroadcast(){
+    if(!window.BroadcastChannel) return; // navigateur trop ancien, polling seul
+    var bc = new BroadcastChannel('distrigest_stock');
+    bc.onmessage = function(ev){
+      if(!_liveActive) return;           // pause utilisateur → on ignore
+      var data = ev.data || {};
+      // Types déclencheurs : 'vente', 'achat', 'stock'
+      if(['vente','achat','stock'].indexOf(data.type) >= 0){
+        // Légère pause pour laisser la BDD Flask committer
+        setTimeout(liveTick, 250);
+      }
+    };
+  })();
+
+  // Démarrage différé pour ne pas concurrencer le premier rendu
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(startLive, 500); });
+  } else {
+    setTimeout(startLive, 500);
+  }
+})();
+
+/* ══ ONGLETS ══════════════════════════════════════════════════ */
+function switchSection(name) {
+  document.querySelectorAll('.stk-section').forEach(function(s){ s.classList.remove('active'); });
+  document.querySelectorAll('.stk-tab').forEach(function(t){ t.classList.remove('active'); });
+  var sec = document.getElementById('section-' + name);
+  var tab = document.getElementById('tab-' + name);
+  if(sec) sec.classList.add('active');
+  if(tab) tab.classList.add('active');
+}
+
+/* ══ MOUVEMENT : CONVERSION UNITÉS ⇄ COLIS ═══════════════════ */
+var _mvtColisageMap = {};
+var _mvtPrixVenteMap = {};
+
+document.addEventListener('DOMContentLoaded', function(){
+  var sel = document.getElementById('mvtArticle');
+  if(!sel) return;
+  Array.from(sel.options).forEach(function(opt){
+    if(!opt.value) return;
+    var m = opt.textContent.match(/colisage\s*:\s*(\d+)/i);
+    _mvtColisageMap[opt.value] = m ? parseInt(m[1]) : 1;
+    // Fallback : prix_vente_ht (colis) si saisi, sinon prix_unitaire
+    var pv    = parseFloat(opt.dataset.vente)    || 0;
+    var pu    = parseFloat(opt.dataset.unitaire)  || 0;
+    _mvtPrixVenteMap[opt.value] = pv > 0 ? pv : pu;
+  });
+  sel.addEventListener('change', function(){ mvtUpdateArticleInfo(); });
+});
+
+function mvtGetColisage() {
+  var sel = document.getElementById('mvtArticle');
+  return _mvtColisageMap[sel ? sel.value : ''] || 1;
+}
+
+function mvtUpdateArticleInfo() {
+  var sel  = document.getElementById('mvtArticle');
+  var val  = sel ? sel.value : '';
+  var col  = _mvtColisageMap[val] || 1;
+  var info = document.getElementById('mvtColisageInfo');
+  var lbl  = document.getElementById('mvtColisLabel');
+  if(info){ info.textContent = '1 colis = ' + col + ' unités'; info.style.display = val ? 'inline' : 'none'; }
+  if(lbl)  lbl.textContent = 'colis × ' + col;
+  // Auto-remplir le prix unitaire avec le prix de vente de l'article
+  var prixInput = document.getElementById('mvtPrixUnitaire');
+  if(prixInput && val) prixInput.value = _mvtPrixVenteMap[val] || 0;
+  syncMvtQte('unite');
+}
+
+function syncMvtQte(from) {
+  var col = mvtGetColisage();
+  var qU  = document.getElementById('mvtQteUnite');
+  var qC  = document.getElementById('mvtQteColis');
+  if(!qU || !qC) return;
+  if(from === 'unite') {
+    var u = parseInt(qU.value) || 0;
+    qC.value = col > 0 ? Math.floor(u / col) : 0;
+  } else {
+    var c = parseInt(qC.value) || 0;
+    qU.value = c * col;
+  }
+}
+
+/* ══ MOUVEMENT RAPIDE ════════════════════════════════════════ */
+function openMvtPrefill(artId, depId) {
+  var a = document.getElementById('mvtArticle');
+  var d = document.getElementById('mvtDepot');
+  if(a){ for(var i=0;i<a.options.length;i++) if(a.options[i].value==artId){ a.selectedIndex=i; break; } }
+  if(d){ for(var i=0;i<d.options.length;i++) if(d.options[i].value==depId){ d.selectedIndex=i; break; } }
+  mvtUpdateArticleInfo();
+  // Stock dispo depuis le tableau
+  var stockEl  = document.getElementById('mvtStockDispo');
+  var stockVal = document.getElementById('mvtStockDispoVal');
+  if(stockEl && stockVal){
+    var rows = document.querySelectorAll('#section-stocks tbody tr');
+    var found = false;
+    rows.forEach(function(tr){
+      var btn = tr.querySelector('button[onclick*="openMvtPrefill"]');
+      if(btn && btn.getAttribute('onclick').indexOf("'"+artId+"'")>-1 && btn.getAttribute('onclick').indexOf("'"+depId+"'")>-1){
+        var qteEl = tr.querySelector('td:nth-child(4) span');
+        if(qteEl){
+          var col = mvtGetColisage();
+          var qte = parseInt(qteEl.textContent) || 0;
+          stockVal.textContent = qte + ' unités (' + (col>0?Math.floor(qte/col):0) + ' colis)';
+          found = true;
+        }
+      }
+    });
+    stockEl.style.display = found ? 'flex' : 'none';
+  }
+  openModal('modalMvt');
+}
+
+
+/* ══ MODIFICATION DIRECTE DE LA QUANTITÉ ═════════════════════ */
+function openModifQte(btn){
+  var art    = btn.dataset.art,  dep = btn.dataset.dep;
+  var design = btn.dataset.design || '', depot = btn.dataset.depot || '';
+  var qte    = parseInt(btn.dataset.qte) || 0;
+  var col    = parseInt(btn.dataset.col) || 1;
+
+  document.getElementById('mqArtId').value = art;
+  document.getElementById('mqDepId').value = dep;
+  document.getElementById('mqArtNom').textContent = design;
+  document.getElementById('mqDepNom').textContent = '🏭 ' + depot;
+  document.getElementById('mqQteActuelle').value =
+    qte + ' unités (' + (col > 0 ? Math.floor(qte / col) : 0) + ' colis)';
+
+  var inp = document.getElementById('mqNouvelle');
+  inp.value = qte;
+  inp.dataset.ancienne = qte;
+  inp.dataset.col = col;
+  var inpCol = document.getElementById('mqNouvelleColis');
+  if(inpCol) inpCol.value = col > 0 ? Math.floor(qte / col) : 0;
+  mqUpdateEcart();
+  openModal('modalModifQte');
+  setTimeout(function(){ inp.focus(); inp.select(); }, 60);
+}
+
+/* Synchronise les champs Unités <-> Colis (même stock).
+   La saisie en colis convertit en unités complètes (colis × colisage) ;
+   la saisie en unités déduit le nombre de colis entiers. Le champ Unités
+   (name="nouvelle_qte") reste la valeur réellement soumise. */
+function mqSyncQte(from){
+  var inp    = document.getElementById('mqNouvelle');
+  var inpCol = document.getElementById('mqNouvelleColis');
+  if(!inp || !inpCol) return;
+  var col = parseInt(inp.dataset.col) || 1;
+  if(from === 'colis'){
+    var c = parseInt(inpCol.value) || 0;
+    inp.value = c * col;
+  } else {
+    var u = parseInt(inp.value) || 0;
+    inpCol.value = col > 0 ? Math.floor(u / col) : 0;
+  }
+  mqUpdateEcart();
+}
+
+/* ══ RÉINITIALISATION DU STOCK AFFICHÉ ═══════════════════════ */
+function confirmResetStock(){
+  return confirm(
+    "⚠️ Réinitialiser le stock ?\n\n" +
+    "Le stock de TOUS les articles affichés va être mis à zéro.\n" +
+    "Cette action est irréversible et ne sera pas enregistrée dans l'historique."
+  );
+}
+
+function mqUpdateEcart(){
+  var inp = document.getElementById('mqNouvelle');
+  if(!inp) return;
+  var anc  = parseInt(inp.dataset.ancienne) || 0;
+  var col  = parseInt(inp.dataset.col) || 1;
+  var nouv = parseInt(inp.value) || 0;
+  var diff = nouv - anc;
+
+  var colInfo = document.getElementById('mqColisInfo');
+  if(colInfo){
+    if(col > 1){
+      var nb = Math.floor(nouv / col), reste = nouv - nb * col;
+      colInfo.textContent = '= ' + nb + ' colis' + (reste > 0 ? ' + ' + reste + ' u.' : '');
+    } else {
+      colInfo.textContent = '';
+    }
+  }
+
+  var el = document.getElementById('mqEcart');
+  if(!el) return;
+  if(diff === 0){       el.textContent = 'Aucun changement';                 el.style.color = 'var(--gris3)'; }
+  else if(diff > 0){    el.textContent = '+' + diff + ' unité(s) — entrée';  el.style.color = '#059669'; }
+  else {                el.textContent = diff + ' unité(s) — sortie';        el.style.color = '#dc2626'; }
+}
+
+
+/* ══ DATES ════════════════════════════════════════════════════ */
+var today = new Date().toISOString().split('T')[0];
+if(document.getElementById('mvtDate')) document.getElementById('mvtDate').value = today;
+if(document.getElementById('transfertDate')) document.getElementById('transfertDate').value = today;
+
+/* ══ URL PARAM SECTION ════════════════════════════════════════ */
+var urlSec = new URLSearchParams(window.location.search).get('section');
+if(urlSec) switchSection(urlSec);
+
+/* ══ IMPRESSION ENTRÉES STOCK ════════════════════════════════ */
+function imprimerEntreesStock() {
+  var rows = document.querySelectorAll('#mvtsTbody tr[data-mvt-id]');
+  var entrees = [];
+  rows.forEach(function(tr) {
+    var badgeEl = tr.querySelector('td .badge');
+    if (!badgeEl) return;
+    var type = badgeEl.textContent.trim();
+    if (type.indexOf('Entrée') === -1) return;
+    var cells = tr.querySelectorAll('td');
+    entrees.push({
+      date:    cells[0] ? cells[0].textContent.trim() : '—',
+      article: cells[1] ? cells[1].textContent.trim() : '—',
+      depot:   cells[2] ? cells[2].textContent.trim() : '—',
+      qte:     cells[4] ? cells[4].textContent.trim() : '—',
+      pu:      cells[5] ? cells[5].textContent.trim() : '—',
+      valeur:  cells[6] ? cells[6].textContent.trim() : '—',
+      ref:     cells[7] ? cells[7].textContent.trim() : '—'
+    });
+  });
+
+  /* Regrouper par article : cumul des quantités d'entrée */
+  var map = {};
+  entrees.forEach(function(e) {
+    var key = e.article;
+    if (!map[key]) { map[key] = { article: e.article, depot: e.depot, lignes: [] }; }
+    map[key].lignes.push(e);
+  });
+
+  var lignesHTML = '';
+  var totalQte = 0;
+  Object.keys(map).sort().forEach(function(art) {
+    var grp = map[art];
+    var cumQte = 0;
+    grp.lignes.forEach(function(l) {
+      var q = parseInt(l.qte.replace(/[^0-9]/g, '')) || 0;
+      cumQte += q;
+    });
+    totalQte += cumQte;
+    lignesHTML += '<tr>' +
+      '<td>' + grp.article + '</td>' +
+      '<td>' + grp.depot + '</td>' +
+      '<td style="font-weight:800;font-size:15px;color:#065f46;text-align:center;">+' + cumQte + '</td>' +
+      '<td style="text-align:center;color:var(--gris3);font-size:11px;">' + grp.lignes.length + ' mvt(s)</td>' +
+    '</tr>';
+  });
+
+  if (!lignesHTML) { alert('Aucune entrée de stock à imprimer.'); return; }
+
+  var now = new Date().toLocaleString('fr-FR');
+  var win = window.open('', '_blank', 'width=820,height=640');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+    '<title>Entrées stock — DISTRIGEST</title>' +
+    '<style>' +
+      'body{font-family:Arial,sans-serif;margin:0;padding:24px;color:var(--texte);font-size:13px;}' +
+      'h1{font-size:18px;margin:0 0 4px;color:#1e3a5f;}' +
+      '.sub{font-size:11px;color:var(--gris3);margin-bottom:20px;}' +
+      'table{width:100%;border-collapse:collapse;margin-top:12px;}' +
+      'thead tr{background:#1e3a5f;color:white;}' +
+      'th{padding:9px 12px;text-align:left;font-size:12px;font-weight:700;letter-spacing:.3px;}' +
+      'td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}' +
+      'tr:nth-child(even) td{background:var(--bg-card);}' +
+      'tfoot tr td{font-weight:800;background:#ecfdf5;border-top:2px solid #10b981;font-size:13px;}' +
+      '.header-band{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #1e3a5f;}' +
+      '.badge-entree{display:inline-block;background:#dcfce7;color:#065f46;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;}' +
+      '@media print{button{display:none!important;}}' +
+    '</style></head><body>' +
+    '<div class="header-band">' +
+      '<div>' +
+        '<h1>&#128229; Rapport des Entrées de Stock</h1>' +
+        '<div class="sub">Généré le ' + now + ' — DISTRIGEST · STINAUG TECHNOLOGIE</div>' +
+        '<span class="badge-entree">&#128229; Entrées uniquement</span>' +
+      '</div>' +
+      '<button onclick="window.print()" style="background:#1e3a5f;color:white;border:none;padding:9px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">&#128424; Imprimer</button>' +
+    '</div>' +
+    '<table>' +
+      '<thead><tr>' +
+        '<th>Article</th>' +
+        '<th>Dépôt</th>' +
+        '<th style="text-align:center;">Qté entrée totale</th>' +
+        '<th style="text-align:center;">Nb mouvements</th>' +
+      '</tr></thead>' +
+      '<tbody>' + lignesHTML + '</tbody>' +
+      '<tfoot><tr>' +
+        '<td colspan="2">TOTAL</td>' +
+        '<td style="text-align:center;color:#065f46;font-size:16px;">+' + totalQte + '</td>' +
+        '<td></td>' +
+      '</tr></tfoot>' +
+    '</table>' +
+    '</body></html>');
+  win.document.close();
+  win.focus();
+}
+</script>
+
+
+{# ── Patch thème sombre : éléments inline de cette page ── #}
+<style>
+/* ════════ DARK MODE — patch page ════════ */
+
+/* ── Inputs / selects / textareas ── */
+[data-theme="dark"] input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=hidden]):not([type=range]),
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: var(--bg-input) !important;
+  color: var(--texte) !important;
+  border-color: var(--border) !important;
+}
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder { color: var(--gris3) !important; opacity:1; }
+
+/* ── Fonds colorés sémantiques (info, success, warning, danger) ── */
+/* On assombrit les backgrounds pastel pour lisibilité sur fond sombre */
+[data-theme="dark"] [style*="background:#f0f7ff"],
+[data-theme="dark"] [style*="background: #f0f7ff"] { background:#0d1d38 !important; color:#93c5fd !important; }
+[data-theme="dark"] [style*="background:#eff6ff"],
+[data-theme="dark"] [style*="background: #eff6ff"] { background:#0d1d38 !important; }
+[data-theme="dark"] [style*="background:#dbeafe"],
+[data-theme="dark"] [style*="background: #dbeafe"] { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] [style*="background:#bfdbfe"]  { background:#1d3461 !important; }
+
+[data-theme="dark"] [style*="background:#f0fdf4"],
+[data-theme="dark"] [style*="background: #f0fdf4"] { background:#052e16 !important; color:#4ade80 !important; }
+[data-theme="dark"] [style*="background:#dcfce7"],
+[data-theme="dark"] [style*="background: #dcfce7"] { background:#052e16 !important; color:#4ade80 !important; }
+[data-theme="dark"] [style*="background:#bbf7d0"]  { background:#052e16 !important; }
+
+[data-theme="dark"] [style*="background:#fef9c3"],
+[data-theme="dark"] [style*="background: #fef9c3"] { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] [style*="background:#fefce8"],
+[data-theme="dark"] [style*="background: #fefce8"] { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] [style*="background:#fffbeb"],
+[data-theme="dark"] [style*="background: #fffbeb"] { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] [style*="background:#fef3c7"],
+[data-theme="dark"] [style*="background: #fef3c7"] { background:#3d2e00 !important; }
+[data-theme="dark"] [style*="background:#fde68a"]  { background:#3d2e00 !important; }
+
+[data-theme="dark"] [style*="background:#fee2e2"],
+[data-theme="dark"] [style*="background: #fee2e2"] { background:#3d0f0f !important; color:#fca5a5 !important; }
+[data-theme="dark"] [style*="background:#fff1f2"],
+[data-theme="dark"] [style*="background: #fff1f2"] { background:#3d0f0f !important; }
+[data-theme="dark"] [style*="background:#fff5f5"],
+[data-theme="dark"] [style*="background: #fff5f5"] { background:#3d0f0f !important; }
+[data-theme="dark"] [style*="background:#fecaca"]  { background:#3d0f0f !important; }
+[data-theme="dark"] [style*="background:#fecdd3"]  { background:#3d0f0f !important; }
+
+[data-theme="dark"] [style*="background:#f5f3ff"],
+[data-theme="dark"] [style*="background: #f5f3ff"] { background:#1e1040 !important; }
+[data-theme="dark"] [style*="background:#ede9fe"]  { background:#1e1040 !important; }
+
+[data-theme="dark"] [style*="background:#fff7ed"],
+[data-theme="dark"] [style*="background: #fff7ed"] { background:#3d1500 !important; color:#fb923c !important; }
+[data-theme="dark"] [style*="background:#ffedd5"]  { background:#3d1500 !important; }
+
+[data-theme="dark"] [style*="background:#f0f9ff"],
+[data-theme="dark"] [style*="background: #f0f9ff"] { background:#0a1e33 !important; }
+
+/* ── Badges ── */
+[data-theme="dark"] .badge-sec     { background:#1c2128 !important; color:#8b949e !important; }
+[data-theme="dark"] .badge-info    { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] .badge-success { background:#052e16 !important; color:#4ade80 !important; }
+[data-theme="dark"] .badge-warning { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] .badge-danger  { background:#3d0f0f !important; color:#fca5a5 !important; }
+
+/* ── Cards & tableaux ── */
+[data-theme="dark"] .kpi-card      { background:var(--bg-card) !important; }
+[data-theme="dark"] .kpi-card .label,
+[data-theme="dark"] .kpi-card .sub { color:var(--gris3) !important; }
+[data-theme="dark"] .table-card    { background:var(--bg-card) !important; }
+[data-theme="dark"] .table-card .thead { background:var(--bg-card) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] thead th       { background:var(--bg-thead) !important; color:var(--gris3) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody td       { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody tr:last-child td { border-bottom:none !important; }
+[data-theme="dark"] tbody tr:hover td { background:var(--row-hover) !important; }
+
+/* ── Boutons secondaires / actions ── */
+[data-theme="dark"] .btn-sec       { background:#1c2128 !important; color:#8b949e !important; border-color:var(--border) !important; }
+[data-theme="dark"] .btn-sec:hover { background:#30363d !important; color:var(--texte) !important; }
+[data-theme="dark"] .hist-action-btn { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+
+/* ── Modales ── */
+[data-theme="dark"] .modal         { background:var(--modal-bg) !important; }
+[data-theme="dark"] .modal-header  { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .modal-footer  { border-top-color:var(--border) !important; }
+[data-theme="dark"] .modal-body    { background:var(--modal-body-bg) !important; }
+
+/* ── Éléments spécifiques ── */
+[data-theme="dark"] .pcart         { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .pcart-head    { background:var(--bg-thead) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .pcart-body    { background:var(--bg-card) !important; }
+[data-theme="dark"] .result-section { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .result-section-header { background:var(--bg-thead) !important; }
+[data-theme="dark"] .result-table td { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .result-table tr:hover td { background:var(--row-hover) !important; }
+[data-theme="dark"] .sage-mode-btn { background:var(--bg-input) !important; border-color:var(--border) !important; color:var(--texte) !important; }
+[data-theme="dark"] .sage-mode-btn.active { background:var(--bleu2) !important; color:#fff !important; }
+[data-theme="dark"] .liv-select    { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+
+/* inv rows */
+[data-theme="dark"] .inv-row-ok  td { background:#052e16 !important; }
+[data-theme="dark"] .inv-row-pos td { background:#3d2e00 !important; }
+[data-theme="dark"] .inv-row-neg td { background:#3d0f0f !important; }
+
+/* ════════ SYSTEM AUTO ════════ */
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=hidden]):not([type=range]),
+  [data-theme="system"] select,
+  [data-theme="system"] textarea {
+    background:var(--bg-input) !important;
+    color:var(--texte) !important;
+    border-color:var(--border) !important;
+  }
+  [data-theme="system"] input::placeholder,
+  [data-theme="system"] textarea::placeholder { color:var(--gris3) !important; opacity:1; }
+
+  [data-theme="system"] [style*="background:#f0f7ff"],
+  [data-theme="system"] [style*="background: #f0f7ff"]  { background:#0d1d38 !important; color:#93c5fd !important; }
+  [data-theme="system"] [style*="background:#eff6ff"],
+  [data-theme="system"] [style*="background: #eff6ff"]  { background:#0d1d38 !important; }
+  [data-theme="system"] [style*="background:#dbeafe"],
+  [data-theme="system"] [style*="background: #dbeafe"]  { background:#1d3461 !important; color:#93c5fd !important; }
+  [data-theme="system"] [style*="background:#f0fdf4"],
+  [data-theme="system"] [style*="background: #f0fdf4"]  { background:#052e16 !important; color:#4ade80 !important; }
+  [data-theme="system"] [style*="background:#dcfce7"],
+  [data-theme="system"] [style*="background: #dcfce7"]  { background:#052e16 !important; color:#4ade80 !important; }
+  [data-theme="system"] [style*="background:#fef9c3"],
+  [data-theme="system"] [style*="background: #fef9c3"]  { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] [style*="background:#fefce8"],
+  [data-theme="system"] [style*="background: #fefce8"]  { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] [style*="background:#fffbeb"],
+  [data-theme="system"] [style*="background: #fffbeb"]  { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] [style*="background:#fee2e2"],
+  [data-theme="system"] [style*="background: #fee2e2"]  { background:#3d0f0f !important; color:#fca5a5 !important; }
+  [data-theme="system"] [style*="background:#fff1f2"],
+  [data-theme="system"] [style*="background: #fff1f2"]  { background:#3d0f0f !important; }
+  [data-theme="system"] [style*="background:#fff5f5"],
+  [data-theme="system"] [style*="background: #fff5f5"]  { background:#3d0f0f !important; }
+  [data-theme="system"] [style*="background:#fff7ed"],
+  [data-theme="system"] [style*="background: #fff7ed"]  { background:#3d1500 !important; color:#fb923c !important; }
+  [data-theme="system"] [style*="background:#f5f3ff"],
+  [data-theme="system"] [style*="background: #f5f3ff"]  { background:#1e1040 !important; }
+
+  [data-theme="system"] .badge-sec     { background:#1c2128 !important; color:#8b949e !important; }
+  [data-theme="system"] .badge-info    { background:#1d3461 !important; color:#93c5fd !important; }
+  [data-theme="system"] .badge-success { background:#052e16 !important; color:#4ade80 !important; }
+  [data-theme="system"] .badge-warning { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] .badge-danger  { background:#3d0f0f !important; color:#fca5a5 !important; }
+  [data-theme="system"] .kpi-card      { background:var(--bg-card) !important; }
+  [data-theme="system"] .table-card    { background:var(--bg-card) !important; }
+  [data-theme="system"] .table-card .thead { background:var(--bg-card) !important; border-bottom-color:var(--border) !important; }
+  [data-theme="system"] thead th       { background:var(--bg-thead) !important; color:var(--gris3) !important; border-bottom-color:var(--border) !important; }
+  [data-theme="system"] tbody td       { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] tbody tr:hover td { background:var(--row-hover) !important; }
+  [data-theme="system"] .btn-sec       { background:#1c2128 !important; color:#8b949e !important; border-color:var(--border) !important; }
+  [data-theme="system"] .hist-action-btn { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .modal         { background:var(--modal-bg) !important; }
+  [data-theme="system"] .modal-header  { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] .modal-footer  { border-top-color:var(--border) !important; }
+  [data-theme="system"] .pcart         { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .sage-mode-btn { background:var(--bg-input) !important; border-color:var(--border) !important; color:var(--texte) !important; }
+  [data-theme="system"] .inv-row-ok  td { background:#052e16 !important; }
+  [data-theme="system"] .inv-row-pos td { background:#3d2e00 !important; }
+  [data-theme="system"] .inv-row-neg td { background:#3d0f0f !important; }
+  [data-theme="system"] .result-section { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .result-section-header { background:var(--bg-thead) !important; }
+}
+</style>
+
+{% endblock %}

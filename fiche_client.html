@@ -1,0 +1,733 @@
+{% extends "base.html" %}
+{% block title %}Dossier {{ client.nom }} — DISTRIGEST{% endblock %}
+{% block topbar_title %}👤 Dossier Client{% endblock %}
+{% block content %}
+<style>
+.tl-item{display:flex;gap:14px;position:relative;}
+.tl-item::before{content:'';position:absolute;left:17px;top:36px;bottom:-1px;width:2px;background:var(--gris2);z-index:0;}
+.tl-item:last-child::before{display:none;}
+.tl-dot{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;z-index:1;border:2px solid;}
+.tl-body{flex:1;padding:0 0 20px;}
+.tl-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.tl-title{font-size:13px;font-weight:700;color:var(--bleu);}
+.tl-date{font-size:11px;color:var(--gris3);}
+.tl-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;}
+.encours-gauge{height:10px;background:var(--gris2);border-radius:5px;overflow:hidden;margin:6px 0;}
+.encours-fill{height:100%;border-radius:5px;transition:width .6s;}
+.stat-mini{
+  background:var(--bg-card);
+  border:1px solid var(--gris2);
+  border-radius:12px;
+  padding:14px 16px 12px;
+  text-align:center;
+  position:relative;
+  overflow:hidden;
+  cursor:default;
+  box-shadow:0 1px 3px rgba(0,0,0,.06);
+  transition:transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s ease, border-color .18s ease;
+}
+.stat-mini::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:3px;
+  background:var(--kpi-accent,var(--bleu2));
+  border-radius:12px 12px 0 0;
+  opacity:.8;
+  transition:opacity .18s;
+}
+.stat-mini:hover{
+  transform:translateY(-4px) scale(1.02);
+  box-shadow:0 8px 24px rgba(0,0,0,.12), 0 2px 6px rgba(0,0,0,.06);
+  border-color:transparent;
+  z-index:2;
+}
+.stat-mini:hover::before{ opacity:1; }
+.stat-mini .val{font-size:18px;font-weight:900;line-height:1.1;}
+.stat-mini .lbl{font-size:9px;font-weight:700;color:var(--gris3);text-transform:uppercase;margin-top:4px;letter-spacing:.4px;}
+.dossier-tabs{display:flex;gap:0;border-bottom:2px solid var(--gris2);margin-bottom:20px;overflow-x:auto;}
+.dossier-tab{padding:9px 15px;border:none;background:none;font-size:11px;font-weight:700;color:var(--gris3);border-bottom:3px solid transparent;cursor:pointer;margin-bottom:-2px;white-space:nowrap;font-family:inherit;transition:color .15s,border-color .15s;}
+.dossier-tab.active{color:var(--bleu);border-bottom-color:var(--bleu2);}
+.dossier-tab:hover{color:var(--bleu);}
+/* ── Boutons d'action par ligne (réutilise pattern devis/factures/commandes) ── */
+.hist-action-btn{display:inline-flex;align-items:center;gap:3px;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;font-family:inherit;border:1.5px solid transparent;cursor:pointer;transition:all .15s;white-space:nowrap;line-height:1;text-decoration:none;}
+.hist-action-btn span{font-size:10px;}
+.hist-btn-imprimer{background:#f0f7ff;color:#2563eb;border-color:#bfdbfe;}
+.hist-btn-imprimer:hover{background:#2563eb;color:white;border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.25);}
+.hist-btn-modifier{background:#fefce8;color:#ca8a04;border-color:#fde047;}
+.hist-btn-modifier:hover{background:#ca8a04;color:white;border-color:#ca8a04;box-shadow:0 2px 8px rgba(202,138,4,.25);}
+.hist-btn-regler{background:#f0fdf4;color:#16a34a;border-color:#86efac;}
+.hist-btn-regler:hover{background:#16a34a;color:white;border-color:#16a34a;box-shadow:0 2px 8px rgba(22,163,74,.25);}
+.hist-btn-supprimer{background:#fff1f2;color:#dc2626;border-color:#fca5a5;}
+.hist-btn-supprimer:hover{background:#dc2626;color:white;border-color:#dc2626;box-shadow:0 2px 8px rgba(220,38,38,.25);}
+.hist-btn-action{background:#f5f3ff;color:#7c3aed;border-color:#ddd6fe;}
+.hist-btn-action:hover{background:#7c3aed;color:white;border-color:#7c3aed;box-shadow:0 2px 8px rgba(124,58,237,.25);}
+.hist-btn-action-cyan{background:#ecfeff;color:#0891b2;border-color:#a5f3fc;}
+.hist-btn-action-cyan:hover{background:#0891b2;color:white;border-color:#0891b2;box-shadow:0 2px 8px rgba(8,145,178,.25);}
+.hist-btn-action-green{background:#f0fdf4;color:#059669;border-color:#6ee7b7;}
+.hist-btn-action-green:hover{background:#059669;color:white;border-color:#059669;box-shadow:0 2px 8px rgba(5,150,105,.25);}
+.action-cell{white-space:nowrap;vertical-align:middle;padding:4px 6px;}
+.action-cell-inner{display:inline-flex;gap:3px;align-items:center;flex-wrap:wrap;}
+
+/* ── Grille de la fiche d'édition (tabinfos) ─────────────────────────────
+   - 2 colonnes côte-à-côte sur grand écran
+   - 1 colonne empilée en dessous de 1280px pour éviter que les champs
+     comme "Code comptable" ou "Matricule fiscal" soient écrasés. */
+.tabinfos-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;}
+@media (max-width:1280px){
+  .tabinfos-grid{grid-template-columns:1fr;}
+}
+/* Les inputs des sections "Classification & Comptable" doivent toujours
+   afficher leur placeholder en entier — pas d'overflow caché. */
+.tabinfos-grid .form-group input,
+.tabinfos-grid .form-group select,
+.tabinfos-grid .form-group textarea{
+  width:100%;
+  min-width:0;
+  text-overflow:ellipsis;
+}
+</style>
+
+<!-- Bandeau identité -->
+<div style="background:linear-gradient(135deg,var(--bleu) 0%,var(--bleu2) 100%);border-radius:14px;padding:22px 28px;margin-bottom:20px;position:relative;overflow:hidden;">
+  <div style="position:absolute;right:24px;top:50%;transform:translateY(-50%);opacity:.08;pointer-events:none;"><svg width="110" height="110" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="18" width="48" height="32" rx="4" fill="white"/><path d="M4 20 Q4 14 10 14 L22 14 Q26 14 27 18 L4 18 Z" fill="white"/><rect x="4" y="20" width="48" height="30" rx="3" fill="white"/><rect x="14" y="34" width="20" height="2.5" rx="1.2" fill="white"/><rect x="14" y="39" width="14" height="2.5" rx="1.2" fill="white"/></svg></div>
+  <div style="display:flex;align-items:flex-start;gap:18px;position:relative;z-index:1;flex-wrap:wrap;">
+    <div style="width:56px;height:56px;flex-shrink:0;filter:drop-shadow(0 3px 8px rgba(0,0,0,.25));"><svg width="56" height="56" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dossier arrière -->
+  <rect x="4" y="18" width="48" height="32" rx="4" fill="#f59e0b" stroke="#d97706" stroke-width="1.5"/>
+  <!-- Onglet -->
+  <path d="M4 20 Q4 14 10 14 L22 14 Q26 14 27 18 L4 18 Z" fill="#fbbf24" stroke="#d97706" stroke-width="1.5"/>
+  <!-- Face avant -->
+  <rect x="4" y="20" width="48" height="30" rx="3" fill="#fbbf24" stroke="#d97706" stroke-width="1.5"/>
+  <!-- Lignes document -->
+  <rect x="14" y="34" width="20" height="2.5" rx="1.2" fill="#d97706" opacity="0.7"/>
+  <rect x="14" y="39" width="14" height="2.5" rx="1.2" fill="#d97706" opacity="0.5"/>
+  <!-- Initiale -->
+  <text x="38" y="33" font-size="12" font-weight="900" fill="#92400e" text-anchor="middle" font-family="Inter,sans-serif" opacity="0.85">{{ client.nom[0] }}</text>
+</svg></div>
+    <div style="flex:1;min-width:180px;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span style="font-size:20px;font-weight:900;color:white;">{{ client.nom }} {{ client.prenom or '' }}</span>
+        <span style="background:rgba(255,255,255,.18);color:white;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;">{{ client.code }}</span>
+        {% if client.code == 'CLI000' %}<span style="background:rgba(251,191,36,.35);color:#fef08a;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;">⚡ Client par défaut</span>{% endif %}
+        {% if alerte_encours %}<span style="background:rgba(239,68,68,.3);color:#fca5a5;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;">⚠️ Encours dépassé</span>{% endif %}
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:5px;">
+        {% if client.telephone %}<span style="color:rgba(255,255,255,.75);font-size:11px;">📞 {{ client.telephone }}</span>{% endif %}
+        {% if client.email %}<span style="color:rgba(255,255,255,.75);font-size:11px;">✉️ {{ client.email }}</span>{% endif %}
+        {% if client.ville %}<span style="color:rgba(255,255,255,.75);font-size:11px;">📍 {{ client.ville }}</span>{% endif %}
+      </div>
+      <div style="margin-top:7px;display:flex;gap:6px;flex-wrap:wrap;">
+        {% set tico = {'particulier':'👤','entreprise':'🏢','revendeur':'🏪','grossiste':'📦'} %}
+        <span style="background:rgba(255,255,255,.15);color:white;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;">{{ tico.get(client.type_client,'👤') }} {{ client.type_client|capitalize }}</span>
+        {% if client.categorie_client and client.categorie_client != 'standard' %}<span style="background:rgba(255,255,255,.15);color:white;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;">⭐ {{ client.categorie_client|capitalize }}</span>{% endif %}
+        {% if rep %}<span style="background:rgba(255,255,255,.15);color:white;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;">🤝 {{ rep.nom }}</span>{% endif %}
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0;">
+      <a href="/clients" class="btn btn-sec btn-sm" style="background:rgba(255,255,255,.15);color:white;border-color:rgba(255,255,255,.3);">← Liste</a>
+      {% if client.code != 'CLI000' %}
+      <button onclick="switchDossierTab('infos')" class="btn btn-sm" style="background:rgba(255,255,255,.2);color:white;border:1px solid rgba(255,255,255,.35);">✏️ Modifier</button>
+      <button onclick="openModal('modalAddRelance')" class="btn btn-sm" style="background:rgba(220,38,38,.5);color:white;border:none;">🔔 Relancer</button>
+      {% endif %}
+      <button onclick="window.open('/clients/{{ client.id }}/print','_blank')" class="btn btn-sm" style="background:linear-gradient(135deg,#0369a1,#38bdf8);color:white;border:none;">🖨️ Imprimer</button>
+    </div>
+  </div>
+</div>
+
+<!-- KPIs -->
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:18px;">
+  {% for val, lbl, clr in [
+    ((stats.ca_total or 0)|fcfa+' FCFA','CA Total','var(--vert)'),
+    ((stats.encours or 0)|fcfa+' FCFA','Encours dû','var(--rouge)' if (stats.encours or 0)>0 else 'var(--vert)'),
+    ((stats.total_encaisse or 0)|fcfa+' FCFA','Encaissé','var(--vert)'),
+    (stats.nb_factures or 0,'Factures','var(--bleu)'),
+    (stats.nb_commandes or 0,'Commandes','var(--bleu2)'),
+    (stats.nb_devis or 0,'Devis','var(--gris3)'),
+    (stats_rgl.nb_reglements or 0,'Règlements','var(--or)'),
+    ((client.date_creation[:10] if client.date_creation else '—'),'Client depuis','var(--violet)'),
+  ] %}
+  <div class="stat-mini" style="--kpi-accent:{{ clr }};"><div class="val" style="color:{{ clr }};font-size:{{ '13px' if val|string|length > 8 else '18px' }};">{{ val }}</div><div class="lbl">{{ lbl }}</div></div>
+  {% endfor %}
+</div>
+
+<!-- Jauge encours -->
+{% if plafond > 0 %}
+<div class="table-card" style="margin-bottom:16px;padding:14px 18px;">
+  <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+    <span style="font-size:12px;font-weight:700;color:var(--bleu);">📊 Contrôle encours</span>
+    <span style="font-size:12px;font-weight:900;color:{{ 'var(--rouge)' if pct_encours>=80 else 'var(--vert)' }};">{{ pct_encours }}%</span>
+  </div>
+  <div class="encours-gauge"><div class="encours-fill" style="width:{{ [pct_encours,100]|min }}%;background:{{ 'var(--rouge)' if pct_encours>=80 else 'var(--or)' if pct_encours>=60 else 'var(--vert)' }};"></div></div>
+  <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--gris3);margin-top:3px;">
+    <span>Actuel : <strong style="color:{{ 'var(--rouge)' if alerte_encours else 'var(--texte)' }};">{{ encours_actuel|fcfa }} FCFA</strong></span>
+    <span>Plafond : <strong>{{ plafond|fcfa }} FCFA</strong></span>
+  </div>
+</div>
+{% endif %}
+
+<!-- Onglets -->
+<div class="dossier-tabs">
+  {% for tid,tico,tlbl,cnt in [
+    ('historique','📜','Historique',(devis|length)+(commandes|length)+(factures|length)+(reglements|length)),
+    ('factures','🧾','Factures',factures|length),
+    ('commandes','🗂️','Commandes',commandes|length),
+    ('devis','📋','Devis',devis|length),
+    ('reglements','💳','Règlements',reglements|length),
+    ('relances','🔔','Relances',relances|length),
+    ('commissions','💰','Commissions',commissions|length),
+    ('infos','⚙️','Fiche & Classification',0),
+  ] %}
+  <button class="dossier-tab {% if loop.first %}active{% endif %}" data-tab="{{ tid }}" onclick="switchDossierTab('{{ tid }}')">
+    {{ tico }} {{ tlbl }}{% if cnt %} <span style="background:var(--bleu3);color:var(--bleu2);border-radius:20px;padding:0 6px;font-size:9px;margin-left:3px;">{{ cnt }}</span>{% endif %}
+  </button>
+  {% endfor %}
+</div>
+
+<!-- Historique -->
+<div id="tabhistorique">
+  <div class="table-card">
+    <div class="thead"><h3>📜 Tous documents depuis le {{ client.date_creation[:10] if client.date_creation else 'début' }}</h3></div>
+    <div style="padding:18px 20px;display:flex;flex-direction:column;gap:0;">
+      {% set all_docs = [] %}
+      {% for d in devis %}{% if all_docs.append({'id':d.id,'date':d.date_doc,'type':'devis','ref':d.reference,'montant':d.total_ttc,'statut':d.statut}) %}{% endif %}{% endfor %}
+      {% for d in commandes %}{% if all_docs.append({'id':d.id,'date':d.date_doc,'type':'commande','ref':d.reference,'montant':d.total_ttc,'statut':d.statut}) %}{% endif %}{% endfor %}
+      {% for d in factures %}{% if all_docs.append({'id':d.id,'date':d.date_doc,'type':'facture','ref':d.reference,'montant':d.total_ttc,'statut':d.statut}) %}{% endif %}{% endfor %}
+      {% for r in reglements %}{% if all_docs.append({'id':r.id,'date':r.date_reglement,'type':'reglement','ref':r.reference,'montant':r.montant,'statut':'payé'}) %}{% endif %}{% endfor %}
+      {% set ico_map = {'devis':('#dbeafe','#1d4ed8','📋'),'commande':('#e0e7ff','#4338ca','🗂️'),'facture':('#dcfce7','#15803d','🧾'),'reglement':('#fef9c3','#a16207','💳')} %}
+      {% set print_map = {'devis':'/devis/','commande':'/commandes_vente/','facture':'/factures/'} %}
+      {% set tab_map = {'devis':'devis','commande':'commandes','facture':'factures','reglement':'reglements'} %}
+      {% for doc in all_docs|sort(attribute='date',reverse=True) %}
+      {% set bg,clr,ico = ico_map.get(doc.type,('#f1f5f9','#475569','📄')) %}
+      <div class="tl-item">
+        <div class="tl-dot" style="background:{{ bg }};border-color:{{ clr }};color:{{ clr }};">{{ ico }}</div>
+        <div class="tl-body">
+          <div class="tl-head"><span class="tl-title">{{ doc.ref }}</span><span class="tl-date">{{ doc.date }}</span></div>
+          <div class="tl-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:{{ bg }};color:{{ clr }};">{{ doc.type|capitalize }}</span>
+                <span style="font-size:12px;font-weight:700;color:{{ 'var(--vert)' if doc.type=='reglement' else 'var(--bleu)' }};">{{ (doc.montant or 0)|fcfa }} FCFA</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:10px;color:var(--gris3);">{{ doc.statut }}</span>
+                {% if doc.type in ['devis','commande','facture'] %}
+                <a href="{{ print_map[doc.type] }}{{ doc.id }}/print" target="_blank"
+                   class="hist-action-btn hist-btn-imprimer" title="Imprimer">🖨️</a>
+                {% endif %}
+                <button type="button" onclick="switchDossierTab('{{ tab_map[doc.type] }}')"
+                        class="hist-action-btn hist-btn-action" title="Voir dans l'onglet {{ doc.type }}s">↗️</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div style="text-align:center;color:var(--gris3);padding:40px;"><div style="font-size:36px;margin-bottom:8px;">📜</div>Aucun document</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Factures -->
+<div id="tabfactures" style="display:none;">
+  <div class="table-card">
+    <div class="thead"><h3>{{ factures|length }} facture(s) — historique complet</h3><a href="/factures" class="btn btn-sec btn-sm">+ Nouvelle</a></div>
+    <table><thead><tr><th>Référence</th><th>Date</th><th>Échéance</th><th>TTC</th><th>Payé</th><th>Reste</th><th>Statut</th><th style="text-align:right;">Actions</th></tr></thead>
+    <tbody>
+    {% for f in factures %}
+    <tr>
+      <td><code style="color:var(--bleu2);font-size:10px;font-weight:700;">{{ f.reference }}</code></td>
+      <td style="font-size:11px;color:var(--gris3);">{{ f.date_doc or '—' }}</td>
+      <td style="font-size:11px;color:var(--gris3);">{{ f.date_echeance or '—' }}</td>
+      <td style="font-weight:700;">{{ (f.total_ttc or 0)|fcfa }}</td>
+      <td style="color:var(--vert);">{{ (f.montant_paye or 0)|fcfa }}</td>
+      <td style="font-weight:700;color:{{ 'var(--rouge)' if (f.reste or 0)>0 else 'var(--vert)' }};">{{ (f.reste or 0)|fcfa }}</td>
+      <td>{% if f.statut=='reglee' %}<span class="badge badge-success">✅</span>{% elif f.statut=='partielle' %}<span class="badge" style="background:#dbeafe;color:#1d4ed8;">◑</span>{% else %}<span class="badge" style="background:#fef9c3;color:#a16207;">⏳</span>{% endif %}</td>
+      <td class="action-cell" style="text-align:right;">
+        <div class="action-cell-inner" style="justify-content:flex-end;">
+        {% if f.statut in ['en_attente','partielle'] and (f.reste or 0) > 0 %}
+        <button class="hist-action-btn hist-btn-regler"
+                onclick="openReglementFiche({{ f.id }}, '{{ f.reference|e }}', {{ f.total_ttc or 0 }}, {{ f.montant_paye or 0 }}, '{{ f.mode_paiement or 'especes' }}')"
+                title="Encaisser un règlement">💳 <span>Régler</span></button>
+        {% endif %}
+        <a href="{{ url_for('facture_print', id=f.id) }}" target="_blank"
+           class="hist-action-btn hist-btn-imprimer" title="Imprimer">🖨️</a>
+        {% if cfg.cle_api_fne and f.fne_statut != 'certifiee' %}
+        <form method="POST" action="{{ url_for('facture_transmettre_fne', id=f.id) }}" style="display:inline;margin:0;"
+              onsubmit="return confirm('Transmettre {{ f.reference }} à la DGI (FNE) ?\nIrréversible.');">
+          <button type="submit" class="hist-action-btn hist-btn-action" title="Transmettre FNE">📡 <span>FNE</span></button>
+        </form>
+        {% endif %}
+        {% if f.statut == 'reglee' %}
+        <form method="POST" action="{{ url_for('facture_creer_avoir', id=f.id) }}" style="display:inline;margin:0;"
+              onsubmit="return confirm('Créer un avoir pour la facture {{ f.reference }} ?');">
+          <button type="submit" class="hist-action-btn hist-btn-action-cyan" title="Créer avoir">↩️ <span>Avoir</span></button>
+        </form>
+        {% endif %}
+        <a href="{{ url_for('document_vente_delete', id=f.id) }}"
+           onclick="return confirm('Supprimer la facture {{ f.reference }} ?\nCette action est définitive.');"
+           class="hist-action-btn hist-btn-supprimer" title="Supprimer">🗑️</a>
+        </div>
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="8" style="text-align:center;color:var(--gris3);padding:24px;">Aucune facture</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+</div>
+
+<!-- Commandes -->
+<div id="tabcommandes" style="display:none;">
+  <div class="table-card">
+    <div class="thead"><h3>{{ commandes|length }} commande(s)</h3><a href="/commandes_vente" class="btn btn-sec btn-sm">+ Nouvelle</a></div>
+    <table><thead><tr><th>Référence</th><th>Date</th><th>Montant TTC</th><th>Statut</th><th style="text-align:right;">Actions</th></tr></thead>
+    <tbody>
+    {% for c in commandes %}
+    <tr>
+      <td><code style="color:var(--bleu2);font-size:10px;font-weight:700;">{{ c.reference }}</code></td>
+      <td style="font-size:11px;color:var(--gris3);">{{ c.date_doc or '—' }}</td>
+      <td style="font-weight:700;">{{ (c.total_ttc or 0)|fcfa }}</td>
+      <td><span class="badge badge-sec">{{ c.statut }}</span></td>
+      <td class="action-cell" style="text-align:right;">
+        <div class="action-cell-inner" style="justify-content:flex-end;">
+        {% if c.statut not in ['facturee','annulee'] %}
+        <form method="POST" action="{{ url_for('commande_convertir_facture', id=c.id) }}" style="display:inline;margin:0;"
+              onsubmit="return confirm('Convertir la commande {{ c.reference }} en facture ?');">
+          <button type="submit" class="hist-action-btn hist-btn-action-cyan" title="Convertir en facture">🧾 <span>→ Facture</span></button>
+        </form>
+        <form method="POST" action="{{ url_for('commande_creer_bl', id=c.id) }}" style="display:inline;margin:0;"
+              onsubmit="return confirm('Créer un bon de livraison pour la commande {{ c.reference }} ?');">
+          <button type="submit" class="hist-action-btn hist-btn-action-green" title="Créer bon de livraison">🚚 <span>→ BL</span></button>
+        </form>
+        <a href="{{ url_for('commande_vente_edit', id=c.id) }}"
+           class="hist-action-btn hist-btn-modifier" title="Modifier">✏️</a>
+        {% endif %}
+        <a href="{{ url_for('commande_vente_print', id=c.id) }}" target="_blank"
+           class="hist-action-btn hist-btn-imprimer" title="Imprimer">🖨️</a>
+        <a href="{{ url_for('document_vente_delete', id=c.id) }}"
+           onclick="return confirm('Supprimer la commande {{ c.reference }} ?');"
+           class="hist-action-btn hist-btn-supprimer" title="Supprimer">🗑️</a>
+        </div>
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="5" style="text-align:center;color:var(--gris3);padding:24px;">Aucune commande</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+</div>
+
+<!-- Devis -->
+<div id="tabdevis" style="display:none;">
+  <div class="table-card">
+    <div class="thead"><h3>{{ devis|length }} devis</h3><a href="/devis" class="btn btn-sec btn-sm">+ Nouveau</a></div>
+    <table><thead><tr><th>Référence</th><th>Date</th><th>Montant TTC</th><th>Statut</th><th style="text-align:right;">Actions</th></tr></thead>
+    <tbody>
+    {% for d in devis %}
+    <tr>
+      <td><code style="color:var(--bleu2);font-size:10px;font-weight:700;">{{ d.reference }}</code></td>
+      <td style="font-size:11px;color:var(--gris3);">{{ d.date_doc or '—' }}</td>
+      <td style="font-weight:700;">{{ (d.total_ttc or 0)|fcfa }}</td>
+      <td><span class="badge badge-sec">{{ d.statut }}</span></td>
+      <td class="action-cell" style="text-align:right;">
+        <div class="action-cell-inner" style="justify-content:flex-end;">
+        {% if d.statut not in ['converti','annule'] %}
+        <form method="POST" action="{{ url_for('devis_convertir_commande', id=d.id) }}" style="display:inline;margin:0;"
+              onsubmit="return confirm('Convertir le devis {{ d.reference }} en commande ?');">
+          <button type="submit" class="hist-action-btn hist-btn-action" title="Convertir en commande">🔄 <span>→ Commande</span></button>
+        </form>
+        <a href="{{ url_for('devis_edit', id=d.id) }}"
+           class="hist-action-btn hist-btn-modifier" title="Modifier">✏️</a>
+        {% endif %}
+        <a href="{{ url_for('devis_print', id=d.id) }}" target="_blank"
+           class="hist-action-btn hist-btn-imprimer" title="Imprimer">🖨️</a>
+        <a href="{{ url_for('document_vente_delete', id=d.id) }}"
+           onclick="return confirm('Supprimer le devis {{ d.reference }} ?');"
+           class="hist-action-btn hist-btn-supprimer" title="Supprimer">🗑️</a>
+        </div>
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="5" style="text-align:center;color:var(--gris3);padding:24px;">Aucun devis</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+</div>
+
+<!-- Règlements -->
+<div id="tabreglements" style="display:none;">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px;">
+    {% for val,lbl,clr in [(stats.ca_total or 0,'Total facturé','var(--bleu)'),(stats.total_encaisse or 0,'Encaissé','var(--vert)'),(stats.encours or 0,'Reste dû','var(--rouge)' if (stats.encours or 0)>0 else 'var(--vert)')] %}
+    <div class="stat-mini" style="--kpi-accent:{{ clr }};">
+      <div class="lbl">{{ lbl }}</div>
+      <div class="val" style="font-size:16px;color:{{ clr }};margin-top:4px;">{{ val|fcfa }} FCFA</div>
+    </div>{% endfor %}
+  </div>
+  <div class="table-card">
+    <div class="thead"><h3>{{ reglements|length }} règlement(s) — depuis l'enregistrement</h3><button onclick="window.open('/clients/{{ client.id }}/print','_blank')" class="btn btn-sm" style="background:linear-gradient(135deg,#0369a1,#38bdf8);color:white;border:none;">🖨️ Imprimer</button></div>
+    <table><thead><tr><th>Date</th><th>Référence</th><th>Facture</th><th>Mode</th><th>Montant</th><th style="text-align:right;">Actions</th></tr></thead>
+    <tbody>
+    {% for r in reglements %}
+    <tr>
+      <td style="font-size:11px;color:var(--gris3);">{{ r.date_reglement or '—' }}</td>
+      <td><code style="font-size:10px;color:var(--bleu2);">{{ r.reference }}</code></td>
+      <td style="font-size:11px;">{{ r.facture_ref or '—' }}</td>
+      <td style="font-size:11px;">{% set m={'especes':'💵 Espèces','wave':'📱 Wave','orange_money':'🟠 Orange','mtn_money':'🟡 MTN','virement':'🏦 Virement','cheque':'📄 Chèque'} %}{{ m.get(r.mode_paiement,r.mode_paiement or '—') }}</td>
+      <td style="font-weight:800;color:var(--vert);">{{ r.montant|fcfa }} FCFA</td>
+      <td class="action-cell" style="text-align:right;">
+        <a href="{{ url_for('reglement_delete', id=r.id) }}"
+           onclick="return confirm('Supprimer le règlement {{ r.reference }} ({{ r.montant|fcfa }} FCFA) ?\nLa facture liée redeviendra impayée.');"
+           class="hist-action-btn hist-btn-supprimer" title="Supprimer">🗑️ <span>Annuler</span></a>
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="6" style="text-align:center;color:var(--gris3);padding:24px;">Aucun règlement</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+</div>
+
+<!-- Relances -->
+<div id="tabrelances" style="display:none;">
+  <div class="table-card">
+    <div class="thead"><h3>{{ relances|length }} relance(s)</h3><button onclick="openModal('modalAddRelance')" class="btn btn-sm" style="background:var(--rouge);color:white;">🔔 Nouvelle</button></div>
+    <table><thead><tr><th>Date</th><th>Type</th><th>Niveau</th><th>Montant</th><th>Facture</th><th>Statut</th><th>Réponse</th><th style="text-align:right;">Actions</th></tr></thead>
+    <tbody>
+    {% for r in relances %}
+    <tr>
+      <td style="font-size:11px;color:var(--gris3);">{{ r.date_relance }}</td>
+      <td style="font-size:11px;">{% set t={'appel':'📞','email':'📧','sms':'💬','visite':'🚗'} %}{{ t.get(r.type_relance,'📞') }} {{ r.type_relance }}</td>
+      <td><span class="badge" style="background:#dbeafe;color:#1d4ed8;">Niv.{{ r.niveau }}</span></td>
+      <td style="font-weight:700;color:var(--rouge);">{{ (r.montant_du or 0)|fcfa }}</td>
+      <td style="font-size:11px;">{{ r.facture_ref or '—' }}</td>
+      <td>{% if r.statut=='planifiee' %}<span class="badge" style="background:#fef9c3;color:#a16207;">📅</span>{% elif r.statut=='envoyee' %}<span class="badge" style="background:#dbeafe;color:#1d4ed8;">📨</span>{% elif r.statut=='repondue' %}<span class="badge badge-success">✅</span>{% else %}<span class="badge badge-sec">📁</span>{% endif %}</td>
+      <td style="font-size:11px;color:var(--gris3);">{{ r.reponse or '—' }}</td>
+      <td class="action-cell" style="text-align:right;">
+        <div class="action-cell-inner" style="justify-content:flex-end;">
+        {% if r.statut == 'planifiee' %}
+        <form method="POST" action="{{ url_for('relance_statut', id=r.id) }}" style="display:inline;margin:0;">
+          <input type="hidden" name="statut" value="envoyee">
+          <button type="submit" class="hist-action-btn hist-btn-action" title="Marquer envoyée">📨 <span>Envoyée</span></button>
+        </form>
+        {% endif %}
+        {% if r.statut in ['planifiee','envoyee'] %}
+        <button type="button" class="hist-action-btn hist-btn-action-green" title="Marquer répondue"
+                onclick="repondreRelance({{ r.id }}, '{{ r.type_relance|e }}')">✅ <span>Réponse</span></button>
+        {% endif %}
+        <a href="{{ url_for('relance_delete', id=r.id) }}"
+           onclick="return confirm('Supprimer la relance du {{ r.date_relance }} ?');"
+           class="hist-action-btn hist-btn-supprimer" title="Supprimer">🗑️</a>
+        </div>
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="8" style="text-align:center;color:var(--gris3);padding:20px;">Aucune relance</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+</div>
+
+<!-- Commissions -->
+<div id="tabcommissions" style="display:none;">
+  <div class="table-card" style="margin-bottom:14px;padding:16px 18px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <div><div style="font-size:12px;font-weight:700;color:var(--bleu);">🤝 Représentant</div>
+      <div style="font-size:14px;font-weight:800;margin-top:3px;">{% if rep %}{{ rep.nom }} {{ rep.prenom or '' }} — <span style="color:var(--bleu2);">{{ rep.taux_commission }}%</span>{% else %}<span style="color:var(--gris3);">Aucun</span>{% endif %}</div></div>
+      <button onclick="openModal('modalSetRep')" class="btn btn-sec btn-sm">✏️ Changer</button>
+    </div>
+  </div>
+  <div class="table-card">
+    <div class="thead"><h3>{{ commissions|length }} commission(s)</h3></div>
+    <table><thead><tr><th>Date</th><th>Représentant</th><th>Base</th><th>Taux</th><th>Commission</th><th>Statut</th><th style="text-align:right;">Actions</th></tr></thead>
+    <tbody>
+    {% for c in commissions %}
+    <tr>
+      <td style="font-size:11px;color:var(--gris3);">{{ c.date_commission }}</td>
+      <td style="font-weight:600;">{{ c.rep_nom }}</td>
+      <td>{{ (c.montant_base or 0)|fcfa }}</td>
+      <td style="color:var(--bleu2);">{{ c.taux }}%</td>
+      <td style="font-weight:800;color:var(--or);">{{ (c.montant_commission or 0)|fcfa }}</td>
+      <td>{% if c.statut=='en_attente' %}<span class="badge" style="background:#fef9c3;color:#a16207;">⏳ Due</span>{% else %}<span class="badge badge-success">✅</span>{% endif %}</td>
+      <td class="action-cell" style="text-align:right;">
+        {% if c.statut == 'en_attente' %}
+        <form method="POST" action="{{ url_for('commission_payer', id=c.id) }}" style="display:inline;margin:0;"
+              onsubmit="return confirm('Marquer la commission de {{ c.rep_nom }} comme payée ?\nMontant : {{ (c.montant_commission or 0)|fcfa }} FCFA');">
+          <button type="submit" class="hist-action-btn hist-btn-regler" title="Marquer payée">💰 <span>Payer</span></button>
+        </form>
+        {% else %}
+        <span style="font-size:10px;color:var(--gris3);">{{ c.date_paiement or 'Payée' }}</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="7" style="text-align:center;color:var(--gris3);padding:20px;">Aucune commission</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+</div>
+
+<!-- Fiche & Classification -->
+<div id="tabinfos" style="display:none;">
+  <form method="POST" action="/clients/{{ client.id }}/edit">
+  <div class="tabinfos-grid">
+
+    <div class="table-card" style="padding:20px 24px;">
+      <div style="font-size:12px;font-weight:800;color:var(--bleu);margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--bleu3);">📋 Informations générales</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Code client</label><input name="code" value="{{ client.code or ''|e }}" placeholder="Ex : CL-0001" style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--bleu2);"></div>
+        <div class="form-group"><label>Statut</label>
+          <select name="actif" style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+            <option value="1" {{ 'selected' if (client.actif if client.actif is not none else 1) else '' }}>✅ Actif</option>
+            <option value="0" {{ 'selected' if not (client.actif if client.actif is not none else 1) else '' }}>⛔ Inactif (archivé)</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Nom *</label><input name="nom" value="{{ client.nom|e }}" required style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+        <div class="form-group"><label>Prénom / Enseigne</label><input name="prenom" value="{{ client.prenom or ''|e }}"></div>
+        <div class="form-group"><label>Téléphone mobile</label><input name="telephone" value="{{ client.telephone or ''|e }}"></div>
+        <div class="form-group"><label>Téléphone fixe</label><input name="telephone_fixe" value="{{ client.telephone_fixe or ''|e }}"></div>
+        <div class="form-group"><label>Téléphone 2</label><input name="telephone2" value="{{ client.telephone2 or ''|e }}"></div>
+        <div class="form-group"><label>Email</label><input name="email" type="email" value="{{ client.email or ''|e }}"></div>
+        <div class="form-group full"><label>Adresse</label><input name="adresse" value="{{ client.adresse or ''|e }}"></div>
+        <div class="form-group"><label>Ville</label><input name="ville" value="{{ client.ville or 'Abidjan'|e }}"></div>
+        <div class="form-group"><label>Zone livraison</label><input name="zone_livraison" value="{{ client.zone_livraison or ''|e }}"></div>
+        <div class="form-group full"><label>Site web</label><input name="site_web" value="{{ client.site_web or ''|e }}" placeholder="https://"></div>
+        <div class="form-group full"><label>Notes</label><textarea name="notes" rows="2" style="width:100%;padding:8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;">{{ client.notes or '' }}</textarea></div>
+        <div class="form-group full" style="background:var(--bg-card);padding:8px 12px;border-radius:8px;border:1px dashed var(--border);">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gris3);">
+            <span>🗓️ Créé le : <strong style="color:var(--bleu);">{{ client.date_creation or '—' }}</strong></span>
+            <span>🆔 ID interne : <strong style="color:var(--bleu);">#{{ client.id }}</strong></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:18px;">
+      <div class="table-card" style="padding:20px 24px;">
+        <div style="font-size:12px;font-weight:800;color:var(--bleu);margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--bleu3);">🏷️ Classification & Comptable</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Type client</label>
+            <select name="type_client">{% for v,l in [('particulier','👤 Particulier'),('entreprise','🏢 Entreprise'),('revendeur','🏪 Revendeur'),('grossiste','📦 Grossiste')] %}<option value="{{ v }}" {{ 'selected' if client.type_client==v }}>{{ l }}</option>{% endfor %}</select>
+          </div>
+          <div class="form-group">
+            <label>Catégorie</label>
+            <select name="categorie_client">{% for v in ['standard','prioritaire','vip','partenaire','risque'] %}<option value="{{ v }}" {{ 'selected' if (client.categorie_client or 'standard')==v }}>{{ v|capitalize }}</option>{% endfor %}</select>
+          </div>
+          <div class="form-group full"><label>Secteur d'activité</label><input name="secteur" value="{{ client.secteur or ''|e }}" placeholder="Commerce, BTP, Restauration…"></div>
+          <div class="form-group full"><label>Matricule fiscal</label><input name="matricule_fiscal" value="{{ client.matricule_fiscal or ''|e }}" placeholder="DGI-CI-XXXX"></div>
+          <div class="form-group full"><label>Code comptable</label><input name="code_comptable" value="{{ client.code_comptable or ''|e }}" placeholder="411XXX (SYSCOHADA)"></div>
+          <div class="form-group full"><label>Responsable compte</label><input name="responsable_compte" value="{{ client.responsable_compte or ''|e }}"></div>
+        </div>
+      </div>
+
+      <div class="table-card" style="padding:20px 24px;">
+        <div style="font-size:12px;font-weight:800;color:var(--bleu);margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--bleu3);">📊 Contrôle Encours & Conditions</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Encours autorisé (FCFA)</label><input name="encours_autorise" type="number" step="1000" min="0" value="{{ client.encours_autorise or 0 }}"></div>
+          <div class="form-group"><label>Plafond crédit (FCFA)</label><input name="plafond_credit" type="number" step="1000" min="0" value="{{ client.plafond_credit or 0 }}"></div>
+          <div class="form-group"><label>Remise (%)</label><input name="remise_pct" type="number" step="0.5" min="0" max="50" value="{{ client.remise_pct or 0 }}"></div>
+          <div class="form-group"><label>Délai paiement (j)</label><input name="delai_paiement" type="number" min="0" value="{{ client.delai_paiement or 0 }}"></div>
+          <div class="form-group full">
+            <label>Mode paiement habituel</label>
+            <select name="mode_paiement">{% for v,l in [('especes','💵 Espèces'),('wave','📱 Wave'),('orange_money','🟠 Orange Money'),('mtn_money','🟡 MTN Money'),('virement','🏦 Virement'),('cheque','📄 Chèque'),('credit','🔄 Crédit')] %}<option value="{{ v }}" {{ 'selected' if client.mode_paiement==v }}>{{ l }}</option>{% endfor %}</select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+    <a href="/clients/{{ client.id }}/fiche" class="btn btn-sec">Annuler</a>
+    <button type="submit" class="btn btn-primary">💾 Enregistrer la fiche</button>
+  </div>
+  </form>
+</div>
+
+<!-- Modals -->
+<div id="modalSetRep" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h3>🤝 Changer représentant</h3><button class="modal-close" onclick="closeModal('modalSetRep')">✕</button></div>
+    <form method="POST" action="/clients/{{ client.id }}/set_representant">
+      <div class="modal-body">
+        <div class="form-group full"><label>Représentant</label>
+          <select name="representant_id" style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+            <option value="">— Aucun —</option>
+            {% for r in representants %}<option value="{{ r.id }}" {{ 'selected' if client.representant_id==r.id }}>{{ r.nom }} {{ r.prenom or '' }} ({{ r.taux_commission }}%)</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" onclick="closeModal('modalSetRep')" class="btn btn-sec">Annuler</button><button type="submit" class="btn btn-primary">💾</button></div>
+    </form>
+  </div>
+</div>
+
+<div id="modalAddRelance" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h3>🔔 Relance — {{ client.nom }}</h3><button class="modal-close" onclick="closeModal('modalAddRelance')">✕</button></div>
+    <form method="POST" action="/relances/add">
+      <input type="hidden" name="client_id" value="{{ client.id }}">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full"><label>Facture</label>
+            <select name="facture_id" style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="">— Toutes factures impayées —</option>
+              {% for f in factures_dues %}<option value="{{ f.id }}">{{ f.reference }} — Reste : {{ f.reste|fcfa }} FCFA</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group"><label>Date</label><input type="date" name="date_relance" id="rlDate"></div>
+          <div class="form-group"><label>Montant dû</label><input type="number" name="montant_du" step="1" value="{{ (stats.encours or 0)|round(0)|int }}"></div>
+          <div class="form-group"><label>Niveau</label><select name="niveau" style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;"><option value="1">1 — Rappel</option><option value="2">2 — Ferme</option><option value="3">3 — Mise en demeure</option></select></div>
+          <div class="form-group full"><label>Mode</label><select name="type_relance" style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;"><option value="appel">📞 Appel</option><option value="sms">💬 SMS</option><option value="email">📧 Email</option><option value="visite">🚗 Visite</option></select></div>
+          <div class="form-group full"><label>Message</label><textarea name="message" rows="2" style="width:100%;padding:8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;" placeholder="Cher client…"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" onclick="closeModal('modalAddRelance')" class="btn btn-sec">Annuler</button><button type="submit" class="btn btn-primary" style="background:var(--rouge);">🔔 Créer</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Règlement rapide (facture) -->
+<div id="modalReglement" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h3>💳 Encaisser un règlement</h3><button class="modal-close" onclick="closeModal('modalReglement')">✕</button></div>
+    <form method="POST" id="formReglement">
+      <div class="modal-body">
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:11px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:var(--gris3);">Facture :</span><strong id="rgl_ref" style="color:var(--bleu2);"></strong></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:var(--gris3);">Total TTC :</span><strong id="rgl_ttc"></strong></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:var(--gris3);">Déjà payé :</span><strong id="rgl_paye" style="color:var(--vert);"></strong></div>
+          <div style="display:flex;justify-content:space-between;padding-top:5px;border-top:1px dashed var(--gris2);"><span style="color:var(--rouge);font-weight:700;">Reste dû :</span><strong id="rgl_reste" style="color:var(--rouge);"></strong></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group full"><label>Montant du règlement (FCFA) *</label>
+            <input type="number" name="montant_regle" id="rgl_montant" min="1" step="1" required
+                   style="font-size:16px;font-weight:700;color:var(--vert);"></div>
+          <div class="form-group full"><label>Mode de paiement</label>
+            <select name="mode_paiement" id="rgl_mode" style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;">
+              <option value="especes">💵 Espèces</option>
+              <option value="wave">📱 Wave</option>
+              <option value="orange_money">🟠 Orange Money</option>
+              <option value="mtn_money">🟡 MTN Money</option>
+              <option value="virement">🏦 Virement</option>
+              <option value="cheque">📄 Chèque</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalReglement')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary" style="background:var(--vert);">💳 Encaisser</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Réponse relance -->
+<div id="modalReponseRelance" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h3>✅ Réponse à la relance</h3><button class="modal-close" onclick="closeModal('modalReponseRelance')">✕</button></div>
+    <form method="POST" id="formReponseRelance">
+      <input type="hidden" name="statut" value="repondue">
+      <div class="modal-body">
+        <div style="font-size:11px;color:var(--gris3);margin-bottom:10px;">Type de relance : <strong id="rep_type" style="color:var(--bleu);"></strong></div>
+        <div class="form-group full"><label>Réponse du client</label>
+          <textarea name="reponse" rows="3" required
+                    style="width:100%;padding:8px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;"
+                    placeholder="Ex : Promet de payer la semaine prochaine…"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalReponseRelance')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary" style="background:var(--vert);">✅ Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+document.getElementById('rlDate').value = new Date().toISOString().split('T')[0];
+function switchDossierTab(tab) {
+  ['historique','factures','commandes','devis','reglements','relances','commissions','infos'].forEach(function(t){
+    var el=document.getElementById('tab'+t);
+    if(el) el.style.display=(t===tab)?'':'none';
+  });
+  document.querySelectorAll('.dossier-tab').forEach(function(b){ b.classList.toggle('active',b.dataset.tab===tab); });
+}
+
+/* ── Modal règlement rapide depuis l'onglet Factures ── */
+function openReglementFiche(id, ref, ttc, paye, mode){
+  var reste = Math.max(0, ttc - paye);
+  var fmt = function(n){ return (n||0).toLocaleString('fr-FR',{maximumFractionDigits:0}); };
+  document.getElementById('rgl_ref').textContent   = ref;
+  document.getElementById('rgl_ttc').textContent   = fmt(ttc) + ' FCFA';
+  document.getElementById('rgl_paye').textContent  = fmt(paye) + ' FCFA';
+  document.getElementById('rgl_reste').textContent = fmt(reste) + ' FCFA';
+  document.getElementById('rgl_montant').value     = Math.round(reste);
+  document.getElementById('rgl_montant').max       = Math.round(reste);
+  document.getElementById('rgl_mode').value        = mode || 'especes';
+  document.getElementById('formReglement').action  = '/reglements/ajouter/' + id;
+  openModal('modalReglement');
+}
+
+/* ── Modal réponse à une relance ── */
+function repondreRelance(id, type){
+  document.getElementById('rep_type').textContent = type;
+  document.getElementById('formReponseRelance').action = '/relances/statut/' + id;
+  openModal('modalReponseRelance');
+}
+</script>
+
+
+{# ── Patch thème sombre — fiche_client ── #}
+<style>
+[data-theme="dark"] .tl-card         { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] [class*="stat"]  { background:var(--bg-card) !important; border-color:var(--border) !important; color:var(--texte) !important; }
+[data-theme="dark"] .dossier-tabs    { border-bottom-color:var(--border) !important; background:var(--bg-card) !important; }
+[data-theme="dark"] .dossier-tab     { color:var(--gris3) !important; }
+[data-theme="dark"] .dossier-tab.active { color:var(--bleu2) !important; border-bottom-color:var(--bleu2) !important; }
+[data-theme="dark"] .table-card      { background:var(--bg-card) !important; }
+[data-theme="dark"] .table-card .thead { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] thead th         { background:var(--bg-thead) !important; color:var(--gris3) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody td         { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody tr:hover td { background:var(--row-hover) !important; }
+[data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
+  background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+}
+[data-theme="dark"] .modal           { background:var(--modal-bg) !important; }
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer    { border-color:var(--border) !important; }
+[data-theme="dark"] .btn-sec         { background:#1c2128 !important; color:#8b949e !important; border-color:var(--border) !important; }
+[data-theme="dark"] .hist-action-btn { background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .hist-btn-imprimer { background:#0d1d38 !important; color:#93c5fd !important; border-color:#1d3461 !important; }
+[data-theme="dark"] .hist-btn-modifier { background:#3d2e00 !important; color:#fbbf24 !important; border-color:#78350f !important; }
+[data-theme="dark"] .hist-btn-regler   { background:#052e16 !important; color:#4ade80 !important; border-color:#14532d !important; }
+[data-theme="dark"] .hist-btn-supprimer { background:#3d0f0f !important; color:#fca5a5 !important; border-color:#7f1d1d !important; }
+[data-theme="dark"] .hist-btn-action   { background:#1e1040 !important; color:#c084fc !important; border-color:#4c1d95 !important; }
+[data-theme="dark"] .hist-btn-action-cyan { background:#0a2a33 !important; color:#67e8f9 !important; border-color:#164e63 !important; }
+/* Badges inline */
+[data-theme="dark"] .badge-info    { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] .badge-success { background:#052e16 !important; color:#4ade80 !important; }
+[data-theme="dark"] .badge-warning { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] .badge-danger  { background:#3d0f0f !important; color:#fca5a5 !important; }
+[data-theme="dark"] .badge-sec     { background:#1c2128 !important; color:#8b949e !important; }
+[data-theme="dark"] [style*="background:#fef9c3"],
+[data-theme="dark"] [style*="background: #fef9c3"] { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] [style*="background:#fee2e2"],
+[data-theme="dark"] [style*="background: #fee2e2"] { background:#3d0f0f !important; color:#fca5a5 !important; }
+[data-theme="dark"] [style*="background:#dbeafe"],
+[data-theme="dark"] [style*="background: #dbeafe"] { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] [style*="background:#dcfce7"],
+[data-theme="dark"] [style*="background: #dcfce7"] { background:#052e16 !important; color:#4ade80 !important; }
+@media (prefers-color-scheme:dark) {
+  [data-theme="system"] .tl-card    { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .dossier-tabs { border-bottom-color:var(--border) !important; background:var(--bg-card) !important; }
+  [data-theme="system"] .dossier-tab  { color:var(--gris3) !important; }
+  [data-theme="system"] .dossier-tab.active { color:var(--bleu2) !important; }
+  [data-theme="system"] .table-card  { background:var(--bg-card) !important; }
+  [data-theme="system"] thead th     { background:var(--bg-thead) !important; color:var(--gris3) !important; }
+  [data-theme="system"] tbody td     { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] input, [data-theme="system"] select, [data-theme="system"] textarea {
+    background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+  }
+  [data-theme="system"] .modal       { background:var(--modal-bg) !important; }
+  [data-theme="system"] .btn-sec     { background:#1c2128 !important; color:#8b949e !important; }
+  [data-theme="system"] .hist-btn-imprimer { background:#0d1d38 !important; color:#93c5fd !important; }
+  [data-theme="system"] .hist-btn-modifier { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] .hist-btn-regler   { background:#052e16 !important; color:#4ade80 !important; }
+  [data-theme="system"] .hist-btn-supprimer { background:#3d0f0f !important; color:#fca5a5 !important; }
+  [data-theme="system"] [style*="background:#fef9c3"] { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] [style*="background:#fee2e2"] { background:#3d0f0f !important; color:#fca5a5 !important; }
+  [data-theme="system"] [style*="background:#dbeafe"] { background:#1d3461 !important; color:#93c5fd !important; }
+  [data-theme="system"] [style*="background:#dcfce7"] { background:#052e16 !important; color:#4ade80 !important; }
+}
+</style>
+{% endblock %}

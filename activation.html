@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activation — DISTRIGEST</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0a1432;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .bg-app {
+      position: fixed; inset: 0; z-index: 0; overflow: hidden;
+    }
+    .bg-app iframe {
+      width: 100%; height: 100%; border: none;
+      filter: blur(6px) brightness(0.80);
+      transform: scale(1.04);
+      pointer-events: none; user-select: none;
+    }
+    .bg-overlay {
+      position: fixed; inset: 0; z-index: 0;
+      background: rgba(10, 20, 50, 0.30);
+    }
+
+    .login-wrap {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 660px;
+      padding: 8px;
+    }
+
+    .login-card {
+      background: rgba(255,255,255,0.18);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.35);
+      box-shadow: 0 8px 32px rgba(0,0,0,.18);
+      padding: 14px 22px 14px;
+    }
+
+    .card-header { text-align: center; margin-bottom: 7px; }
+    .app-icon    { font-size: 22px; display: block; margin-bottom: 4px; }
+    .app-name    { font-size: 19px; font-weight: 800; color: #fff; letter-spacing: .3px; margin-bottom: 3px; }
+    .app-sub     { font-size: 10.5px; color: rgba(255,255,255,.65); font-weight: 500; text-transform: uppercase; letter-spacing: 1.5px; }
+
+    /* Alertes */
+    .alert-error   { background:#fff5f5; border:1px solid #fecaca; border-left:3px solid #dc2626; color:#7f1d1d; border-radius:8px; padding:9px 13px; font-size:12.5px; margin-bottom:14px; display:flex; align-items:center; gap:7px; }
+    .alert-success { background:#f0fdf4; border:1px solid #bbf7d0; border-left:3px solid #16a34a; color:#14532d; border-radius:8px; padding:9px 13px; font-size:12.5px; margin-bottom:14px; }
+    .alert-warning { background:#fffbeb; border:1px solid #fde68a; border-left:3px solid #d97706; color:#78350f; border-radius:8px; padding:9px 13px; font-size:12.5px; margin-bottom:14px; display:flex; align-items:center; gap:7px; }
+
+    /* Bandeau statut licence */
+    .lic-banner { border-radius:8px; padding:9px 13px; font-size:12px; margin-bottom:14px; display:flex; align-items:center; gap:9px;
+      transition: opacity 0.6s ease, max-height 0.6s ease, padding 0.6s ease, margin 0.6s ease;
+      max-height: 200px; overflow: hidden; }
+    .lic-banner.hiding { opacity:0; max-height:0; padding:0; margin-bottom:0; }
+    @keyframes licFadeOut { 0%{opacity:1;max-height:200px} 100%{opacity:0;max-height:0;padding:0;margin:0} }
+    .lic-banner.actif  { background:#f0fdf4; border:1px solid #86efac; color:#14532d; }
+    .lic-banner.expire { background:#fffbeb; border:1px solid #fde68a; color:#78350f; }
+    .lic-banner-icon { font-size:16px; flex-shrink:0; }
+    .lic-banner-text { flex:1; }
+    .lic-banner-text strong { display:block; font-weight:700; margin-bottom:1px; }
+    .lic-bar-wrap  { display:flex; align-items:center; gap:7px; margin-top:4px; }
+    .lic-bar       { flex:1; height:4px; background:rgba(0,0,0,.10); border-radius:10px; overflow:hidden; }
+    .lic-bar-fill  { height:100%; border-radius:10px; }
+    .lic-bar-fill.ok     { background:#16a34a; }
+    .lic-bar-fill.moyen  { background:#d97706; }
+    .lic-bar-fill.faible { background:#dc2626; }
+    .lic-bar-label { font-size:10px; opacity:.60; white-space:nowrap; }
+
+    /* PRICING TABLE — 3 colonnes */
+    .pricing-table {
+      background: #fff;
+      border-radius: 14px;
+      padding: 10px 10px 8px;
+      margin-bottom: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,.12);
+    }
+    .pricing-table-title {
+      text-align:center; margin-bottom:10px;
+      font-size:13px; font-weight:900;
+      color:#1a3a6c; letter-spacing:.5px; text-transform:uppercase;
+    }
+
+    .pt-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    @media(max-width:520px) { .pt-grid { grid-template-columns:1fr; } }
+
+    .pt-col {
+      display: flex; flex-direction: column;
+      border-radius: 14px; overflow: hidden;
+      border: 2px solid transparent;
+      transition: transform .2s, box-shadow .2s;
+      cursor: pointer;
+    }
+    .pt-col:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(0,0,0,.14); }
+    .pt-col.actif-plan { box-shadow: 0 0 0 3px rgba(16,185,129,.50); }
+
+    .pt-head {
+      padding: 10px 8px 8px;
+      text-align: center;
+    }
+    .pt-plan-name {
+      font-size: 9px; font-weight: 900; text-transform: uppercase;
+      letter-spacing: 1.2px; color: #fff; margin-bottom: 4px;
+    }
+    .pt-duree { font-size:20px; font-weight:900; color:#fff; line-height:1; }
+    .pt-duree-unit { font-size:11px; font-weight:500; color:rgba(255,255,255,.80); }
+    .pt-prix {
+      font-size:12px; font-weight:800; color:rgba(255,255,255,.95);
+      margin-top:4px; letter-spacing:.3px;
+    }
+
+    /* Couleurs par plan */
+    .pt-col.c-teal   .pt-head { background: linear-gradient(160deg,#64748b,#475569); }
+    .pt-col.c-blue   .pt-head { background: linear-gradient(160deg,#2563eb,#1d4ed8); }
+    .pt-col.c-pink   .pt-head { background: linear-gradient(160deg,#d4a017,#b8860b); }
+
+    .pt-body { flex:1; background:#fff; padding:0 10px; display:flex; flex-direction:column; }
+    .pt-feature {
+      display:flex; align-items:center; gap:7px;
+      padding:4px 0; border-bottom:1.5px dotted #e2e8f0;
+      font-size:11px; color:#374151; font-weight:500;
+    }
+    .pt-feature:last-child { border-bottom:none; }
+    .pt-feature.off { color:#cbd5e1; }
+
+    .pt-check { width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:9px; color:#fff; flex-shrink:0; }
+    .pt-dash  { width:18px; height:18px; display:flex; align-items:center; justify-content:center; font-size:14px; color:#cbd5e1; flex-shrink:0; font-weight:900; }
+    .pt-col.c-teal .pt-check { background:#64748b; }
+    .pt-col.c-blue .pt-check { background:#2563eb; }
+    .pt-col.c-pink .pt-check { background:#d4a017; }
+
+    /* Code activation masqué dans la carte */
+    .pt-code-row {
+      display:flex; align-items:center; gap:3px;
+      background:#f8fafc; border:1px solid #e2e8f0;
+      border-radius:6px; padding:3px 7px; margin:5px 0;
+    }
+    .pt-code-val {
+      flex:1; font-family:'Courier New',monospace;
+      font-size:9.5px; font-weight:700; letter-spacing:.2px; color:#374151;
+    }
+    .pt-col.c-teal .pt-code-val { color:#475569; }
+    .pt-col.c-blue .pt-code-val { color:#2563eb; }
+    .pt-col.c-pink .pt-code-val { color:#d4a017; }
+    .pt-code-val.masque { color:#cbd5e1; letter-spacing:2px; }
+    .btn-eye2, .btn-copy2 { background:none; border:none; cursor:pointer; font-size:11px; padding:1px 2px; color:#94a3b8; transition:color .15s; }
+    .btn-eye2:hover, .btn-copy2:hover { color:#374151; }
+
+    /* Bouton prix */
+    .pt-btn {
+      margin:0 8px 6px; padding:7px 6px;
+      border-radius:30px; border:none;
+      font-family:inherit; font-size:14px; font-weight:900;
+      color:#fff; cursor:pointer; width:calc(100% - 20px);
+      transition:filter .18s, transform .15s;
+      display:flex; align-items:center; justify-content:center; gap:4px;
+    }
+    .pt-btn:hover { filter:brightness(1.08); transform:scale(1.02); }
+    .pt-col.c-teal .pt-btn { background:linear-gradient(135deg,#64748b,#475569); }
+    .pt-col.c-blue .pt-btn { background:linear-gradient(135deg,#2563eb,#1d4ed8); }
+    .pt-col.c-pink .pt-btn { background:linear-gradient(135deg,#d4a017,#b8860b); }
+    .pt-btn-sub { font-size:8.5px; font-weight:500; opacity:.85; }
+    .pt-actif-badge { font-size:9.5px; font-weight:700; color:#10b981; text-align:center; padding:4px 0 10px; }
+
+    /* Champ code activation */
+    .form-group { margin-bottom:8px; }
+    .form-group label { display:block; font-size:11px; font-weight:700; color:rgba(255,255,255,.80); text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
+    .input-wrap { position:relative; }
+    .input-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:15px; pointer-events:none; }
+    .form-group input {
+      width:100%; padding:11px 14px 11px 40px;
+      border:1px solid rgba(255,255,255,0.30); border-radius:8px;
+      font-size:14px; font-family:'Courier New',monospace; font-weight:700; letter-spacing:.5px;
+      color:#fff; background:rgba(255,255,255,0.15);
+      transition:border-color .18s, box-shadow .18s, background .18s; outline:none;
+    }
+    .form-group input:focus { border-color:rgba(255,255,255,0.70); background:rgba(255,255,255,0.22); box-shadow:0 0 0 3px rgba(255,255,255,.10); }
+    .form-group input::placeholder { color:rgba(255,255,255,.40); font-family:inherit; font-weight:400; font-size:13px; letter-spacing:0; }
+
+    .btn-login {
+      width:100%; padding:10px;
+      background:linear-gradient(135deg,#1a3a6c,#2563eb);
+      color:#fff; border:none; border-radius:10px;
+      font-size:15px; font-weight:700; font-family:inherit;
+      cursor:pointer; margin-top:4px;
+      transition:opacity .18s, transform .12s, box-shadow .18s;
+      box-shadow:0 4px 14px rgba(37,99,235,.35);
+      display:flex; align-items:center; justify-content:center; gap:8px;
+    }
+    .btn-login:hover  { opacity:.92; transform:translateY(-1px); box-shadow:0 8px 20px rgba(37,99,235,.40); }
+    .btn-login:active { transform:translateY(0); opacity:1; }
+
+    .card-footer {
+      border-top:1px solid rgba(255,255,255,0.15);
+      padding:8px 0 0; margin-top:10px;
+      text-align:center; font-size:11px; color:rgba(255,255,255,.45);
+    }
+    .card-footer strong { color:rgba(255,255,255,.65); }
+    .card-footer a { color:rgba(255,255,255,.55); text-decoration:none; }
+    .card-footer a:hover { color:#fff; }
+  </style>
+</head>
+<body>
+
+<div class="bg-app">
+  <iframe src="{{ url_for('dashboard', bg='1') }}" tabindex="-1" aria-hidden="true" scrolling="no"></iframe>
+</div>
+<div class="bg-overlay"></div>
+
+<div class="login-wrap">
+  <div class="login-card">
+
+    <!-- Header -->
+    <div class="card-header">
+      <span class="app-icon">🛒</span>
+      <div class="app-name">DISTRIGEST</div>
+      <div class="app-sub">Gestion dépôt de boissons · STiNAUG TECH</div>
+    </div>
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="alert-{{ 'success' if category == 'success' else ('warning' if category == 'warning' else 'error') }}">
+          {{ '✅' if category == 'success' else ('⚠️' if category == 'warning' else 'ℹ️') }} {{ message }}
+        </div>
+      {% endfor %}
+    {% endwith %}
+
+    {% if code_error %}
+    <div class="alert-error"><span>⚠️</span><span>{{ code_error }}</span></div>
+    {% endif %}
+
+    <!-- Bandeau statut licence -->
+    {% set lic = licence_active %}
+    {% if lic %}
+    <div class="lic-banner {{ lic.etat }}" id="licBanner">
+      <div class="lic-banner-icon">{% if lic.etat == 'actif' %}🛡️{% else %}⚠️{% endif %}</div>
+      <div class="lic-banner-text">
+        {% if lic.etat == 'actif' %}
+          <strong>Licence active — {{ lic.plan_nom }}</strong>
+          {% if lic.illimitee %}Durée illimitée ♾️
+          {% else %}Expire le {{ lic.date_expiration }}
+          <div class="lic-bar-wrap">
+            <div class="lic-bar">
+              <div class="lic-bar-fill {% if lic.pct_restant < 20 %}faible{% elif lic.pct_restant < 50 %}moyen{% else %}ok{% endif %}"
+                   style="width:{{ lic.pct_restant }}%"></div>
+            </div>
+            <span class="lic-bar-label">{{ lic.jours_restants }}j restants</span>
+          </div>
+          {% endif %}
+        {% else %}
+          <strong>Licence expirée — {{ lic.plan_nom }}</strong>
+          Expirée le {{ lic.date_expiration }}. Renouvelez ci-dessous.
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- PRICING TABLE -->
+    <div class="pricing-table">
+      <div class="pricing-table-title">Plans DISTRIGEST</div>
+      <div class="pt-grid">
+
+        <!-- DEMO — 5 jours — gris -->
+        <div class="pt-col c-teal {% if lic and lic.plan_id == 'DEMO' %}actif-plan{% endif %}"
+             onclick="selectionnerPlan('DEMO')">
+          <div class="pt-head">
+            <div class="pt-plan-name">🔓 Demo</div>
+            <div class="pt-duree">5 <span class="pt-duree-unit">jours</span></div>
+            <div class="pt-prix">0 FCFA</div>
+          </div>
+          <div class="pt-body">
+            <div class="pt-feature"><span class="pt-check">✓</span> Accès complet 5 jours</div>
+            <div class="pt-feature"><span class="pt-check">✓</span> Ventes & stocks</div>
+            <div class="pt-feature"><span class="pt-check">✓</span> Catalogue articles</div>
+            <div class="pt-feature"><span class="pt-check">✓</span> Tableau de bord</div>
+            <div class="pt-feature off"><span class="pt-dash">—</span> Au-delà de 5 jours</div>
+            <div class="pt-feature off"><span class="pt-dash">—</span> Renouvellement</div>
+
+          </div>
+          {% if lic and lic.plan_id == 'DEMO' %}
+            <div class="pt-actif-badge">✅ Plan actif</div>
+          {% else %}
+            <form method="POST" action="{{ url_for('activation_demo') }}" style="margin:0 8px 6px;">
+              <button type="submit" class="pt-btn" style="width:100%;">
+                Gratuit — 5 jours
+              </button>
+            </form>
+          {% endif %}
+        </div>
+
+        <!-- PRO — 12 mois — bleu -->
+        <div class="pt-col c-blue {% if lic and lic.plan_id == 'PRO' %}actif-plan{% endif %}"
+             onclick="selectionnerPlan('PRO')">
+          <div class="pt-head">
+            <div class="pt-plan-name">🚀 Pro</div>
+            <div class="pt-duree">12 <span class="pt-duree-unit">mois</span></div>
+            <div class="pt-prix">250 000 FCFA</div>
+          </div>
+          <div class="pt-body">
+            <div class="pt-feature"><span class="pt-check">✓</span> Actif jusqu'au 2027-04-17</div>
+            <div class="pt-feature"><span class="pt-check">✓</span> Ventes & Achats</div>
+            <div class="pt-feature"><span class="pt-check">✓</span> Multi-dépôts</div>
+            <div class="pt-feature"><span class="pt-check">✓</span> Paie & Congés</div>
+            <div class="pt-feature"><span class="pt-check">✓</span> Comptabilité</div>
+            <div class="pt-feature"><span class="pt-check">✓</span> Support WhatsApp</div>
+            {% if codes and codes.PRO %}
+            <div class="pt-code-row">
+              <span class="pt-code-val masque" id="code-PRO" data-code="{{ codes.PRO }}">••••••••••••</span>
+              <button class="btn-eye2"  onclick="event.stopPropagation();revealCode('PRO')" title="Afficher">👁</button>
+              <button class="btn-copy2" onclick="event.stopPropagation();copierCode('PRO')" title="Copier">📋</button>
+            </div>
+            {% endif %}
+          </div>
+          {% if lic and lic.plan_id == 'PRO' %}
+            <div class="pt-actif-badge">✅ Plan actif</div>
+          {% else %}
+            <button class="pt-btn" onclick="event.stopPropagation();selectionnerPlan('PRO')">
+              250 000 <span class="pt-btn-sub">FCFA</span>
+            </button>
+          {% endif %}
+        </div>
+
+        <!-- BUSINESS — illimité — or -->
+        <div class="pt-col c-pink {% if lic and lic.plan_id == 'BUS' %}actif-plan{% endif %}"
+             onclick="selectionnerPlan('BUS')">
+          <div class="pt-head">
+            <div class="pt-plan-name">👑 Business</div>
+            <div class="pt-duree">∞ <span class="pt-duree-unit">à vie</span></div>
+            <div class="pt-prix">📞 Sur devis</div>
+          </div>
+          <div class="pt-body">
+            <div class="pt-feature"><span class="pt-check">✓</span> Tout Pro inclus</div>
+            <div class="pt-feature"><span class="pt-check">✓</span> ♾️ Durée illimitée</div>
+            <div class="pt-feature"><span class="pt-check">✓</span> Utilisateurs illimités</div>
+            <div class="pt-feature"><span class="pt-check">✓</span> Multi-établissements</div>
+            <div class="pt-feature"><span class="pt-check">✓</span> Formation sur site</div>
+            <div class="pt-feature"><span class="pt-check">✓</span> Support VIP dédié</div>
+            {% if codes and codes.BUS %}
+            <div class="pt-code-row">
+              <span class="pt-code-val masque" id="code-BUS" data-code="{{ codes.BUS }}">••••••••••••</span>
+              <button class="btn-eye2"  onclick="event.stopPropagation();revealCode('BUS')" title="Afficher">👁</button>
+              <button class="btn-copy2" onclick="event.stopPropagation();copierCode('BUS')" title="Copier">📋</button>
+            </div>
+            {% endif %}
+          </div>
+          {% if lic and lic.plan_id == 'BUS' %}
+            <div class="pt-actif-badge">✅ Plan actif</div>
+          {% else %}
+            <div class="pt-btn" style="cursor:default;pointer-events:none;font-size:18px;">📞</div>
+          {% endif %}
+        </div>
+
+      </div><!-- /pt-grid -->
+    </div><!-- /pricing-table -->
+
+    <!-- Champ code activation — masqué par défaut, visible pour PRO/BUS uniquement -->
+    <form method="POST" action="{{ url_for('activation_valider') }}" id="formActivation" style="display:none;">
+      <div class="form-group">
+        <label>🔑 Code d'activation</label>
+        <div class="input-wrap">
+          <span class="input-icon">🔑</span>
+          <input
+            type="text"
+            name="code_activation"
+            id="codeInput"
+            maxlength="25"
+            autocomplete="off"
+            spellcheck="false"
+            value="{{ request.form.get('code_activation', '') | upper }}"
+            oninput="formatCode(this)"
+            required
+          >
+        </div>
+      </div>
+      <button type="submit" class="btn-login">🚀 Activer la licence</button>
+    </form>
+
+    <!-- Footer -->
+    <div class="card-footer">
+      <strong>STiNAUG TECHNOLOGIE</strong> ·
+      <a href="mailto:contact@stinaugtech.ci">contact@stinaugtech.ci</a> ·
+      <a href="tel:+2250788449203">07 88 44 92 03</a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// Afficher le formulaire si erreur de code (retour serveur)
+{% if code_error %}
+document.getElementById('formActivation').style.display = 'block';
+{% endif %}
+
+// Disparition automatique du bandeau licence après 5s
+(function(){
+  var banner = document.getElementById('licBanner');
+  if(banner){
+    setTimeout(function(){
+      banner.classList.add('hiding');
+      setTimeout(function(){ banner.remove(); }, 650);
+    }, 5000);
+  }
+})();
+
+function revealCode(id) {
+  const el  = document.getElementById('code-' + id);
+  const btn = el.nextElementSibling;
+  if (el.classList.contains('masque')) {
+    el.textContent = el.dataset.code;
+    el.classList.remove('masque');
+    btn.textContent = '🙈';
+  } else {
+    el.textContent = '••••••••••••';
+    el.classList.add('masque');
+    btn.textContent = '👁';
+  }
+}
+
+function copierCode(id) {
+  const el   = document.getElementById('code-' + id);
+  const code = el.dataset.code;
+  el.textContent = code;
+  el.classList.remove('masque');
+  el.nextElementSibling.textContent = '🙈';
+  navigator.clipboard.writeText(code).then(function() {
+    const orig = el.nextElementSibling.nextElementSibling.textContent;
+    el.nextElementSibling.nextElementSibling.textContent = '✅';
+    setTimeout(function() {
+      el.nextElementSibling.nextElementSibling.textContent = orig;
+    }, 1500);
+  }).catch(function() {});
+}
+
+function selectionnerPlan(planId) {
+  // DEMO : soumettre directement le formulaire demo (pas de saisie de code)
+  if (planId === 'DEMO') {
+    var f = document.querySelector('form[action*="activation_demo"]');
+    if (f) { f.submit(); }
+    return;
+  }
+  // PRO / BUS : afficher le champ de saisie et y mettre le focus
+  var form = document.getElementById('formActivation');
+  form.style.display = 'block';
+  document.getElementById('codeInput').focus();
+}
+
+function formatCode(input) {
+  let v = input.value.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
+  input.value = v;
+}
+</script>
+</body>
+</html>

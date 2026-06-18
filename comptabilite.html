@@ -1,0 +1,1173 @@
+{% extends "base.html" %}
+{% block title %}Comptabilité — DISTRIGEST{% endblock %}
+{% block topbar_title %}📒 Comptabilité{% endblock %}
+{% block content %}
+
+<style>
+/* ══ HERO ══════════════════════════════════════════════════════ */
+.cpt-hero {
+  background: linear-gradient(135deg, #0f2347 0%, #1a3a6c 45%, #2563eb 100%);
+  border-radius: 16px; padding: 28px 32px; margin-bottom: 24px;
+  position: relative; overflow: hidden;
+  box-shadow: 0 8px 32px rgba(37,99,235,.28), 0 2px 8px rgba(0,0,0,.12);
+}
+.cpt-hero::before {
+  content:''; position:absolute; inset:0;
+  background: radial-gradient(ellipse 60% 80% at 82% 50%, rgba(37,99,235,.25) 0%, transparent 70%),
+              radial-gradient(ellipse 40% 60% at 10% 80%, rgba(255,255,255,.04) 0%, transparent 60%);
+  pointer-events:none;
+}
+.cpt-hero::after {
+  content:'📒'; position:absolute; right:32px; top:50%; transform:translateY(-50%);
+  font-size:80px; opacity:.06; pointer-events:none; line-height:1;
+}
+.cpt-hero-top {
+  display:flex; align-items:flex-start; justify-content:space-between;
+  position:relative; z-index:1;
+}
+.cpt-hero-title { font-size:22px; font-weight:800; color:white; letter-spacing:-.3px; margin-bottom:4px; }
+.cpt-hero-sub   { font-size:12px; color:rgba(255,255,255,.55); font-weight:500; letter-spacing:.3px; }
+.cpt-hero-btn {
+  background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22);
+  color:white; font-size:12px; font-weight:700; padding:9px 18px; border-radius:9px;
+  cursor:pointer; display:flex; align-items:center; gap:7px; font-family:'Inter',sans-serif;
+  transition:all .18s; backdrop-filter:blur(8px); white-space:nowrap; text-decoration:none;
+}
+.cpt-hero-btn:hover { background:rgba(255,255,255,.22); border-color:rgba(255,255,255,.4); transform:translateY(-1px); box-shadow:0 6px 18px rgba(0,0,0,.2); color:white; }
+.cpt-hero-solde {
+  display:flex; align-items:center; gap:24px; margin-top:20px;
+  position:relative; z-index:1; padding-top:18px; border-top:1px solid rgba(255,255,255,.10);
+}
+.cpt-hero-solde-item { display:flex; flex-direction:column; gap:3px; }
+.sh-label { font-size:10px; font-weight:700; color:rgba(255,255,255,.45); text-transform:uppercase; letter-spacing:.8px; }
+.sh-val   { font-size:24px; font-weight:900; color:white; line-height:1; font-variant-numeric:tabular-nums; }
+.sh-val.vert  { color:#4ade80; }
+.sh-val.rouge { color:#f87171; }
+.sh-val.or    { color:#fcd34d; }
+.cpt-hero-sep { width:1px; height:40px; background:rgba(255,255,255,.12); align-self:center; }
+.cpt-hero-pill {
+  margin-left:auto; padding:6px 16px; border-radius:20px;
+  font-size:12px; font-weight:700; border:1.5px solid;
+}
+.pill-b { background:rgba(74,222,128,.12); color:#4ade80; border-color:rgba(74,222,128,.3); }
+.pill-d { background:rgba(248,113,113,.12); color:#f87171; border-color:rgba(248,113,113,.3); }
+
+/* ══ GRAPHE + CATÉGORIES ═══════════════════════════════════════ */
+.cpt-mid { display:grid; grid-template-columns:1fr 240px 240px; gap:16px; margin-bottom:20px; }
+
+.cpt-card {
+  background:var(--bg-card); border-radius:12px; border:1px solid var(--border);
+  box-shadow:0 2px 8px rgba(26,58,108,.07);
+}
+.cpt-card-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 20px; border-bottom:1px solid var(--border);
+  background:var(--bg-thead);
+}
+.cpt-card-head h3 { font-size:13px; font-weight:700; color:var(--bleu); margin:0; }
+.cpt-card-body { padding:18px 20px; }
+.chart-legend { display:flex; gap:10px; font-size:10px; font-weight:600; }
+.chart-legend span { display:flex; align-items:center; gap:4px; }
+.chart-legend .cd { width:8px; height:8px; border-radius:2px; }
+
+/* Barres graphe */
+.bar-chart-w {
+  display:flex; align-items:flex-end; gap:4px;
+  height:100px; padding-bottom:18px; position:relative;
+}
+.bar-chart-w::after {
+  content:''; position:absolute; left:0; right:0; bottom:18px;
+  height:1px; background:var(--gris2);
+}
+.bc-col { display:flex; flex-direction:column; align-items:center; flex:1; gap:2px; }
+.bc-bars { display:flex; gap:2px; align-items:flex-end; width:100%; height:82px; }
+.bc-b {
+  flex:1; border-radius:4px 4px 0 0; min-height:3px;
+  transition:opacity .15s, filter .15s; cursor:default;
+}
+.bc-b:hover { filter:brightness(1.1); }
+.bc-b.r { background:linear-gradient(180deg, #4ade80 0%, #16a34a 100%); }
+.bc-b.d { background:linear-gradient(180deg, #f87171 0%, #dc2626 100%); }
+.bc-l { font-size:8px; color:var(--gris3); font-weight:600; text-align:center; overflow:hidden; width:100%; }
+
+/* Catégories */
+.cat-card { padding:16px 18px; }
+.cat-card-head {
+  font-size:12px; font-weight:800; margin-bottom:14px;
+  display:flex; align-items:center; gap:8px;
+  padding-bottom:10px; border-bottom:1px solid var(--gris2);
+}
+.cat-ico { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+.cat-row { margin-bottom:10px; }
+.cat-row:last-child { margin-bottom:0; }
+.cat-top { display:flex; justify-content:space-between; font-size:11px; font-weight:600; margin-bottom:4px; }
+.cat-track { height:5px; background:var(--gris2); border-radius:3px; overflow:hidden; }
+.cat-fill { height:100%; border-radius:3px; animation:fillIn .65s cubic-bezier(.34,1.56,.64,1) both; }
+@keyframes fillIn { from{transform:scaleX(0);transform-origin:left} to{transform:scaleX(1)} }
+
+/* ══ FILTRE BAR ══════════════════════════════════════════════ */
+.cpt-fbar {
+  background:var(--bg-card); border:1px solid var(--border); border-radius:12px;
+  padding:11px 18px; margin-bottom:16px;
+  box-shadow:0 2px 8px rgba(26,58,108,.06);
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+}
+.fbar-lbl { font-size:10px; font-weight:700; color:var(--gris3); text-transform:uppercase; letter-spacing:.6px; white-space:nowrap; }
+.fbar-sep { width:1px; height:26px; background:var(--gris2); flex-shrink:0; }
+.cpt-fbar select {
+  padding:7px 28px 7px 12px; height:34px; border:1.5px solid var(--gris2);
+  border-radius:8px; font-size:12px; font-family:'Inter',sans-serif;
+  color:var(--texte); background:var(--gris); cursor:pointer; font-weight:600;
+  appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 10px center;
+  transition:border-color .15s, background .15s;
+}
+.cpt-fbar select:focus { outline:none; border-color:var(--bleu2); background-color:white; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+.fbar-reset {
+  display:flex; align-items:center; gap:5px; color:var(--gris3);
+  font-size:11px; font-weight:600; padding:6px 12px; border-radius:8px;
+  border:1.5px solid var(--border); text-decoration:none; background:var(--bg-card);
+  transition:all .15s;
+}
+.fbar-reset:hover { color:var(--rouge); border-color:var(--rouge); background:#fff5f5; }
+
+/* Boutons d'action (export / impression) */
+.fbar-actions { margin-left:auto; display:flex; align-items:center; gap:8px; }
+.fbar-btn {
+  display:inline-flex; align-items:center; gap:5px; cursor:pointer;
+  font-size:11px; font-weight:600; color:var(--texte);
+  padding:7px 12px; height:34px; border-radius:8px;
+  border:1.5px solid var(--border); background:var(--bg-card); text-decoration:none;
+  transition:all .15s; white-space:nowrap; font-family:'Inter',sans-serif;
+}
+.fbar-btn:hover { border-color:var(--bleu2); color:var(--bleu2); background:#f5f9ff; }
+.fbar-btn .caret { font-size:8px; opacity:.7; }
+.fbar-dd { position:relative; }
+.fbar-menu {
+  position:absolute; top:calc(100% + 6px); right:0; z-index:60;
+  background:var(--bg-card); border:1px solid var(--border); border-radius:10px;
+  box-shadow:0 12px 32px rgba(26,58,108,.16); padding:6px; min-width:200px;
+  display:none; flex-direction:column; gap:2px;
+}
+.fbar-menu.open { display:flex; animation:_ddIn .15s ease; }
+@keyframes _ddIn { from{opacity:0;transform:translateY(-4px);} to{opacity:1;transform:translateY(0);} }
+.fbar-menu a, .fbar-menu button {
+  display:flex; align-items:center; gap:9px; width:100%; text-align:left;
+  font-size:12px; font-weight:600; color:var(--texte); text-decoration:none;
+  padding:8px 10px; border-radius:7px; border:none; background:none; cursor:pointer;
+  font-family:'Inter',sans-serif; transition:background .12s, color .12s;
+}
+.fbar-menu a:hover, .fbar-menu button:hover { background:#f1f5f9; color:var(--bleu2); }
+.fbar-menu-sep { height:1px; background:var(--gris2); margin:4px 2px; }
+
+/* Compteur d'opérations stylisé */
+.fbar-count {
+  display:inline-flex; align-items:center; gap:7px;
+  font-size:11px; font-weight:700; color:var(--gris3); white-space:nowrap;
+  padding:6px 14px; border-radius:20px;
+  background:var(--bg-card);
+  border:1px solid #dbeafe;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7);
+}
+.fbar-count .fc-ico { font-size:13px; line-height:1; }
+.fbar-count .fc-num { font-size:14px; font-weight:800; color:var(--bleu2); line-height:1; }
+
+/* ══ JOURNAL ══════════════════════════════════════════════════ */
+.cpt-journal {
+  background:var(--bg-card); border-radius:12px; border:1px solid var(--border);
+  box-shadow:0 2px 8px rgba(26,58,108,.07); overflow:hidden;
+}
+.jnl-head {
+  padding:16px 22px; border-bottom:1px solid var(--gris2);
+  display:flex; align-items:center; justify-content:space-between;
+  background:var(--bg-thead);
+}
+.jnl-head h3 { font-size:13px; font-weight:800; color:var(--bleu); }
+.jnl-sync { font-size:10px; color:var(--gris3); font-weight:500; display:flex; align-items:center; gap:5px; }
+.jnl-dot  { width:6px; height:6px; border-radius:50%; background:var(--vert); animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.jnl-tbl { width:100%; border-collapse:collapse; }
+.jnl-tbl thead tr { background:var(--bg-thead); }
+.jnl-tbl th {
+  padding:10px 16px; text-align:left; font-size:10px; font-weight:700;
+  color:var(--gris3); text-transform:uppercase; letter-spacing:.6px;
+  border-bottom:2px solid var(--gris2);
+}
+.jnl-tbl tbody td { padding:11px 16px; font-size:12px; border-bottom:1px solid var(--gris2); vertical-align:middle; }
+.jnl-tbl tbody tr:last-child td { border-bottom:none; }
+.jnl-tbl tbody tr.rr:hover { background:#f0fdf4; }
+.jnl-tbl tbody tr.rd:hover { background:#fff5f5; }
+.jnl-tbl tbody tr td:first-child { border-left:3px solid transparent; }
+.jnl-tbl tbody tr.rr td:first-child { border-left-color:#16a34a; }
+.jnl-tbl tbody tr.rd td:first-child { border-left-color:#dc2626; }
+
+.br { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:20px; font-size:10px; font-weight:800; white-space:nowrap; }
+.br-rec { background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; }
+.br-dep { background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; }
+.br-src { background:#dbeafe; color:#1d4ed8; border:1px solid #93c5fd; font-size:9px; }
+.br-man { background:#f1f5f9; color:#64748b; border:1px solid #e2e8f0; font-size:9px; }
+
+.m-rec { font-size:13px; font-weight:900; color:#16a34a; font-variant-numeric:tabular-nums; }
+.m-dep { font-size:13px; font-weight:900; color:#dc2626; font-variant-numeric:tabular-nums; }
+
+/* Bouton importer — variante accent */
+.cpt-hero-btn-import {
+  background: linear-gradient(135deg, rgba(251,191,36,.22), rgba(245,158,11,.18));
+  border-color: rgba(251,191,36,.4);
+}
+.cpt-hero-btn-import:hover {
+  background: linear-gradient(135deg, rgba(251,191,36,.35), rgba(245,158,11,.28));
+  border-color: rgba(251,191,36,.65);
+  box-shadow: 0 6px 18px rgba(245,158,11,.3);
+}
+
+/* Modal import */
+.import-modal-body { padding: 24px 26px; }
+.import-source {
+  display: flex; align-items: center; gap: 14px;
+  padding: 13px 16px; border-radius: 10px;
+  background: var(--gris); border: 1.5px solid var(--gris2);
+  margin-bottom: 10px; transition: border-color .15s, background .15s;
+  cursor: default;
+}
+.import-source:last-child { margin-bottom: 0; }
+.import-source .is-ico {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.import-source .is-info { flex: 1; }
+.import-source .is-title { font-size: 13px; font-weight: 700; color: var(--texte); margin-bottom: 2px; }
+.import-source .is-desc  { font-size: 11px; color: var(--gris3); }
+.import-source .is-badge {
+  font-size: 10px; font-weight: 700; padding: 3px 9px;
+  border-radius: 20px; white-space: nowrap;
+}
+
+.jnl-empty {
+  text-align:center; padding:60px 20px;
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+}
+.je-ico {
+  width:56px; height:56px; border-radius:14px;
+  background:linear-gradient(135deg,#dbeafe,#eff6ff);
+  display:flex; align-items:center; justify-content:center;
+  font-size:26px; margin-bottom:4px;
+}
+.je-title { font-size:14px; font-weight:700; color:var(--bleu); }
+.je-sub   { font-size:12px; color:var(--gris3); }
+
+/* ══ ONGLETS ══════════════════════════════════════════════════ */
+.cpt-tabs {
+  display:flex; gap:4px; background:var(--bg-card); border:1px solid var(--border);
+  border-radius:12px; padding:6px; margin-bottom:16px;
+  box-shadow:0 2px 8px rgba(26,58,108,.06);
+}
+.cpt-tab {
+  flex:1; padding:9px 12px; border-radius:8px; border:none; background:transparent;
+  font-size:12px; font-weight:700; color:var(--gris3); cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  transition:all .18s; font-family:'Inter',sans-serif; white-space:nowrap;
+}
+.cpt-tab:hover { background:var(--gris); color:var(--texte); }
+.cpt-tab.active {
+  background:linear-gradient(135deg,#0f2347,#2563eb); color:white;
+  box-shadow:0 4px 12px rgba(37,99,235,.3);
+}
+
+/* ══ GRAND LIVRE ══════════════════════════════════════════════ */
+.gl-compte {
+  background:var(--bg-card); border-radius:12px; border:1px solid var(--border);
+  box-shadow:0 2px 8px rgba(26,58,108,.07); margin-bottom:16px; overflow:hidden;
+}
+.gl-compte-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:13px 20px; background:var(--bg-thead);
+  border-bottom:1px solid var(--gris2); cursor:pointer;
+}
+.gl-compte-head:hover { background:linear-gradient(135deg,#eff6ff,#f0fdf4); }
+.gl-compte-title { font-size:13px; font-weight:800; color:var(--bleu); display:flex; align-items:center; gap:8px; }
+.gl-compte-kpi   { display:flex; gap:16px; align-items:center; }
+.gl-kpi          { font-size:11px; font-weight:700; }
+.gl-compte-tbl   { width:100%; border-collapse:collapse; }
+.gl-compte-tbl th { padding:8px 16px; text-align:left; font-size:10px; font-weight:700; color:var(--gris3); text-transform:uppercase; letter-spacing:.6px; border-bottom:1.5px solid var(--gris2); background:var(--bg-thead); }
+.gl-compte-tbl td { padding:9px 16px; font-size:12px; border-bottom:1px solid var(--gris2); vertical-align:middle; }
+.gl-compte-tbl tr:last-child td { border-bottom:none; }
+.gl-compte-tbl tr:hover td { background:var(--bg-thead); }
+.gl-solde-row td { background:var(--bg-thead); font-weight:800; border-top:2px solid var(--gris2) !important; }
+
+/* ══ BALANCE ══════════════════════════════════════════════════ */
+.bal-tbl { width:100%; border-collapse:collapse; }
+.bal-tbl thead tr { background:var(--bg-thead); }
+.bal-tbl th { padding:11px 16px; text-align:left; font-size:10px; font-weight:700; color:var(--gris3); text-transform:uppercase; letter-spacing:.6px; border-bottom:2px solid var(--gris2); }
+.bal-tbl th.right { text-align:right; }
+.bal-tbl td { padding:10px 16px; font-size:12px; border-bottom:1px solid var(--gris2); }
+.bal-tbl td.right { text-align:right; font-weight:700; font-variant-numeric:tabular-nums; }
+.bal-tbl tr:hover td { background:var(--bg-thead); }
+.bal-tfoot td { background:linear-gradient(135deg,#0f2347,#1a3a6c); color:white; font-weight:800; font-size:12px; border:none; }
+.bal-tfoot td.right { color:#4ade80; }
+.bal-eq { display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:20px; font-size:11px; font-weight:700; }
+.bal-eq-ok  { background:#dcfce7; color:#15803d; }
+.bal-eq-err { background:#fee2e2; color:#b91c1c; }
+
+/* ══ BILAN ════════════════════════════════════════════════════ */
+.bilan-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.bilan-card {
+  background:var(--bg-card); border-radius:12px; border:1px solid var(--border);
+  box-shadow:0 2px 8px rgba(26,58,108,.07); overflow:hidden;
+}
+.bilan-card-head {
+  padding:14px 20px; border-bottom:1px solid var(--gris2);
+  background:var(--bg-thead);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.bilan-card-head h3 { font-size:13px; font-weight:800; color:var(--bleu); margin:0; }
+.bilan-total-pill {
+  font-size:12px; font-weight:800; padding:5px 14px;
+  border-radius:20px; border:2px solid;
+}
+.bilan-tbl { width:100%; border-collapse:collapse; }
+.bilan-tbl td { padding:10px 20px; font-size:12px; border-bottom:1px solid var(--gris2); }
+.bilan-tbl td:last-child { text-align:right; font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.bilan-tbl tr:last-child td { border-bottom:none; }
+.bilan-tbl tr:hover td { background:var(--bg-thead); }
+.bilan-section-row td { background:var(--gris); font-size:10px; font-weight:800; color:var(--gris3); text-transform:uppercase; letter-spacing:.6px; padding:7px 20px; }
+.bilan-total-row td { background:var(--bg-thead); font-weight:800; border-top:2px solid var(--gris2) !important; font-size:13px; }
+.bilan-result-card {
+  background:linear-gradient(135deg,#0f2347,#2563eb); border-radius:12px;
+  padding:20px 24px; color:white; text-align:center; margin-top:16px;
+  box-shadow:0 8px 24px rgba(37,99,235,.3);
+}
+.bilan-result-title { font-size:11px; font-weight:700; opacity:.6; text-transform:uppercase; letter-spacing:.8px; margin-bottom:6px; }
+.bilan-result-val   { font-size:28px; font-weight:900; }
+</style>
+
+<!-- ── HERO ── -->
+<div class="cpt-hero">
+  <div class="cpt-hero-top">
+    <div>
+      <div class="cpt-hero-title">📒 Comptabilité</div>
+      <div class="cpt-hero-sub">Exercice {{ annee }} &nbsp;·&nbsp; Journal · Recettes · Dépenses · Résultat</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap;">
+      <a href="{{ url_for('comptabilite_rapport') }}?annee={{ annee }}" target="_blank"
+         class="cpt-hero-btn" style="background:rgba(251,191,36,.18);border-color:rgba(251,191,36,.4);">
+        📄 Rapport complet
+      </a>
+      <button type="button"
+         onclick="importerConfirm()"
+         class="cpt-hero-btn" id="importBtn">
+        <span id="importIcon">⚡</span>
+        <span id="importLabel">Comptabiliser</span>
+      </button>
+      <button onclick="openModal('modalAddEcriture')" class="cpt-hero-btn" style="background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.32);">
+        ✏️ Écriture manuelle
+      </button>
+    </div>
+  </div>
+  <div class="cpt-hero-solde">
+    <div class="cpt-hero-solde-item">
+      <span class="sh-label">Recettes {{ annee }}</span>
+      <span class="sh-val vert">{{ total_recettes | fcfa }}</span>
+    </div>
+    <div class="cpt-hero-sep"></div>
+    <div class="cpt-hero-solde-item">
+      <span class="sh-label">Dépenses {{ annee }}</span>
+      <span class="sh-val rouge">{{ total_depenses | fcfa }}</span>
+    </div>
+    <div class="cpt-hero-sep"></div>
+    <div class="cpt-hero-solde-item">
+      <span class="sh-label">Résultat net</span>
+      <span class="sh-val {{ 'or' if resultat_net >= 0 else 'rouge' }}">
+        {{ resultat_net | fcfa }} {{ cfg.devise if cfg else 'FCFA' }}
+      </span>
+    </div>
+    <div class="cpt-hero-sep"></div>
+    <div class="cpt-hero-solde-item">
+      <span class="sh-label">Bénéfice ce mois</span>
+      <span class="sh-val {{ 'or' if resultat_mois >= 0 else 'rouge' }}" style="font-size:20px;">
+        {{ '+' if resultat_mois > 0 else '' }}{{ resultat_mois | fcfa }}
+      </span>
+      <span style="font-size:10px; color:rgba(255,255,255,.4); margin-top:2px;">
+        ▲ {{ rec_mois | fcfa }} &nbsp;▼ {{ dep_mois | fcfa }}
+      </span>
+    </div>
+    <span class="cpt-hero-pill {{ 'pill-b' if resultat_net >= 0 else 'pill-d' }}">
+      {{ '✅ Bénéfice' if resultat_net >= 0 else '⚠️ Déficit' }}
+    </span>
+  </div>
+</div>
+
+
+<!-- ── GRAPHE + CATÉGORIES ── -->
+<div class="cpt-mid">
+
+  <!-- Graphe mensuel -->
+  <div class="cpt-card">
+    <div class="cpt-card-head">
+      <h3>📊 Évolution mensuelle {{ annee }}</h3>
+      <div class="chart-legend">
+        <span><span class="cd" style="background:#16a34a;"></span>Recettes</span>
+        <span><span class="cd" style="background:#dc2626;"></span>Dépenses</span>
+      </div>
+    </div>
+    <div class="cpt-card-body" style="padding-bottom:12px;">
+      {% if par_mois %}
+      {% set all_v = [] %}
+      {% for m in par_mois %}{% if all_v.append(m.recettes) %}{% endif %}{% if all_v.append(m.depenses) %}{% endif %}{% endfor %}
+      {% set mx = [all_v|max, 1]|max %}
+      <div class="bar-chart-w">
+        {% for m in par_mois %}
+        {% set rh = ((m.recettes / mx) * 78)|int %}
+        {% set dh = ((m.depenses / mx) * 78)|int %}
+        <div class="bc-col">
+          <div class="bc-bars">
+            <div class="bc-b r" style="height:{{ [rh,3]|max }}px;"
+                 title="{{ MOIS_LABELS[(m.mois|int)-1] }} — Recettes : {{ m.recettes | fcfa }}"></div>
+            <div class="bc-b d" style="height:{{ [dh,3]|max }}px;"
+                 title="{{ MOIS_LABELS[(m.mois|int)-1] }} — Dépenses : {{ m.depenses | fcfa }}"></div>
+          </div>
+          <div class="bc-l">{{ MOIS_LABELS[(m.mois|int)-1] }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div style="text-align:center;color:var(--gris3);padding:40px 0;font-size:12px;">
+        <div style="font-size:28px;margin-bottom:8px;">📊</div>
+        Aucune donnée pour {{ annee }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Recettes par catégorie -->
+  <div class="cpt-card">
+    <div class="cpt-card-head">
+      <h3 style="color:#16a34a;">💰 Recettes</h3>
+    </div>
+    <div class="cat-card">
+      {% if par_cat_recettes %}
+      {% set mr = [par_cat_recettes[0].total, 1]|max %}
+      {% for pc in par_cat_recettes[:6] %}
+      <div class="cat-row">
+        <div class="cat-top">
+          <span style="max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ pc.categorie }}</span>
+          <span style="color:#16a34a;">{{ pc.total | fcfa }}</span>
+        </div>
+        <div class="cat-track">
+          <div class="cat-fill" style="width:{{ ((pc.total/mr)*100)|int }}%;background:linear-gradient(90deg,#4ade80,#16a34a);"></div>
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div style="text-align:center;color:var(--gris3);font-size:11px;padding:24px 0;">Aucune recette</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Dépenses par catégorie -->
+  <div class="cpt-card">
+    <div class="cpt-card-head">
+      <h3 style="color:#dc2626;">💸 Dépenses</h3>
+    </div>
+    <div class="cat-card">
+      {% if par_cat_depenses %}
+      {% set md = [par_cat_depenses[0].total, 1]|max %}
+      {% for pc in par_cat_depenses[:6] %}
+      <div class="cat-row">
+        <div class="cat-top">
+          <span style="max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ pc.categorie }}</span>
+          <span style="color:#dc2626;">{{ pc.total | fcfa }}</span>
+        </div>
+        <div class="cat-track">
+          <div class="cat-fill" style="width:{{ ((pc.total/md)*100)|int }}%;background:linear-gradient(90deg,#f87171,#dc2626);"></div>
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div style="text-align:center;color:var(--gris3);font-size:11px;padding:24px 0;">Aucune dépense</div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ ONGLETS ══ -->
+{% set onglet = request.args.get('onglet', 'journal') %}
+<div class="cpt-tabs">
+  <button class="cpt-tab {{ 'active' if onglet == 'journal' }}"
+          onclick="switchOnglet('journal')">📋 Journal</button>
+  <button class="cpt-tab {{ 'active' if onglet == 'grand_livre' }}"
+          onclick="switchOnglet('grand_livre')">📚 Grand Livre</button>
+  <button class="cpt-tab {{ 'active' if onglet == 'balance' }}"
+          onclick="switchOnglet('balance')">⚖️ Balance</button>
+  <button class="cpt-tab {{ 'active' if onglet == 'bilan' }}"
+          onclick="switchOnglet('bilan')">📊 Bilan</button>
+</div>
+
+{# ─── VUE JOURNAL ─── #}
+<div id="onglet-journal" class="{{ '' if onglet == 'journal' else 'hidden' }}" style="{{ '' if onglet == 'journal' else 'display:none;' }}">
+
+<!-- ── FILTRES ── -->
+<form method="GET" action="{{ url_for('comptabilite') }}">
+  <div class="cpt-fbar">
+    <span class="fbar-lbl">🔍 Filtrer</span>
+    <div class="fbar-sep"></div>
+    <select name="annee" onchange="this.form.submit()">
+      {% for a in annees_dispo %}
+      <option value="{{ a }}" {{ 'selected' if a|int == annee }}>{{ a }}</option>
+      {% endfor %}
+    </select>
+    <select name="mois" onchange="this.form.submit()">
+      <option value="">Toute l'année</option>
+      {% for i in range(1,13) %}
+      <option value="{{ '%02d'|format(i) }}" {{ 'selected' if mois_filtre == '%02d'|format(i) }}>
+        {{ MOIS_LABELS[i-1] }}
+      </option>
+      {% endfor %}
+    </select>
+    <select name="type" onchange="this.form.submit()">
+      <option value="">Tous types</option>
+      <option value="recette" {{ 'selected' if type_filtre=='recette' }}>💰 Recettes</option>
+      <option value="depense" {{ 'selected' if type_filtre=='depense' }}>💸 Dépenses</option>
+    </select>
+    <input type="hidden" name="onglet" value="journal">
+    <div class="fbar-sep"></div>
+    <a href="{{ url_for('comptabilite') }}" class="fbar-reset">✕ Réinitialiser</a>
+
+    {# Conserve les filtres courants dans les liens d'export / impression #}
+    {% set qs = '?annee=' ~ annee ~ '&mois=' ~ mois_filtre ~ '&type=' ~ type_filtre %}
+    <div class="fbar-actions">
+      <div class="fbar-dd">
+        <button type="button" class="fbar-btn" onclick="toggleExportMenu(event)">
+          ⇅ Import / Export <span class="caret">▼</span>
+        </button>
+        <div class="fbar-menu" id="exportMenu">
+          <a href="{{ url_for('comptabilite_export_csv') }}{{ qs }}">📄 Exporter en CSV</a>
+          <a href="{{ url_for('comptabilite_imprimer') }}{{ qs }}" target="_blank">📕 Exporter en PDF</a>
+          <div class="fbar-menu-sep"></div>
+          <button type="button" onclick="document.getElementById('impCsvInput').click()">📥 Importer un CSV</button>
+        </div>
+      </div>
+      <a class="fbar-btn" href="{{ url_for('comptabilite_imprimer') }}{{ qs }}" target="_blank">🖨️ Imprimer</a>
+    </div>
+
+    <span class="fbar-count">
+      <span class="fc-ico">📊</span>
+      <span class="fc-num">{{ ecritures|length }}</span>
+      opération{{ 's' if ecritures|length > 1 }}
+    </span>
+  </div>
+</form>
+
+{# Formulaire caché pour l'import CSV #}
+<form id="impCsvForm" method="POST" action="{{ url_for('comptabilite_importer_csv') }}"
+      enctype="multipart/form-data" style="display:none;">
+  <input type="file" id="impCsvInput" name="fichier_csv" accept=".csv"
+         onchange="if(this.files.length){ this.form.submit(); }">
+</form>
+
+<!-- ── JOURNAL ── -->
+<div class="cpt-journal">
+  <div class="jnl-head">
+    <h3>📋 Journal des écritures</h3>
+    <div class="jnl-sync">
+      <span class="jnl-dot" style="background:var(--or);animation:pulse 2s infinite;"></span>
+      Aucune importation automatique — utilisez <strong style="color:var(--or);">⚡ Comptabiliser</strong> pour importer toutes les opérations
+    </div>
+  </div>
+  <table class="jnl-tbl">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Type</th>
+        <th>Catégorie</th>
+        <th>Libellé</th>
+        <th>Mode paiement</th>
+        <th>Source</th>
+        <th>Montant</th>
+        <th style="text-align:center;">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for e in ecritures %}
+    <tr class="{{ 'rr' if e.type_ecriture=='recette' else 'rd' }}">
+      <td>
+        <div style="font-size:11px;font-weight:700;color:var(--texte);">
+          {{ e.date_ecriture[8:10] }}/{{ e.date_ecriture[5:7] }}/{{ e.date_ecriture[0:4] }}
+        </div>
+      </td>
+      <td>
+        {% if e.type_ecriture == 'recette' %}
+          <span class="br br-rec">💰 Recette</span>
+        {% else %}
+          <span class="br br-dep">💸 Dépense</span>
+        {% endif %}
+      </td>
+      <td>
+        <span style="background:var(--gris);color:var(--gris3);padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;border:1px solid var(--gris2);">
+          {{ e.categorie }}
+        </span>
+      </td>
+      <td>
+        <div style="font-size:12px;font-weight:600;color:var(--texte);">{{ e.libelle }}</div>
+        {% if e.motif %}<div style="font-size:10px;color:var(--bleu2);font-weight:600;margin-top:2px;">🏷️ {{ e.motif }}</div>{% endif %}
+        {% if e.notes %}<div style="font-size:10px;color:var(--gris3);margin-top:1px;">{{ e.notes }}</div>{% endif %}
+      </td>
+      <td style="font-size:11px;color:var(--gris3);font-weight:500;">
+        {% if e.mode_paiement %}
+        {% set modes={'especes':('💵','Espèces'),'carte_bancaire':('💳','Carte'),'wave':('📱','Wave'),'orange_money':('🟠','Orange M.'),'mtn_money':('🟡','MTN'),'moov_money':('🔵','Moov'),'virement':('🏦','Virement'),'cheque':('📄','Chèque')} %}
+        {% set mp = modes.get(e.mode_paiement, ('💵', e.mode_paiement)) %}
+        {{ mp[0] }} {{ mp[1] }}
+        {% else %}—{% endif %}
+      </td>
+      <td>
+        {% if e.source %}
+          {% if e.source in ['avoir', 'avoir_fournisseur', 'depense'] %}
+            <span class="br" style="background:#fef9c3;color:#a16207;border:1px solid #fde047;font-size:9px;">⚡ {{ e.source | capitalize }}</span>
+          {% else %}
+            <span class="br br-src">🔗 {{ e.source | capitalize }}</span>
+          {% endif %}
+        {% else %}
+          <span class="br br-man">✏️ Manuel</span>
+        {% endif %}
+      </td>
+      <td>
+        <div class="{{ 'm-rec' if e.type_ecriture=='recette' else 'm-dep' }}">
+          {{ '+' if e.type_ecriture=='recette' else '−' }}{{ e.montant | fcfa }}
+        </div>
+        <div style="font-size:9px;color:var(--gris3);margin-top:1px;">{{ cfg.devise if cfg else 'FCFA' }}</div>
+      </td>
+      <td style="text-align:center;">
+        {% if not e.source %}
+        <a href="{{ url_for('ecriture_delete', id=e.id) }}"
+          onclick="return confirm('Supprimer cette écriture ?')"
+          class="btn btn-danger btn-sm" title="Supprimer">🗑</a>
+        {% else %}
+        <span title="Générée automatiquement" style="font-size:16px;cursor:help;">🔒</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" style="padding:0;">
+      <div class="jnl-empty">
+        <div class="je-ico">📒</div>
+        <div class="je-title">Aucune écriture pour cette période</div>
+        <div class="je-sub">Ajoutez une écriture manuelle ou vérifiez les filtres</div>
+      </div>
+    </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+
+</div>{# /onglet-journal #}
+
+
+{# ─── VUE GRAND LIVRE ─── #}
+<div id="onglet-grand_livre" style="{{ '' if onglet == 'grand_livre' else 'display:none;' }}">
+{% set comptes_gl = {} %}
+{% for e in grand_livre %}
+  {% if e.compte not in comptes_gl %}{% if comptes_gl.update({e.compte: []}) %}{% endif %}{% endif %}
+  {% if comptes_gl[e.compte].append(e) %}{% endif %}
+{% endfor %}
+
+{% if grand_livre %}
+{% for compte, lignes in comptes_gl.items() %}
+{% set total_debit  = lignes | selectattr('debit',  'ne', 0) | sum(attribute='debit')  %}
+{% set total_credit = lignes | selectattr('credit', 'ne', 0) | sum(attribute='credit') %}
+{% set solde = total_credit - total_debit %}
+<div class="gl-compte">
+  <div class="gl-compte-head" onclick="toggleGL('gl-{{ compte|replace(' ','_') }}')">
+    <div class="gl-compte-title">
+      <span style="font-size:16px;">📂</span>
+      {{ compte }}
+      <span style="font-size:11px;background:var(--gris);color:var(--gris3);padding:2px 8px;border-radius:10px;font-weight:600;">{{ lignes|length }} mouvement{{ 's' if lignes|length > 1 }}</span>
+    </div>
+    <div class="gl-compte-kpi">
+      <span class="gl-kpi" style="color:#16a34a;">Crédit : {{ total_credit | fcfa }}</span>
+      <span style="color:var(--gris2);">|</span>
+      <span class="gl-kpi" style="color:#dc2626;">Débit : {{ total_debit | fcfa }}</span>
+      <span style="color:var(--gris2);">|</span>
+      <span class="gl-kpi" style="color:{{ '#16a34a' if solde >= 0 else '#dc2626' }};">Solde : {{ '+' if solde >= 0 }}{{ solde | fcfa }}</span>
+      <span style="font-size:12px;color:var(--gris3);margin-left:4px;">▼</span>
+    </div>
+  </div>
+  <div id="gl-{{ compte|replace(' ','_') }}">
+    <table class="gl-compte-tbl">
+      <thead><tr>
+        <th>Date</th><th>Libellé</th><th>Référence</th>
+        <th style="text-align:right;">Débit</th>
+        <th style="text-align:right;">Crédit</th>
+        <th style="text-align:right;">Solde cumulé</th>
+      </tr></thead>
+      <tbody>
+      {% set solde_cum = namespace(v=0) %}
+      {% for l in lignes %}
+      {% set solde_cum.v = solde_cum.v + l.credit - l.debit %}
+      <tr>
+        <td style="font-size:11px;font-weight:700;white-space:nowrap;">{{ l.date[8:10] }}/{{ l.date[5:7] }}/{{ l.date[0:4] }}</td>
+        <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ l.libelle }}</td>
+        <td><span style="font-size:10px;color:var(--gris3);background:var(--gris);padding:2px 8px;border-radius:10px;">{{ l.source or 'Manuel' }}</span></td>
+        <td class="right" style="color:#dc2626;">{{ l.debit | fcfa if l.debit else '—' }}</td>
+        <td class="right" style="color:#16a34a;">{{ l.credit | fcfa if l.credit else '—' }}</td>
+        <td class="right" style="font-weight:800;color:{{ '#16a34a' if solde_cum.v >= 0 else '#dc2626' }};">{{ '+' if solde_cum.v >= 0 }}{{ solde_cum.v | fcfa }}</td>
+      </tr>
+      {% endfor %}
+      <tr class="gl-solde-row">
+        <td colspan="3" style="color:var(--gris3);font-size:11px;">TOTAL {{ compte }}</td>
+        <td class="right" style="color:#dc2626;">{{ total_debit | fcfa }}</td>
+        <td class="right" style="color:#16a34a;">{{ total_credit | fcfa }}</td>
+        <td class="right" style="color:{{ '#16a34a' if solde >= 0 else '#dc2626' }};">{{ '+' if solde >= 0 }}{{ solde | fcfa }}</td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="cpt-journal"><div class="jnl-empty">
+  <div class="je-ico">📚</div>
+  <div class="je-title">Aucune écriture pour le Grand Livre</div>
+  <div class="je-sub">Comptabilisez vos opérations pour voir les mouvements par compte</div>
+</div></div>
+{% endif %}
+</div>{# /onglet-grand_livre #}
+
+
+{# ─── VUE BALANCE ─── #}
+<div id="onglet-balance" style="{{ '' if onglet == 'balance' else 'display:none;' }}">
+{% set total_debit_bal  = balance | sum(attribute='total_debit') %}
+{% set total_credit_bal = balance | sum(attribute='total_credit') %}
+{% set eq_ok = (total_debit_bal | round(2)) == (total_credit_bal | round(2)) %}
+<div class="cpt-journal">
+  <div class="jnl-head">
+    <h3>⚖️ Balance des comptes — {{ annee }}</h3>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="bal-eq {{ 'bal-eq-ok' if eq_ok else 'bal-eq-err' }}">
+        {{ '✅ Balance équilibrée' if eq_ok else '⚠️ Balance déséquilibrée' }}
+      </span>
+    </div>
+  </div>
+  {% if balance %}
+  <table class="bal-tbl">
+    <thead><tr>
+      <th>Compte</th>
+      <th class="right">Débit total</th>
+      <th class="right">Crédit total</th>
+      <th class="right">Solde débiteur</th>
+      <th class="right">Solde créditeur</th>
+    </tr></thead>
+    <tbody>
+    {% for b in balance %}
+    {% set solde = b.total_credit - b.total_debit %}
+    <tr>
+      <td><strong>{{ b.compte }}</strong></td>
+      <td class="right" style="color:#dc2626;">{{ b.total_debit | fcfa }}</td>
+      <td class="right" style="color:#16a34a;">{{ b.total_credit | fcfa }}</td>
+      <td class="right" style="color:#dc2626;">{{ b.total_debit | fcfa if b.total_debit > b.total_credit else '—' }}</td>
+      <td class="right" style="color:#16a34a;">{{ b.total_credit | fcfa if b.total_credit > b.total_debit else '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot class="bal-tfoot">
+      <tr>
+        <td><strong>TOTAUX</strong></td>
+        <td class="right">{{ total_debit_bal | fcfa }}</td>
+        <td class="right">{{ total_credit_bal | fcfa }}</td>
+        <td class="right">—</td>
+        <td class="right">—</td>
+      </tr>
+    </tfoot>
+  </table>
+  {% else %}
+  <div class="jnl-empty">
+    <div class="je-ico">⚖️</div>
+    <div class="je-title">Aucune donnée de balance</div>
+    <div class="je-sub">Comptabilisez vos opérations pour voir la balance</div>
+  </div>
+  {% endif %}
+</div>
+</div>{# /onglet-balance #}
+
+
+{# ─── VUE BILAN ─── #}
+<div id="onglet-bilan" style="{{ '' if onglet == 'bilan' else 'display:none;' }}">
+<div class="bilan-grid">
+
+  <!-- ACTIF -->
+  <div class="bilan-card">
+    <div class="bilan-card-head">
+      <h3>🏦 ACTIF</h3>
+      <span class="bilan-total-pill" style="color:#1d4ed8;border-color:#93c5fd;background:#dbeafe;">
+        {{ bilan.total_actif | fcfa }}
+      </span>
+    </div>
+    <table class="bilan-tbl">
+      <tr class="bilan-section-row"><td colspan="2">Actif circulant</td></tr>
+      <tr><td>💰 Trésorerie (recettes encaissées)</td><td>{{ bilan.tresorerie | fcfa }}</td></tr>
+      <tr><td>📄 Créances clients</td><td>{{ bilan.creances | fcfa }}</td></tr>
+      <tr><td>📦 Stock (valeur d'achat)</td><td>{{ bilan.valeur_stock | fcfa }}</td></tr>
+      <tr class="bilan-total-row">
+        <td><strong>Total Actif</strong></td>
+        <td style="color:#1d4ed8;">{{ bilan.total_actif | fcfa }}</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- PASSIF -->
+  <div class="bilan-card">
+    <div class="bilan-card-head">
+      <h3>📋 PASSIF</h3>
+      <span class="bilan-total-pill" style="color:#b91c1c;border-color:#fca5a5;background:#fee2e2;">
+        {{ bilan.total_passif | fcfa }}
+      </span>
+    </div>
+    <table class="bilan-tbl">
+      <tr class="bilan-section-row"><td colspan="2">Capitaux propres</td></tr>
+      <tr><td>💼 Capital (résultat net {{ annee }})</td>
+          <td style="color:{{ '#16a34a' if bilan.resultat_net >= 0 else '#dc2626' }};">
+            {{ '+' if bilan.resultat_net >= 0 }}{{ bilan.resultat_net | fcfa }}
+          </td></tr>
+      <tr class="bilan-section-row"><td colspan="2">Dettes</td></tr>
+      <tr><td>🏭 Dettes fournisseurs</td><td>{{ bilan.dettes_fourn | fcfa }}</td></tr>
+      <tr><td>📦 Achats non réglés</td><td>{{ bilan.depenses_non_reglees | fcfa }}</td></tr>
+      <tr class="bilan-total-row">
+        <td><strong>Total Passif</strong></td>
+        <td style="color:#b91c1c;">{{ bilan.total_passif | fcfa }}</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- Résultat net bilan -->
+<div class="bilan-result-card">
+  <div class="bilan-result-title">Résultat net {{ annee }}</div>
+  <div class="bilan-result-val" style="color:{{ '#4ade80' if bilan.resultat_net >= 0 else '#f87171' }};">
+    {{ '+' if bilan.resultat_net >= 0 }}{{ bilan.resultat_net | fcfa }}
+    <span style="font-size:14px;opacity:.7;">{{ cfg.devise if cfg else 'FCFA' }}</span>
+  </div>
+  <div style="margin-top:10px;font-size:12px;opacity:.6;">
+    {{ '✅ Exercice bénéficiaire' if bilan.resultat_net >= 0 else '⚠️ Exercice déficitaire' }}
+    — Recettes {{ bilan.total_recettes | fcfa }} · Dépenses {{ bilan.total_depenses | fcfa }}
+  </div>
+</div>
+</div>{# /onglet-bilan #}
+
+
+<!-- ══ MODAL : Écriture manuelle ══ -->
+<div id="modalAddEcriture" class="modal-overlay">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>✏️ Nouvelle écriture</h3>
+      <button class="modal-close" onclick="closeModal('modalAddEcriture')">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('ecriture_add') }}">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Type *</label>
+            <select name="type_ecriture" required>
+              <option value="recette">💰 Recette</option>
+              <option value="depense">💸 Dépense</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Date *</label>
+            <input name="date_ecriture" id="ecritureDate" type="date" required>
+          </div>
+          <div class="form-group">
+            <label>Catégorie *</label>
+            <select name="categorie" required>
+              <optgroup label="── Recettes">
+                {% for cat in ['Ventes marchandises','Règlements clients','Autres recettes'] %}
+                <option>{{ cat }}</option>{% endfor %}
+              </optgroup>
+              <optgroup label="── Dépenses">
+                {% for cat in ['Achats marchandises','Transport','Loyer','Électricité','Internet','Personnel','Marketing','Réparations','Logiciels','Taxes','Autre'] %}
+                <option>{{ cat }}</option>{% endfor %}
+              </optgroup>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Mode paiement</label>
+            <select name="mode_paiement">
+              <option value="especes">💵 Espèces</option>
+              <option value="wave">📱 Wave</option>
+              <option value="orange_money">🟠 Orange Money</option>
+              <option value="mtn_money">🟡 MTN Money</option>
+              <option value="virement">🏦 Virement</option>
+              <option value="carte_bancaire">💳 Carte</option>
+              <option value="cheque">📄 Chèque</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label>Libellé *</label>
+            <input name="libelle" required placeholder="Description de l'opération…">
+          </div>
+          <div class="form-group full">
+            <label>Montant ({{ cfg.devise if cfg else 'FCFA' }}) *</label>
+            <input name="montant" type="number" step="1" min="0" required placeholder="0">
+          </div>
+          <div class="form-group full">
+            <label>Motif</label>
+            <input type="text" name="motif" placeholder="Ex: Règlement facture, apport…" style="width:100%;height:36px;padding:0 10px;border:1.5px solid var(--gris2);border-radius:6px;font-size:12px;font-family:inherit;box-sizing:border-box;">
+          </div>
+          <div class="form-group full">
+            <label>Notes</label>
+            <textarea name="notes" rows="2" placeholder="Informations complémentaires…"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeModal('modalAddEcriture')" class="btn btn-sec">Annuler</button>
+        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('ecritureDate').value = new Date().toISOString().split('T')[0];
+
+// Menu déroulant Import / Export
+function toggleExportMenu(e) {
+  e.stopPropagation();
+  var m = document.getElementById('exportMenu');
+  if (m) m.classList.toggle('open');
+}
+document.addEventListener('click', function () {
+  var m = document.getElementById('exportMenu');
+  if (m) m.classList.remove('open');
+});
+
+function switchOnglet(nom) {
+  ['journal','grand_livre','balance','bilan'].forEach(function(id) {
+    var el = document.getElementById('onglet-' + id);
+    if (el) el.style.display = (id === nom) ? '' : 'none';
+  });
+  document.querySelectorAll('.cpt-tab').forEach(function(btn) {
+    btn.classList.remove('active');
+  });
+  event.currentTarget.classList.add('active');
+}
+
+function toggleGL(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+function importerConfirm() {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = [
+    'position:fixed;inset:0;z-index:9999;',
+    'background:rgba(10,20,50,.6);',
+    'backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);',
+    'display:flex;align-items:center;justify-content:center;padding:16px;',
+    'animation:_fadeIn .18s ease;'
+  ].join('');
+
+  overlay.innerHTML = [
+    '<style>',
+    '@keyframes _fadeIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}',
+    '@keyframes _slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}',
+    '._imp-card{animation:_slideUp .22s cubic-bezier(.34,1.56,.64,1);}',
+    '._imp-btn{transition:all .15s;outline:none;}',
+    '._imp-btn:hover{transform:translateY(-2px);filter:brightness(1.08);}',
+    '._imp-btn:active{transform:translateY(0);filter:brightness(.96);}',
+    '</style>',
+
+    '<div class="_imp-card" style="',
+      'background:linear-gradient(160deg,#0f2347 0%,#1a3a6c 50%,#2563eb 100%);',
+      'border-radius:20px;padding:36px 32px 28px;',
+      'max-width:380px;width:100%;',
+      'box-shadow:0 24px 64px rgba(10,20,50,.5),0 0 0 1px rgba(255,255,255,.08);',
+      'font-family:Inter,-apple-system,sans-serif;text-align:center;position:relative;overflow:hidden;',
+    '">',
+
+    /* Décor arrière-plan */
+    '<div style="position:absolute;inset:0;pointer-events:none;',
+      'background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(37,99,235,.35),transparent 70%);"></div>',
+
+    /* Icône animée */
+    '<div style="',
+      'width:64px;height:64px;border-radius:18px;margin:0 auto 18px;',
+      'background:linear-gradient(135deg,rgba(255,255,255,.15),rgba(255,255,255,.06));',
+      'border:1.5px solid rgba(255,255,255,.18);',
+      'display:flex;align-items:center;justify-content:center;',
+      'font-size:28px;',
+      'box-shadow:0 8px 24px rgba(37,99,235,.3);',
+      'position:relative;z-index:1;',
+    '">⚡</div>',
+
+    /* Titre */
+    '<div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px;',
+      'letter-spacing:-.3px;position:relative;z-index:1;">',
+      'Comptabiliser les opérations',
+    '</div>',
+
+    /* Sous-titre */
+    '<div style="font-size:13px;color:rgba(255,255,255,.6);line-height:1.7;',
+      'margin-bottom:14px;position:relative;z-index:1;">',
+      'Toutes ces opérations seront importées dans le journal comptable :',
+    '</div>',
+
+    /* Liste unifiée — tout déclenché par ce bouton */
+    '<div style="',
+      'display:grid;grid-template-columns:1fr 1fr;gap:6px;',
+      'margin-bottom:16px;position:relative;z-index:1;',
+      'padding:12px 14px;border-radius:10px;',
+      'background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);',
+    '">',
+      '<div style="font-size:11px;color:rgba(255,255,255,.65);">🧾 Factures vente</div>',
+      '<div style="font-size:11px;color:rgba(255,255,255,.65);">💳 Règlements clients</div>',
+      '<div style="font-size:11px;color:rgba(255,255,255,.65);">🛒 Commandes achat</div>',
+      '<div style="font-size:11px;color:rgba(255,255,255,.65);">💸 Règlements fourn.</div>',
+      '<div style="font-size:11px;color:rgba(255,255,255,.65);">💸 Dépenses</div>',
+      '<div style="font-size:11px;color:rgba(255,255,255,.65);">👷 Paies</div>',
+      '<div style="font-size:11px;color:rgba(255,255,255,.65);">🤝 Commissions</div>',
+      '<div style="font-size:11px;color:rgba(255,255,255,.65);">↩️ Avoirs clients</div>',
+      '<div style="font-size:11px;color:rgba(255,255,255,.65);">↩️ Avoirs fournisseurs</div>',
+    '</div>',
+
+    /* Info idempotent */
+    '<div style="',
+      'display:flex;align-items:center;gap:8px;',
+      'background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);',
+      'border-radius:10px;padding:10px 14px;margin-bottom:24px;',
+      'font-size:11px;color:rgba(255,255,255,.5);text-align:left;',
+      'position:relative;z-index:1;',
+    '">',
+      '<span style="font-size:14px;flex-shrink:0;">💡</span>',
+      '<span>Les opérations déjà comptabilisées <strong style="color:rgba(255,255,255,.7);">ne seront pas dupliquées</strong>.</span>',
+    '</div>',
+
+    /* Boutons */
+    '<div style="display:flex;gap:10px;position:relative;z-index:1;">',
+      '<button id="_impNon" class="_imp-btn" style="',
+        'flex:1;padding:12px;border-radius:10px;',
+        'border:1.5px solid rgba(255,255,255,.18);',
+        'background:rgba(255,255,255,.08);',
+        'color:rgba(255,255,255,.7);font-size:14px;font-weight:700;',
+        'cursor:pointer;font-family:inherit;',
+      '">✕ Non</button>',
+      '<button id="_impOui" class="_imp-btn" style="',
+        'flex:1;padding:12px;border-radius:10px;border:none;',
+        'background:linear-gradient(135deg,#4ade80,#16a34a);',
+        'color:white;font-size:14px;font-weight:800;',
+        'cursor:pointer;font-family:inherit;',
+        'box-shadow:0 4px 16px rgba(22,163,74,.4);',
+      '">⚡ Oui, comptabiliser</button>',
+    '</div>',
+
+    '</div>'
+  ].join('');
+
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', function(e){ if(e.target===overlay) overlay.remove(); });
+  document.getElementById('_impNon').onclick  = function(){ overlay.remove(); };
+  document.getElementById('_impOui').onclick  = function(){
+    overlay.remove();
+    var hi = document.getElementById('importIcon');
+    var hl = document.getElementById('importLabel');
+    if (hi && hl) {
+      hi.textContent = '⏳';
+      hl.textContent = 'Comptabilisation en cours…';
+    }
+    window.location.href = "{{ url_for('comptabilite_importer') }}";
+  };
+  return false;
+}
+</script>
+
+{# ── Patch thème sombre — comptabilite ── #}
+<style>
+/* Cartes / sections */
+[data-theme="dark"] .gl-solde-row td { background:var(--bg-thead) !important; }
+[data-theme="dark"] .cat-card        { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .jnl-tbl tr.rr td { background:#052e16 !important; }
+[data-theme="dark"] .jnl-tbl tr.rd td { background:#3d0f0f !important; }
+[data-theme="dark"] .cpt-card      { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .cpt-card-head { background:var(--bg-thead) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .cpt-card-head h3 { color:var(--texte) !important; }
+[data-theme="dark"] .bilan-card,
+[data-theme="dark"] .bilan-card-head { background:var(--bg-card) !important; border-color:var(--border) !important; }
+[data-theme="dark"] .table-card,
+[data-theme="dark"] [style*="background:var(--bg-card)"] { background:var(--bg-card) !important; border-color:var(--border) !important; }
+
+/* Onglets comptabilité */
+[data-theme="dark"] a[style*="border:1.5px solid"],
+[data-theme="dark"] [style*="background:var(--bg-card)"][style*="border:1px solid var(--border)"] {
+  background:var(--bg-card) !important; border-color:var(--border) !important; color:var(--texte) !important;
+}
+
+/* Tableaux internes (journal, grand livre, balance) */
+[data-theme="dark"] .jnl-tbl thead tr,
+[data-theme="dark"] .gl-compte-tbl thead tr,
+[data-theme="dark"] .bal-tbl thead tr,
+[data-theme="dark"] thead tr          { background:var(--bg-thead) !important; }
+[data-theme="dark"] thead th          { color:var(--gris3) !important; border-bottom-color:var(--border) !important; }
+[data-theme="dark"] .jnl-tbl td,
+[data-theme="dark"] .gl-compte-tbl td,
+[data-theme="dark"] .bal-tbl td,
+[data-theme="dark"] tbody td          { border-bottom-color:var(--border) !important; }
+[data-theme="dark"] tbody tr:hover td { background:var(--row-hover) !important; }
+
+/* Inputs / selects */
+[data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
+  background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+}
+
+/* Badges */
+[data-theme="dark"] .badge-info    { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] .badge-success { background:#052e16 !important; color:#4ade80 !important; }
+[data-theme="dark"] .badge-warning { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] .badge-danger  { background:#3d0f0f !important; color:#fca5a5 !important; }
+[data-theme="dark"] .badge-sec     { background:#1c2128 !important; color:#8b949e !important; }
+
+/* Inline badge achat / couleurs sémantiques */
+[data-theme="dark"] [style*="background:#fef9c3"] { background:#3d2e00 !important; color:#fbbf24 !important; }
+[data-theme="dark"] [style*="background:#fee2e2"] { background:#3d0f0f !important; color:#fca5a5 !important; }
+[data-theme="dark"] [style*="background:#dbeafe"] { background:#1d3461 !important; color:#93c5fd !important; }
+[data-theme="dark"] [style*="background:#dcfce7"] { background:#052e16 !important; color:#4ade80 !important; }
+[data-theme="dark"] [style*="background:#f0fdf4"] { background:#052e16 !important; color:#4ade80 !important; }
+
+/* Modal */
+[data-theme="dark"] .modal         { background:var(--modal-bg) !important; }
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer  { border-color:var(--border) !important; }
+[data-theme="dark"] .btn-sec       { background:#1c2128 !important; color:#8b949e !important; border-color:var(--border) !important; }
+
+@media (prefers-color-scheme:dark) {
+  [data-theme="system"] .cpt-card      { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .cpt-card-head { background:var(--bg-thead) !important; border-bottom-color:var(--border) !important; }
+  [data-theme="system"] .bilan-card    { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .table-card { background:var(--bg-card) !important; border-color:var(--border) !important; }
+  [data-theme="system"] .jnl-tbl thead tr,
+  [data-theme="system"] .gl-compte-tbl thead tr,
+  [data-theme="system"] .bal-tbl thead tr,
+  [data-theme="system"] thead tr    { background:var(--bg-thead) !important; }
+  [data-theme="system"] thead th    { color:var(--gris3) !important; border-bottom-color:var(--border) !important; }
+  [data-theme="system"] tbody td    { border-bottom-color:var(--border) !important; }
+  [data-theme="system"] input, [data-theme="system"] select, [data-theme="system"] textarea {
+    background:var(--bg-input) !important; color:var(--texte) !important; border-color:var(--border) !important;
+  }
+  [data-theme="system"] .badge-info    { background:#1d3461 !important; color:#93c5fd !important; }
+  [data-theme="system"] .badge-success { background:#052e16 !important; color:#4ade80 !important; }
+  [data-theme="system"] .badge-warning { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] .badge-danger  { background:#3d0f0f !important; color:#fca5a5 !important; }
+  [data-theme="system"] [style*="background:#fef9c3"] { background:#3d2e00 !important; color:#fbbf24 !important; }
+  [data-theme="system"] [style*="background:#fee2e2"] { background:#3d0f0f !important; color:#fca5a5 !important; }
+  [data-theme="system"] [style*="background:#dbeafe"] { background:#1d3461 !important; color:#93c5fd !important; }
+  [data-theme="system"] [style*="background:#dcfce7"] { background:#052e16 !important; color:#4ade80 !important; }
+  [data-theme="system"] .modal       { background:var(--modal-bg) !important; }
+  [data-theme="system"] .btn-sec     { background:#1c2128 !important; color:#8b949e !important; }
+}
+</style>
+{% endblock %}
